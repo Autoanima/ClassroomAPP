@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>內掃區檢查</title>
+  <meta name="description" content="教室內掃區清潔檢查地圖、工作分配、座位表與線上選位、隨機抽籤。">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="內掃檢查">
+  <link rel="icon" type="image/png" href="icon_192.png">
+  <link rel="apple-touch-icon" href="icon_192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta http-equiv="Cache-Control" content="no-cache">
+  <!-- 每次開啟都載入最新版本（加入主畫面後也一樣），不使用快取的舊檔 -->
+  <script>window.__V = Date.now(); document.write('<link rel="stylesheet" href="css/style.css?v=' + __V + '">');</script>
+</head>
+<body class="locked">
+  <form id="lock" class="lock" autocomplete="off">
+    <div class="lock-card">
+      <div class="lock-icon" aria-hidden="true">🔒</div>
+      <h1 id="lockTitle">內掃區檢查</h1>
+      <div class="lock-tabs" role="group" aria-label="登入身分">
+        <button type="button" data-lk="staff" aria-pressed="true">老師／幹部</button>
+        <button type="button" data-lk="student" aria-pressed="false">學生選位</button>
+      </div>
+      <div id="stepPw">
+        <p class="muted">導師：輸入密碼<br>幹部：輸入自己的身分證字號</p>
+        <input id="lockPw" type="password" aria-label="密碼或身分證字號" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" maxlength="30">
+      </div>
+      <div id="stepWho" hidden>
+        <p class="muted">使用人是誰？</p>
+        <select id="whoSel" aria-label="使用人"></select>
+      </div>
+      <div id="stepId" hidden>
+        <p class="muted">請輸入你的身分證字號</p>
+        <input id="lockId" class="idno" type="password" inputmode="text" aria-label="身分證字號" autocapitalize="characters" autocorrect="off" autocomplete="off" spellcheck="false" maxlength="12">
+        <p id="stuHint" class="muted small">只用來確認身分，不會存在手機上。</p>
+      </div>
+      <p id="lockMsg" class="lock-msg" role="alert"></p>
+      <button id="lockBtn" class="btn btn--primary" type="submit">下一步</button>
+    </div>
+  </form>
+
+  <header class="topbar">
+    <div class="topbar-row">
+      <div class="title">
+        <h1>內掃區</h1>
+        <span id="dateLabel" class="muted"></span>
+      </div>
+      <button id="viewBtn" class="view-toggle" type="button" aria-pressed="false">
+        <span class="vt-s">🧑‍🎓 學生視角</span><span class="vt-t">🧑‍🏫 老師視角</span>
+      </button>
+      <button id="syncBtn" class="icon-btn" type="button" aria-label="雲端同步狀態">
+        <span id="syncDot" class="sync-dot"></span>
+      </button>
+      <button id="settingsBtn" class="icon-btn" type="button" aria-label="設定">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.7 7.7 0 0 0 0-2l2-1.6a.5.5 0 0 0 .1-.6l-1.9-3.3a.5.5 0 0 0-.6-.2l-2.4 1a7.3 7.3 0 0 0-1.7-1l-.4-2.6a.5.5 0 0 0-.5-.4h-3.8a.5.5 0 0 0-.5.4l-.4 2.6a7.3 7.3 0 0 0-1.7 1l-2.4-1a.5.5 0 0 0-.6.2L2.5 8.8a.5.5 0 0 0 .1.6l2 1.6a7.7 7.7 0 0 0 0 2l-2 1.6a.5.5 0 0 0-.1.6l1.9 3.3c.1.2.4.3.6.2l2.4-1c.5.4 1.1.7 1.7 1l.4 2.6c0 .2.2.4.5.4h3.8c.3 0 .5-.2.5-.4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.4 1c.2.1.5 0 .6-.2l1.9-3.3a.5.5 0 0 0-.1-.6zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>
+      </button>
+    </div>
+    <div class="topbar-row stats">
+      <button id="userChip" class="chip chip--user" type="button" aria-label="切換使用人"></button>
+      <span id="progress" class="progress clean-only"></span>
+      <button id="issueChip" class="chip chip--issue clean-only" type="button" hidden></button>
+      <span id="resetInfo" class="muted small clean-only"></span>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="功能">
+      <button type="button" role="tab" data-tab="clean">🧹 掃地檢查</button>
+      <button type="button" role="tab" data-tab="points">⚖️ 加扣分</button>
+      <button type="button" role="tab" data-tab="jobs">👥 工作分配</button>
+      <button type="button" role="tab" data-tab="seats">🪑 座位</button>
+      <button type="button" role="tab" data-tab="draw">🎲 抽籤</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="tab-clean" class="tab" hidden>
+      <div class="area-bar"><div id="areaSw" class="subsw" role="tablist">
+        <button type="button" data-area="in">🏫 內掃區</button><button type="button" data-area="out">🌳 外掃區</button>
+      </div></div>
+      <ul class="legend" aria-label="圖例">
+        <li><span class="lg lg--good">✓</span>好</li>
+        <li><span class="lg lg--bad">✕</span>不好</li>
+        <li><span class="lg lg--absent">缺</span>未出席</li>
+        <li><span class="lg lg--issue">!</span>有狀況</li>
+      </ul>
+      <div id="cleanIn">
+        <div class="map-tools"><span class="orient"></span><span class="zoom"><button type="button" data-zoom="-1" aria-label="縮小">－</button><span class="zoom-val"></span><button type="button" data-zoom="1" aria-label="放大">＋</button></span></div>
+        <div class="map-wrap" data-map="clean"><div class="map" aria-label="內掃區地圖"></div></div>
+      </div>
+      <div id="cleanOut" hidden><div id="outMap" class="out-map"></div></div>
+      <p class="foot-hint muted small">點地圖上的物件或地板即可記錄。按右下角「匯出報表」彙整並通知。</p>
+    </section>
+
+    <section id="tab-points" class="tab" hidden>
+      <div id="pointsRoot"></div>
+    </section>
+
+    <section id="tab-jobs" class="tab" hidden>
+      <div class="map-tools"><span class="orient"></span><span class="zoom"><button type="button" data-zoom="-1" aria-label="縮小">－</button><span class="zoom-val"></span><button type="button" data-zoom="1" aria-label="放大">＋</button></span></div>
+      <div class="map-wrap" data-map="jobs"><div class="map" aria-label="工作分配地圖"></div></div>
+      <div id="jobsList" class="jobs"></div>
+    </section>
+
+    <section id="tab-seats" class="tab" hidden>
+      <div id="seatTop" class="seat-top"></div>
+      <div class="map-tools"><span class="orient"></span><span class="zoom"><button type="button" data-zoom="-1" aria-label="縮小">－</button><span class="zoom-val"></span><button type="button" data-zoom="1" aria-label="放大">＋</button></span></div>
+      <div class="map-wrap" data-map="seats"><div class="map seats-map" aria-label="座位圖"></div></div>
+      <div id="seatPanel"></div>
+    </section>
+
+    <section id="tab-draw" class="tab" hidden>
+      <div id="drawRoot"></div>
+    </section>
+  </main>
+
+  <button id="compassBtn" class="compass clean-only" type="button" aria-label="彙整報表">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm-1 7V3.5L18.5 9zM8 13h8v2H8zm0 4h8v2H8zm0-8h3v2H8z"/></svg>
+    <span class="compass-label">匯出報表</span>
+  </button>
+
+  <div id="backdrop" class="backdrop" hidden></div>
+  <section id="sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
+    <div class="sheet-grip" aria-hidden="true"></div>
+    <div id="sheetBody" class="sheet-body"></div>
+  </section>
+
+  <div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="照片檢視" hidden>
+    <img id="lbImg" alt="">
+    <div class="lb-top">
+      <span id="lbCaption"></span>
+      <button id="lbClose" class="lb-btn" type="button" aria-label="關閉">✕</button>
+    </div>
+    <button id="lbPrev" class="lb-btn lb-nav lb-prev" type="button" aria-label="上一張">‹</button>
+    <button id="lbNext" class="lb-btn lb-nav lb-next" type="button" aria-label="下一張">›</button>
+    <a id="lbDrive" class="lb-drive" target="_blank" rel="noopener" hidden>在雲端硬碟開啟</a>
+  </div>
+
+  <div id="swapBar" class="swapbar" hidden></div>
+
+  <div id="ask" class="ask" role="alertdialog" aria-modal="true" aria-labelledby="askMsg" hidden>
+    <div class="ask-card">
+      <p id="askMsg"></p>
+      <div class="actions"><button type="button" class="btn" id="askNo">取消</button><button type="button" class="btn btn--primary" id="askYes">確定</button></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <input id="fileInput" type="file" accept="image/*" multiple hidden>
+  <input id="faceInput" type="file" accept="image/*" hidden>
+
+  <script>
+    ['config.js', 'js/map-data.js', 'js/sel-engine.js', 'js/app.js', 'js/seats.js', 'js/points.js', 'js/draw.js'].forEach(function (s) {
+      document.write('<script src="' + s + '?v=' + __V + '"><\/script>');
+    });
+    document.write('<script>App.boot();<\/script>');
+    // 確保每次打開都是最新版本（見 sw.js）
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(function () {});
+  </script>
+</body>
+</html>
