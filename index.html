@@ -85,7 +85,7 @@
         <li><span class="lg lg--issue">!</span>有狀況</li>
       </ul>
       <div id="cleanIn">
-        <div class="map-tools"><span class="orient"></span><span class="zoom"><button type="button" data-zoom="-1" aria-label="縮小">－</button><span class="zoom-val"></span><button type="button" data-zoom="1" aria-label="放大">＋</button></span></div>
+        <div class="map-tools"><span class="orient"></span><button type="button" class="compact-btn" data-compact aria-pressed="false" title="去掉物件之間多餘的空隙，讓整間教室塞進畫面">↔ 緊縮排列</button><span class="zoom"><button type="button" data-zoom="-1" aria-label="縮小">－</button><span class="zoom-val"></span><button type="button" data-zoom="1" aria-label="放大">＋</button></span></div>
         <div class="map-wrap" data-map="clean"><div class="map" aria-label="內掃區地圖"></div></div>
       </div>
       <div id="cleanOut" hidden><div id="outMap" class="out-map"></div></div>
@@ -97,14 +97,14 @@
     </section>
 
     <section id="tab-jobs" class="tab" hidden>
-      <div class="map-tools"><span class="orient"></span><span class="zoom"><button type="button" data-zoom="-1" aria-label="縮小">－</button><span class="zoom-val"></span><button type="button" data-zoom="1" aria-label="放大">＋</button></span></div>
+      <div class="map-tools"><span class="orient"></span><button type="button" class="compact-btn" data-compact aria-pressed="false" title="去掉物件之間多餘的空隙，讓整間教室塞進畫面">↔ 緊縮排列</button><span class="zoom"><button type="button" data-zoom="-1" aria-label="縮小">－</button><span class="zoom-val"></span><button type="button" data-zoom="1" aria-label="放大">＋</button></span></div>
       <div class="map-wrap" data-map="jobs"><div class="map" aria-label="工作分配地圖"></div></div>
       <div id="jobsList" class="jobs"></div>
     </section>
 
     <section id="tab-seats" class="tab" hidden>
       <div id="seatTop" class="seat-top"></div>
-      <div class="map-tools"><span class="orient"></span><span class="zoom"><button type="button" data-zoom="-1" aria-label="縮小">－</button><span class="zoom-val"></span><button type="button" data-zoom="1" aria-label="放大">＋</button></span></div>
+      <div class="map-tools"><span class="orient"></span><button type="button" class="compact-btn" data-compact aria-pressed="false" title="去掉物件之間多餘的空隙，讓整間教室塞進畫面">↔ 緊縮排列</button><span class="zoom"><button type="button" data-zoom="-1" aria-label="縮小">－</button><span class="zoom-val"></span><button type="button" data-zoom="1" aria-label="放大">＋</button></span></div>
       <div class="map-wrap" data-map="seats"><div class="map seats-map" aria-label="座位圖"></div></div>
       <div id="seatPanel"></div>
     </section>

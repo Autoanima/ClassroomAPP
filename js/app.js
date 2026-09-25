@@ -220,7 +220,76 @@
   // ── 地圖繪製 ──
   // 老師視角＝整張圖轉 180 度：位置對調，但文字保持正向
   const flipOn = () => ui.view === 'teacher';
-  const boxOf = mode => (mode === 'seats' ? D.seatBox : D.box);
+
+  // ── 緊縮排列：物件寬度不變，只把物件之間橫向的空隙縮到 GAP，讓整間教室塞進手機寬度 ──
+  // 座位、玻璃、花圃等「實體」物件會擋住壓縮；地板、走廊、黑板（stretch）跟著縮窄；
+  // float 物件（講桌、下方垃圾桶…）寬度不變、依中心點移動，彼此不重疊。
+  const GAP = 12;
+  const ORIGINAL = { deco: D.deco, items: D.items, seats: D.seats, cols: D.seatCols, box: D.box, seatBox: D.seatBox };
+  let compactCache = null;
+  function compactLayout() {
+    if (compactCache) return compactCache;
+    const elastic = s => s.floor || s.stretch || (s.cls && !s.id && s.cls !== 'winbg'); // 裝飾（除了窗戶底色）也跟著縮
+    const solid = s => !elastic(s) && !s.float;
+    // 實體物件佔用的橫向區間，合併重疊的
+    const spans = [...D.deco, ...D.items, ...D.seats].filter(solid).map(s => [s.x, s.x + s.w]).sort((a, b) => a[0] - b[0]);
+    const merged = [];
+    spans.forEach(([a, b]) => {
+      const last = merged[merged.length - 1];
+      if (last && a <= last[1]) last[1] = Math.max(last[1], b); else merged.push([a, b]);
+    });
+    // 每個區間的新起點：和前一個區間只留 GAP（原本比 GAP 小就不動）
+    const x0 = D.box.x0;
+    let pos = x0;
+    const map = merged.map(([a, b], i) => {
+      const prevEnd = i ? merged[i - 1][1] : x0;
+      const na = pos + Math.min(a - prevEnd, GAP);
+      pos = na + (b - a);
+      return { a, b, na };
+    });
+    const lastEnd = merged[merged.length - 1][1];
+    const nx1 = pos + Math.min(D.box.x1 - lastEnd, GAP);
+    // 原座標 → 新座標（區間內平移，空隙內線性壓縮）
+    const X = x => {
+      let prevA = x0, prevNA = x0;
+      for (const m of map) {
+        if (x < m.a) return prevNA + (x - prevA) * ((m.na - prevNA) / Math.max(1e-6, m.a - prevA));
+        if (x <= m.b) return m.na + (x - m.a);
+        prevA = m.b; prevNA = m.na + (m.b - m.a);
+      }
+      return prevNA + (x - prevA) * ((nx1 - prevNA) / Math.max(1e-6, D.box.x1 - prevA));
+    };
+    const shiftPts = (pts, dx) => pts && pts.map(([px, py]) => [px + dx, py]);
+    const move = s => {
+      if (elastic(s)) {
+        const nx = X(s.x);
+        return { ...s, x: nx, w: X(s.x + s.w) - nx, poly: s.poly && s.poly.map(([px, py]) => [X(px), py]), labelAt: s.labelAt && [X(s.labelAt[0]), s.labelAt[1]] };
+      }
+      const nx = s.float ? X(s.x + s.w / 2) - s.w / 2 : X(s.x);
+      return { ...s, x: nx, poly: shiftPts(s.poly, nx - s.x), labelAt: s.labelAt && [s.labelAt[0] + nx - s.x, s.labelAt[1]] };
+    };
+    const items = D.items.map(move);
+    // float 物件如果和同一高度的其他 float 重疊，就往右推開
+    const floats = items.filter(s => s.float).sort((a, b) => a.x - b.x);
+    const sameRow = (p, s) => p.y < s.y + s.h && s.y < p.y + p.h;
+    floats.forEach((s, i) => floats.slice(0, i).forEach(p => {
+      if (sameRow(p, s) && s.x < p.x + p.w + 6) s.x = p.x + p.w + 6;
+    }));
+    // 推到教室右牆外面的，整排往左收回來
+    const wallR = X(1430);
+    [...floats].reverse().forEach((s, i, arr) => {
+      const right = arr.slice(0, i).filter(p => sameRow(p, s)).reduce((m, p) => Math.min(m, p.x - 6), wallR);
+      if (s.x + s.w > right) s.x = right - s.w;
+    });
+    compactCache = {
+      deco: D.deco.map(move), items, seats: D.seats.map(move),
+      cols: D.seatCols.map(c => ({ ...c, x: X(c.x) })),
+      box: { ...D.box, x1: nx1 }, seatBox: { ...D.seatBox, x0: X(D.seatBox.x0), x1: Math.min(nx1, X(D.seatBox.x1)) },
+    };
+    return compactCache;
+  }
+  const layout = () => (ui.compact ? compactLayout() : ORIGINAL);
+  const boxOf = mode => (mode === 'seats' ? layout().seatBox : layout().box);
   const pc = f => (f * 100).toFixed(3) + '%';
   function rectStyle(s, box) {
     const W = box.x1 - box.x0, H = box.y1 - box.y0;
@@ -240,10 +309,11 @@
 
   function mapHtml(mode, opts = {}) {
     const box = boxOf(mode);
+    const L = layout();
     const live = mode !== 'seats';
     let h = '';
-    D.deco.forEach(s => { if (inBox(s, box)) h += `<div class="d d--${s.cls}" style="${rectStyle(s, box)}"></div>`; });
-    D.items.forEach(it => {
+    L.deco.forEach(s => { if (inBox(s, box)) h += `<div class="d d--${s.cls}" style="${rectStyle(s, box)}"></div>`; });
+    L.items.forEach(it => {
       if (!inBox(it, box)) return;
       if (!live && !it.floor && !inBox({ x: it.x + it.w / 2, y: it.y + it.h / 2, w: 0, h: 0 }, box)) return;
       const cls = `it it--${it.cls}${it.floor ? ' floor' : ''}${it.bin ? (it.square ? ' bin sq' : ' bin') : ''}`;
@@ -268,10 +338,10 @@
         h += `<div class="binlbl" style="${rectStyle({ x: it.x - 8, y: it.y + it.h + 10, w: it.w + 16, h: 118 }, box)}"><span>${esc(it.name)}</span></div>`;
       }
     });
-    D.seatCols.forEach((c, i) => {
+    L.cols.forEach((c, i) => {
       h += `<div class="collbl" style="${rectStyle({ x: c.x - 10, y: D.colLabelY, w: D.seatW + 20, h: 28 }, box)}">第${i + 1}排</div>`;
     });
-    D.seats.forEach(s => {
+    L.seats.forEach(s => {
       if (mode === 'seats') {
         h += `<button type="button" class="seat ${opts.seatClass ? opts.seatClass(s) : ''}" data-seat="${s.id}" aria-label="第${s.col}排第${s.row}個" style="${rectStyle(s, box)}">${opts.seatHtml ? opts.seatHtml(s) : ''}</button>`;
       } else {
@@ -294,6 +364,7 @@
     const m = maps[name];
     if (!m) return;
     m.el.innerHTML = mapHtml(m.mode, m.opts);
+    m.el.classList.toggle('compact', !!ui.compact);
     sizeMap(name);
     if (name === 'clean') { if (ui.area === 'out') renderOutClean(); refresh(); }
     m.opts.after?.();
@@ -308,7 +379,8 @@
     if (!m || !m.wrap.clientWidth) return;
     const box = boxOf(m.mode), W = box.x1 - box.x0, H = box.y1 - box.y0;
     const { fit } = levels(m);
-    const want = ui.zoom[name] ?? Math.max(fit, MIN_U[name] || fit);
+    // 緊縮排列時預設「剛好塞進畫面寬度」
+    const want = ui.zoom[name] ?? (ui.compact ? fit : Math.max(fit, MIN_U[name] || fit));
     const u = Math.max(fit, want);
     m.u = u;
     m.el.style.width = Math.floor(W * u) + 'px';
@@ -348,6 +420,24 @@
     });
     toast(flipOn() ? '老師視角：黑板在下方' : '學生視角：黑板在上方');
   });
+
+  // ── 緊縮排列開關（手機第一次打開時預設開啟）──
+  if (ui.compact == null) ui.compact = window.innerWidth < 600;
+  function paintCompact() {
+    document.querySelectorAll('[data-compact]').forEach(b => {
+      b.setAttribute('aria-pressed', !!ui.compact);
+      b.textContent = ui.compact ? '↔ 緊縮排列：開' : '↔ 緊縮排列';
+    });
+  }
+  document.querySelectorAll('[data-compact]').forEach(b => b.addEventListener('click', () => {
+    ui.compact = !ui.compact;
+    ui.zoom = {}; // 換成新的寬度，縮放重新以「塞進畫面」為準
+    saveUi();
+    paintCompact();
+    Object.values(maps).forEach(m => { renderMap(m.name); m.wrap.scrollLeft = 0; });
+    toast(ui.compact ? '緊縮排列：已去掉多餘的空隙' : '已恢復原本的比例');
+  }));
+  paintCompact();
 
   // ── 分頁 ──
   const TABS = ['clean', 'points', 'jobs', 'seats', 'draw'];

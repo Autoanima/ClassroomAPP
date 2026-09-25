@@ -19,6 +19,9 @@
  *   poly      不規則形狀（多邊形頂點）
  *   labelAt   名稱標示的位置
  *   short     地圖上顯示的簡稱（位置太小時用，例如玻璃只寫 A）
+ *   stretch   緊縮排列時跟著縮窄（大面積的東西，例如黑板）；地板也會縮窄
+ *   float     緊縮排列時寬度不變、位置跟著移動，但不擋住空隙的壓縮（例如講桌、下方垃圾桶）
+ *             其他物件（座位、玻璃、花圃…）寬度不變，只把它們之間的空隙縮小
  */
 window.MAP_DATA = {
   title: '內掃區檢查',
@@ -42,7 +45,7 @@ window.MAP_DATA = {
     { id: 'floorB', name: '教室5～8排，掃拖', cls: 'fb', job: 'J08', floor: true, x: 915, y: 130, w: 513, h: 1115, labelAt: [1190, 1138] },
 
     // ── 黑板與講台 ──
-    { id: 'board', name: '黑板、黑板溝、板擦機、講台', cls: 'tan', job: 'J01', x: 626, y: 133, w: 580, h: 118, labelAt: [916, 205] },
+    { id: 'board', name: '黑板、黑板溝、板擦機、講台', cls: 'tan', job: 'J01', stretch: true, x: 626, y: 133, w: 580, h: 118, labelAt: [916, 205] },
     { id: 'eraser', name: '板擦機', cls: 'tan', job: 'J01', x: 1380, y: 133, w: 46, h: 78 },
 
     // ── 窗戶與門 ──
@@ -59,15 +62,15 @@ window.MAP_DATA = {
     { id: 'backDoor', name: '後門玻璃、門框', cls: 'door2', job: 'J05', x: 372, y: 966, w: 42, h: 132 },
 
     // ── 紫色：各線材、飲水機、拖把區、抹布區、掃具區、講桌整理 ──
-    { id: 'desk', name: '講桌', cls: 'purple', job: 'J15', x: 853, y: 253, w: 125, h: 50 },
+    { id: 'desk', name: '講桌', cls: 'purple', job: 'J15', float: true, x: 853, y: 253, w: 125, h: 50 },
     { id: 'cables', name: '各線材', cls: 'purple', job: 'J15', x: 1210, y: 133, w: 46, h: 78 },
-    { id: 'rags', name: '抹布區', cls: 'purple', job: 'J15', x: 1208, y: 78, w: 168, h: 38 },
+    { id: 'rags', name: '抹布區', cls: 'purple', job: 'J15', float: true, x: 1208, y: 78, w: 168, h: 38 },
     { id: 'mops', name: '拖把區', cls: 'purple', job: 'J15', x: 40, y: 376, w: 107, h: 152,
       poly: [[40, 376], [147, 376], [147, 528], [117, 528], [117, 408], [40, 408]], labelAt: [132, 468] },
     { id: 'fountain', name: '飲水機', cls: 'purple', job: 'J15', x: 268, y: 730, w: 90, h: 90 },
-    { id: 'tools', name: '掃具區', cls: 'purple', job: 'J15', x: 1314, y: 1192, w: 108, h: 48 },
+    { id: 'tools', name: '掃具區', cls: 'purple', job: 'J15', float: true, x: 1314, y: 1192, w: 108, h: 48 },
 
-    { id: 'arrange', name: '排桌椅', cls: 'hot', job: 'J09', x: 853, y: 1157, w: 125, h: 52 },
+    { id: 'arrange', name: '排桌椅', cls: 'hot', job: 'J09', float: true, x: 853, y: 1157, w: 125, h: 52 },
 
     // ── 走廊外 ──
     { id: 'sink', name: '洗手槽', cls: 'sink', job: 'J16', x: 122, y: 845, w: 62, h: 180 },
@@ -82,9 +85,9 @@ window.MAP_DATA = {
     { id: 'binGen1', name: '一般垃圾', cls: 'b-gen', job: 'J10', bin: true, x: 475, y: 130, w: 44, h: 44 },
     { id: 'binPlastic', name: '塑膠容器', cls: 'b-plastic', job: 'DUTY', bin: true, x: 528, y: 130, w: 44, h: 44 },
     { id: 'binPC', name: '紙容器', cls: 'b-pc', job: 'DUTY', bin: true, square: true, x: 583, y: 132, w: 42, h: 42 },
-    { id: 'binGen2', name: '一般垃圾', cls: 'b-gen', job: 'J10', bin: true, x: 1130, y: 1196, w: 44, h: 44 },
-    { id: 'binPet', name: '寶特瓶', cls: 'b-pet', job: 'J12', bin: true, x: 1192, y: 1196, w: 44, h: 44 },
-    { id: 'binAlu', name: '鋁箔包', cls: 'b-alu', job: 'J11', bin: true, x: 1255, y: 1196, w: 44, h: 44 },
+    { id: 'binGen2', name: '一般垃圾', cls: 'b-gen', job: 'J10', bin: true, float: true, x: 1130, y: 1196, w: 44, h: 44 },
+    { id: 'binPet', name: '寶特瓶', cls: 'b-pet', job: 'J12', bin: true, float: true, x: 1192, y: 1196, w: 44, h: 44 },
+    { id: 'binAlu', name: '鋁箔包', cls: 'b-alu', job: 'J11', bin: true, float: true, x: 1255, y: 1196, w: 44, h: 44 },
   ],
 
   // 座位：8 排，每排由前（黑板）往後編第 1 個、第 2 個…；座位代號「3-2」＝第 3 排第 2 個

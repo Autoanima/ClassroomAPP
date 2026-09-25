@@ -158,6 +158,14 @@ select:focus { outline: 2px solid var(--accent); outline-offset: 0; }
 /* ── 地圖 ── */
 .map-tools { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 16px 4px; font-size: 13px; color: var(--muted); }
 .orient { font-weight: 700; }
+.map-tools { flex-wrap: wrap; row-gap: 4px; }
+.compact-btn {
+  margin-left: auto; border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px;
+  padding: 4px 10px; font-size: 13px; font-weight: 700; color: var(--muted); white-space: nowrap;
+}
+/* 緊縮排列：地板名稱太長時換行，不要和隔壁重疊 */
+.map.compact .floor-chip { white-space: normal; max-width: 92%; width: max-content; text-align: center; justify-content: center; line-height: 1.25; }
+.compact-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
 .zoom { display: inline-flex; align-items: center; gap: 4px; }
 .zoom button { width: 32px; height: 32px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface); font-weight: 700; font-size: 16px; }
 .zoom-val { min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
