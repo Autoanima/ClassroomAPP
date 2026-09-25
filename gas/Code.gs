@@ -21,7 +21,7 @@ const CONFIG = {
   SHEET_ID: '',                        // 留空 = 使用這份試算表（綁定在試算表上的腳本）
   FOLDER_NAME: '商一甲 APP 專用',        // 雲端硬碟資料夾：排名、大頭照、檢查照片（改名沒關係，程式記得資料夾代號）
   CLASS_NAME: '商一甲',
-  ROSTER_SHEET: '幹部名單',            // 這份試算表裡的全班名單＋幹部職位（科別、座號、姓名、職位…、身分證字號）
+  ROSTER_SHEET: '學生/幹部名單',            // 這份試算表裡的全班名單＋幹部職位（科別、座號、姓名、職位…、身分證字號）
   FACE_FOLDER_ID: '',                  // 大頭照資料夾代號（也可以在網頁「座位 → 交換位置 → 大頭照資料夾」貼連結設定）
   FACE_FOLDER: '大頭照',
   PHOTO_FOLDER: '內掃檢查',            // 掃地檢查照片（每天的都放在一起）
@@ -350,7 +350,7 @@ function rosterWithOutdoor() {
   const r = getRoster();
   r.outdoor = getOutdoor();
   // 幹部名單工作表：網頁依職位自動排入幹部欄位（不用在網頁上再填）
-  if (getSS().getSheetByName(CONFIG.ROSTER_SHEET)) { r.cadres = cadreMap(); r.cadreSource = CONFIG.ROSTER_SHEET; }
+  if (rosterSheet()) { r.cadres = cadreMap(); r.cadreSource = rosterSheet().getName(); }
   if (!r.jobs.CLASS || !r.jobs.CLASS[0]) r.jobs.CLASS = [CONFIG.CLASS_NAME];
   return r;
 }
@@ -405,10 +405,17 @@ function tableOf(values, name) {
     cRank: col(/^(班排名|名次|排名|班級名次)$/), cId: cId, cRoles: cRoles,
   };
 }
+/** 名單工作表：CONFIG.ROSTER_SHEET，找不到就試常見的名稱（改過分頁名稱也讀得到） */
+function rosterSheet() {
+  const ss = getSS();
+  const names = [CONFIG.ROSTER_SHEET, '學生/幹部名單', '學生／幹部名單', '幹部名單', '學生名單', '名單'];
+  for (let i = 0; i < names.length; i++) { const sh = ss.getSheetByName(names[i]); if (sh) return sh; }
+  return null;
+}
 /** 全班名單：這份試算表的「幹部名單」工作表；沒有的話用資料夾裡的名單試算表 */
 function rosterTable() {
-  const sh = getSS().getSheetByName(CONFIG.ROSTER_SHEET);
-  if (sh) return tableOf(sh.getDataRange().getDisplayValues(), CONFIG.ROSTER_SHEET);
+  const sh = rosterSheet();
+  if (sh) return tableOf(sh.getDataRange().getDisplayValues(), sh.getName());
   return readTable(rosterFile());
 }
 /** 幹部：同學 → 職位（同一人可以兼好幾個） */
@@ -563,7 +570,7 @@ function stuLogin(idno) {
 
 /** 幹部名單（工作分配工作表中 I、C 開頭的列）：同學 → 職位 */
 function cadreRoles(key) {
-  if (getSS().getSheetByName(CONFIG.ROSTER_SHEET)) return cadreMap()[key] || [];
+  if (rosterSheet()) return cadreMap()[key] || [];
   const sh = getSS().getSheetByName(SHEET_ROSTER);
   if (!sh || sh.getLastRow() < 2) return [];
   return sh.getRange(2, 1, sh.getLastRow() - 1, 3).getDisplayValues()
