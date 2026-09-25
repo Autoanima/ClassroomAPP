@@ -205,16 +205,35 @@ function ping() {
 }
 
 // ── 工作分配：存在「工作分配」工作表（也可以直接在試算表裡改）──
+/** 試算表裡的負責人可以只寫姓名（例如「陳彥方」），會自動換成「多04陳彥方」；已經是完整寫法的不變 */
+function nameFixer() {
+  let list = [];
+  try { list = getStudents().students; } catch (e) { /* 沒有名單就不換 */ }
+  const set = {}, byName = {};
+  list.forEach(k => { set[k] = 1; const m = k.match(/^\D*?\d+(.*)$/); const n = m ? m[1] : k; byName[n] = byName[n] ? '' : k; });
+  const byCode = {};
+  list.forEach(k => { const c = faceCode(k); if (c) byCode[c] = k; });
+  return s => {
+    s = String(s || '').normalize('NFKC').replace(/\s+/g, '');
+    if (!s || set[s]) return s;
+    if (byName[s]) return byName[s];                 // 只寫姓名
+    const c = faceCode(s);                            // 座號寫法不同（多4陳彥方、多 04）
+    if (c && byCode[c]) return byCode[c];
+    return s;
+  };
+}
 function getRoster() {
   const sh = getSS().getSheetByName(SHEET_ROSTER);
-  const roster = { jobs: {}, inspectors: {} };
+  const roster = { jobs: {}, inspectors: {}, labels: {} };
   if (!sh || sh.getLastRow() < 2) return roster;
+  const fix = nameFixer();
   sh.getRange(2, 1, sh.getLastRow() - 1, 4).getDisplayValues().forEach(r => {
-    const id = String(r[0]).trim();
-    const names = [r[2], r[3]].map(s => String(s).trim()).filter(Boolean);
+    const id = String(r[0]).trim().toUpperCase();
+    const names = [r[2], r[3]].map(fix).filter(Boolean);
     if (!id) return;
+    if (id === 'CLASS') { roster.jobs.CLASS = [String(r[2]).trim()]; return; }
     if (/^[IC]\d+$/.test(id)) roster.inspectors[id] = names[0] || '';  // I＝環保股長、C＝其他幹部
-    else roster.jobs[id] = names;
+    else { roster.jobs[id] = names; if (String(r[1]).trim()) roster.labels[id] = String(r[1]).trim(); }
   });
   return roster;
 }
@@ -260,10 +279,11 @@ function outdoorSheet() {
 function readOutdoorRows(sh) {
   const out = { jobs: {}, inspectors: {}, labels: {} };
   if (!sh || sh.getLastRow() < 2) return out;
+  const fix = nameFixer();
   sh.getRange(2, 1, sh.getLastRow() - 1, 4).getDisplayValues().forEach(r => {
-    const id = String(r[0]).trim();
+    const id = String(r[0]).trim().toUpperCase();
     if (!id || id === 'CLASS') return;
-    const names = [r[2], r[3]].map(s => String(s).trim()).filter(Boolean);
+    const names = [r[2], r[3]].map(fix).filter(Boolean);
     out.labels[id] = String(r[1]).trim();
     if (/^I\d+$/.test(id)) out.inspectors[id] = names[0] || '';
     else out.jobs[id] = names;

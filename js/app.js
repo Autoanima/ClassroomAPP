@@ -228,12 +228,14 @@
   const cadresFromSheet = () => !!roster?.cadres;
   function applyRoster(r) {
     // outdoor：外掃區的工作分配（沒連結時 null）
-    const next = { jobs: r?.jobs || {}, inspectors: r?.inspectors || {}, outdoor: r && 'outdoor' in r ? r.outdoor : roster?.outdoor ?? null };
+    const next = { jobs: r?.jobs || {}, inspectors: r?.inspectors || {}, labels: r?.labels || {}, outdoor: r && 'outdoor' in r ? r.outdoor : roster?.outdoor ?? null };
     if (r?.cadres) { next.cadres = r.cadres; next.inspectors = { ...next.inspectors, ...slotsFromCadres(r.cadres) }; }
     const changed = JSON.stringify(next) !== JSON.stringify(roster);
     roster = next;
     store.set(LS.roster, roster);
-    D.items.forEach(it => { it.owners = jobOwners(it.job); });
+    // 工作內容以試算表「工作分配」裡寫的為準（沒寫就用內建的）
+    D.jobs.forEach(j => { j.defTitle ??= j.title; j.title = roster.labels?.[j.id] || j.defTitle; });
+    D.items.forEach(it => { it.owners = jobOwners(it.job); if (it.area === 'in') it.where = jobById[it.job]?.title || ''; });
     OUT_ITEMS.forEach(it => { it.owners = (roster.outdoor?.jobs?.[it.job] || []).filter(Boolean); });
     return changed;
   }
@@ -583,7 +585,7 @@
     chip.hidden = !issues;
     chip.textContent = `⚠ ${issues} 處有狀況`;
     const d = state.startedAt ? new Date(state.startedAt) : new Date();
-    $('#dateLabel').textContent = fmtDateW(d).slice(5);
+    $('#dateLabel').textContent = `${d.getMonth() + 1}/${d.getDate()}(${WEEK[d.getDay()]})`; // 短一點，放在身分標籤右邊
     updateResetInfo();
   }
 
@@ -1870,7 +1872,7 @@
     document.body.classList.toggle('role-teacher', isTeacher());
     paintDefog();
     setTimeout(loadDuty, 300);
-    $('#userChip').textContent = '👤 ' + (isStudent() ? settings.me : settings.inspector);
+    $('#userChip').innerHTML = '<span class="uc-ico">👤 </span>' + esc(isStudent() ? settings.me : settings.inspector);
     paintView();
     renderMap('clean'); renderMap('jobs');
     renderJobs();

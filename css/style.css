@@ -84,6 +84,23 @@ body.locked > :not(.lock):not(script):not(.test-banner) { display: none !importa
 .topbar-row { display: flex; align-items: center; gap: 6px; max-width: 1100px; margin: 0 auto; }
 .topbar-row.stats { margin-top: 2px; flex-wrap: wrap; row-gap: 4px; min-height: 24px; }
 /* 身分標籤放在「商一甲」右邊；檢查進度那一行只在掃地檢查時出現 */
+.title .t1 #dateLabel { flex: none; white-space: nowrap; font-size: 12px; }
+@media (max-width: 460px) {
+  .title .t1 { gap: 3px; max-width: 100%; }
+  .title .t1 h1 { font-size: 16px; }
+  .topbar .title .t1 .chip--user { font-size: 11px; padding: 1px 6px; }
+  .title .t1 #dateLabel { font-size: 11px; display: inline !important; }
+}
+/* 很窄的手機：右邊按鈕再縮一點，讓「商一甲＋身分＋日期」放得下 */
+@media (max-width: 400px) {
+  .topbar-row:first-child { gap: 2px; }
+  .topbar-row:first-child .icon-btn { width: 28px; }
+  #syncBtn { width: 22px !important; }
+  .uc-ico { display: none; }
+  .view-toggle .vt-one { padding: 4px 7px; }
+  .view-toggle { font-size: 12px; }
+}
+.title .t2:not(:has(.duty-chip:not([hidden]))) { display: none; }
 .title .t2 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; row-gap: 2px; min-width: 0; }
 .duty-chip { border: 0; background: none; padding: 0; font: inherit; font-size: 12px; font-weight: 700; color: var(--accent); cursor: pointer; white-space: nowrap; text-align: left; }
 .duty-chip.empty { color: var(--muted); font-weight: 600; text-decoration: underline dotted; }
