@@ -39,6 +39,8 @@ const CONFIG = {
   STEAL_PRICE: 10,                    // 竊盜卡：奪取別人的配件
   FIREWORK_PRICE: 1,                  // 煙火：放在某位同學的座位上，大家下次打開 App 時會看到
   SWAP_PRICE: 20,                     // 交換位置卡：和另一位同學強制對調座位
+  RANK_CARDS: { 1: 2, 2: 1, 3: 1, 4: 1, 5: 1 }, // 段考排名前五名自動獲得免費交換位置卡（第一名 2 張）；每份新的排名只發一次
+  SWAP_BAN_MINUS: 10,                 // 「加扣分紀錄」被扣的分數加起來超過這個數，就不能用交換位置卡
   CREATE_PRICE: 20,                   // 創造卡：同學上傳 PNG 變成新商品，預設售價（可以自己改 1–100）
   CREATE_PER_DAY: 3,                  // 每人每天最多創造幾個商品
   FIREWORK_DAYS: 3,                   // 煙火幾天內還會放給還沒看過的人
@@ -54,6 +56,8 @@ const HEAD_ROSTER = ['代號', '工作內容', '負責人1', '負責人2'];
 const SHEET_OUT = '外掃工作分配';     // 外掃區的工作分配（以這個 App 為主）
 const SHEET_SEATS = '座位表';
 const HEAD_SEATS = ['座位', '排', '個', '同學'];
+const SHEET_CARDS = '道具卡';          // 免費道具卡的發放紀錄（段考前五名）
+const HEAD_CARDS = ['時間', '同學', '卡片', '張數', '來源'];
 const SHEET_DEFSEAT = '預設座位';    // 導師按「把目前座位存成預設」存的（只存座號）
 const HEAD_DEFSEAT = ['座位', '座號'];
 const SHEET_SELLOG = '選位紀錄';
@@ -697,6 +701,7 @@ function decoMap(times) {
   return out;
 }
 function shopState(who) {
+  try { grantRankCards(); } catch (e) { /* 排名檔有問題時不影響商店 */ }
   const today = ymd(new Date());
   const inv = invRows();
   const cat = catalog().map(a => ({ id: a.id, name: a.name, price: a.price, src: a.src || '', t: a.t || 0, creator: a.creator || '' }));
@@ -718,6 +723,7 @@ function shopState(who) {
     swapped: spendRows().filter(x => x.use === '交換位置卡' && x.target === key && x.t >= since).map(x => ({ time: x.time, by: x.who, note: x.note })),
     inv: inv.filter(x => x.owner === key).map(x => ({ id: x.id, acc: x.acc, name: x.name, exp: x.exp, expired: x.exp < today, note: x.note })),
     deco: (decoRows()[key] || { layers: [] }).layers,
+    minus: minusOf(key), swapBan: CONFIG.SWAP_BAN_MINUS, freeSwap: freeSwapCards(key), rankCards: cardRows().filter(x => x.who === key).slice(-5).reverse(),
     unlimited: !!who.teacher, income: c.income, sales: who.teacher ? null : salesOf(key, inv), createPrice: CONFIG.CREATE_PRICE,
     // 導師：全班點數一覽
     admin: who.teacher ? students.map(k => {
@@ -798,11 +804,16 @@ function swapSeatCard(who, to) {
     const theirs = Object.keys(seats).find(id => seats[id] === to);
     if (!mine) throw new Error('你還沒有座位，不能交換');
     if (!theirs) throw new Error(to + ' 還沒有座位，不能交換');
-    const c = coinsOf(who.key);
-    if (c.coins < CONFIG.SWAP_PRICE) throw new Error('點數不夠（交換位置卡要 ' + CONFIG.SWAP_PRICE + ' 點，你有 ' + c.coins + ' 點）');
+    const m = minusOf(who.key);
+    if (m > CONFIG.SWAP_BAN_MINUS) throw new Error('你被扣的分數已經 ' + m + ' 分（超過 ' + CONFIG.SWAP_BAN_MINUS + ' 分），不能使用交換位置卡');
+    const free = freeSwapCards(who.key) > 0;
+    if (!free) {
+      const c = coinsOf(who.key);
+      if (c.coins < CONFIG.SWAP_PRICE) throw new Error('點數不夠（交換位置卡要 ' + CONFIG.SWAP_PRICE + ' 點，你有 ' + c.coins + ' 點）');
+    }
     seats[mine] = to; seats[theirs] = who.key;
     writeSeats(seats);
-    addSpend(who.key, CONFIG.SWAP_PRICE, '交換位置卡', to, mine + ' ⇄ ' + theirs);
+    addSpend(who.key, free ? 0 : CONFIG.SWAP_PRICE, '交換位置卡', to, mine + ' ⇄ ' + theirs + (free ? '（免費卡）' : ''));
   });
   return shopState(who);
 }
@@ -836,6 +847,51 @@ function delAcc(who, acc) {
   DriveApp.getFileById(acc.slice(2)).setTrashed(true);
   CacheService.getScriptCache().remove('ACC_CATALOG');
   return shopState(who);
+}
+/** 「加扣分紀錄」裡被扣的分數合計（正數） */
+function minusOf(key) {
+  const psh = pointsSheet();
+  let m = 0;
+  if (psh.getLastRow() > 1) psh.getRange(2, 2, psh.getLastRow() - 1, 2).getValues().forEach(r => { if (String(r[0]).trim() === key && Number(r[1]) < 0) m -= Number(r[1]); });
+  return m;
+}
+// ── 免費道具卡：段考前五名自動發放交換位置卡 ──
+function cardRows() {
+  const sh = getSS().getSheetByName(SHEET_CARDS);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_CARDS.length).getValues().map(r => ({
+    time: r[0] instanceof Date ? ymd(r[0]) : String(r[0]), who: String(r[1]).trim(), card: String(r[2]), n: Number(r[3]) || 0, from: String(r[4]),
+  }));
+}
+/** 還沒用掉的免費交換位置卡張數＝發放的 − 用掉的（點數 0 的交換位置卡） */
+function freeSwapCards(key) {
+  const got = cardRows().filter(x => x.who === key && x.card === '交換位置卡').reduce((t, x) => t + x.n, 0);
+  if (!got) return 0;
+  const used = spendRows().filter(x => x.who === key && x.use === '交換位置卡' && x.points === 0).length;
+  return Math.max(0, got - used);
+}
+/** 有新的排名檔（或排名前五名變了）就發卡；同一份排名只發一次。10 分鐘內只檢查一次 */
+function grantRankCards() {
+  const cache = CacheService.getScriptCache();
+  if (cache.get('RANK_CARD_CHECK')) return;
+  cache.put('RANK_CARD_CHECK', '1', 600);
+  const kf = rankFile();
+  if (!kf) return;
+  const r = readPeople();
+  const top = r.people.filter(p => CONFIG.RANK_CARDS[p.rank]).sort((a, b) => a.rank - b.rank);
+  if (!top.length) return;
+  const sig = kf.getId() + '|' + top.map(p => p.rank + ':' + p.key).join(',');
+  const props = PropertiesService.getScriptProperties();
+  const done = JSON.parse(props.getProperty('RANK_CARD_DONE') || '[]');
+  if (done.indexOf(sig) >= 0) return;
+  withLock(() => {
+    const sh = getSheet(SHEET_CARDS, HEAD_CARDS);
+    const now = new Date();
+    const rows = top.map(p => [now, p.key, '交換位置卡', CONFIG.RANK_CARDS[p.rank], kf.getName() + ' 第 ' + p.rank + ' 名']);
+    sh.getRange(sh.getLastRow() + 1, 1, rows.length, HEAD_CARDS.length).setValues(rows);
+    done.push(sig);
+    props.setProperty('RANK_CARD_DONE', JSON.stringify(done.slice(-30)));
+  });
 }
 /** 最近幾天的煙火（每支手機自己記得哪些已經看過） */
 function fireworksList() {

@@ -170,7 +170,7 @@
   function swapBanner() {
     if (card) {
       return `<div class="banner myturn"><div class="bn-main">🔀 交換位置卡：點一位同學的座位，和你對調</div>
-        <div class="bn-sub">對調後會扣 ${card} 點，並且真的儲存。<button type="button" class="link-btn" data-tr="cancelCard">取消</button></div></div>`;
+        <div class="bn-sub">${card === 'free' ? '使用 1 張免費交換位置卡（段考獎勵），不扣點數' : `對調後會扣 ${card} 點`}，並且真的儲存。<button type="button" class="link-btn" data-tr="cancelCard">取消</button></div></div>`;
     }
     return `<div class="banner warn"><div class="bn-main">🔒 要使用「交換位置卡」才能換座位</div>
       <div class="bn-sub">交換位置卡可以讓你和一位同學對調座位（只能是你自己和別人對調）。
@@ -178,7 +178,7 @@
   }
   // 商店按「交換位置卡」→ 到這裡點同學的座位
   A.useSwapCard = price => {
-    card = price || 20;
+    card = price === 0 ? 'free' : price || 20;
     sub = 'swap'; store.set(K.sub, sub);
     picked = null;
     A.showTab('seats');
@@ -188,7 +188,7 @@
     const me = A.me(), k = chart[id], mine = seatOf(me);
     if (!mine) { card = 0; renderAll(); return toast('你還沒有座位，不能用交換位置卡'); }
     if (!k || k === me) return toast('請點另一位同學的座位');
-    if (!await A.ask(`花 ${card} 點，和 ${k} 對調座位？\n（${seatName(mine)} ⇄ ${seatName(id)}）`, '對調！', true)) return;
+    if (!await A.ask(`${card === 'free' ? '用 1 張免費交換位置卡' : `花 ${card} 點`}，和 ${k} 對調座位？\n（${seatName(mine)} ⇄ ${seatName(id)}）`, '對調！', true)) return;
     try {
       await A.api('swapSeatCard', { to: k });
       card = 0;

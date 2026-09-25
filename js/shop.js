@@ -38,6 +38,8 @@
     const active = S.inv.filter(x => !x.expired);
     const used = new Set((S.deco || []).map(l => l.inv));
     let h = (S.stolen || []).map(x => `<div class="banner warn"><div class="bn-sub">⚠ 你的「${esc(x.name)}」被 ${esc(x.thief)} 用竊盜卡奪走了（${esc(x.time)}）</div></div>`).join('');
+    const banned = S.swapBan != null && S.minus > S.swapBan;
+    if (S.freeSwap) h += `<div class="banner ok"><div class="bn-main">🎉 段考前五名獎勵：你有 ${S.freeSwap} 張免費的交換位置卡</div><div class="bn-sub">${esc((S.rankCards || []).map(x => x.from).join('、'))}｜使用時不會扣點數</div></div>`;
     h += (S.swapped || []).map(x => `<div class="banner warn"><div class="bn-sub">🔀 ${esc(x.by)} 用交換位置卡和你對調了座位（${esc(x.time)}）</div></div>`).join('');
     h += `<div class="panel shop-me">
       <div class="shop-face"><span class="photo">${A.faceHtml(me)}</span></div>
@@ -64,7 +66,7 @@
     const othersN = Object.values(S.others || {}).flat().length;
     h += `<div class="panel"><h3>特殊道具</h3><div class="specials">
       <button type="button" class="special" data-s="firework"${S.coins >= S.fireworkPrice ? '' : ' disabled'}><span class="sp-ico">🎆</span><b>煙火</b><span class="muted small">放在同學的座位上，大家下次打開 App 時都會看到</span><span class="sp-price">💰 ${S.fireworkPrice} 點</span></button>
-      <button type="button" class="special swap" data-s="swap"${S.coins >= (S.swapPrice || 20) ? '' : ' disabled'}><span class="sp-ico">🔀</span><b>交換位置卡</b><span class="muted small">和另一位同學強制對調座位</span><span class="sp-price">💰 ${S.swapPrice || 20} 點</span></button>
+      <button type="button" class="special swap" data-s="swap"${!banned && (S.freeSwap || S.coins >= (S.swapPrice || 20)) ? '' : ' disabled'}><span class="sp-ico">🔀</span><b>交換位置卡</b><span class="muted small">${banned ? `你被扣了 ${S.minus} 分（超過 ${S.swapBan} 分），不能使用` : '和另一位同學強制對調座位'}</span><span class="sp-price">${S.freeSwap ? `🎟 免費卡 ${S.freeSwap} 張` : `💰 ${S.swapPrice || 20} 點`}</span></button>
       <button type="button" class="special steal" data-s="steal"${S.coins >= S.stealPrice && othersN ? '' : ' disabled'}><span class="sp-ico">🦹</span><b>竊盜卡</b><span class="muted small">把別人的一個配件變成你的（到期日不變）${othersN ? '' : '｜目前沒有人有配件'}</span><span class="sp-price">💰 ${S.stealPrice} 點</span></button>
       <button type="button" class="special create" data-s="create"><span class="sp-ico">🎨</span><b>創造卡</b><span class="muted small">上傳自己畫的 PNG 變成新商品；別人買了，點數算給你</span><span class="sp-price">免費建立</span></button>
     </div></div>`;
@@ -238,7 +240,7 @@
   function openSwap() {
     if (!A.useSwapCard) return openSwapList();
     if (!A.seatOf?.(S.me)) return toast('你還沒有座位，不能用交換位置卡');
-    A.useSwapCard(S.swapPrice || 20);
+    A.useSwapCard(S.freeSwap ? 0 : S.swapPrice || 20);
   }
   function openSwapList() {
     const mine = A.seatOf?.(S.me);
@@ -594,6 +596,7 @@
     return {
       ok: true, me, today, coins: earned - spent2, earned, spent: spent2, catalog: list, stealPrice: 10, fireworkPrice: 1, others,
       stolen: spend.filter(x => x.use === '竊盜卡' && x.target === me).map(x => ({ time: x.time, thief: x.who, name: x.note })),
+      minus: pts.filter(r => r.student === me && r.points < 0).reduce((t, r) => t - r.points, 0), swapBan: 10,
       swapPrice: 20, swapped: spend.filter(x => x.use === '交換位置卡' && x.target === me).map(x => ({ time: x.time, by: x.who, note: x.note })),
       plus: [{ date: today, points: 10, reason: '🧪 測試模式送的點數' }, ...plus.map(r => ({ date: r.date, points: r.points, reason: r.reason }))],
       classmates: A.DEMO_STUDENTS.filter(k => k !== me),
@@ -623,6 +626,7 @@
     }
     if (action === 'swapSeatCard') {
       const st = await testState();
+      if (st.minus > 10) throw new Error(`你被扣的分數已經 ${st.minus} 分（超過 10 分），不能使用交換位置卡`);
       if (st.coins < 20) throw new Error(`點數不夠（交換位置卡要 20 點，你有 ${st.coins} 點）`);
       const chart = store.get('indoor.testchart.v1.test', {});
       const mine = Object.keys(chart).find(id => chart[id] === me), theirs = Object.keys(chart).find(id => chart[id] === p.to);
