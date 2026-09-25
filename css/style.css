@@ -67,6 +67,11 @@ body.locked > :not(.lock):not(script):not(.test-banner) { display: none !importa
 .lock-card .small { margin-top: 8px; }
 .lock-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--bg); padding: 4px; border-radius: 12px; margin-bottom: 14px; }
 .lock-tabs button { border: 0; background: transparent; border-radius: 9px; padding: 8px 4px; font-weight: 700; font-size: 14px; color: var(--muted); }
+/* 任課老師（客人）佔左半邊；右半邊上面「老師／幹部」、下面「學生選位」 */
+.lock-tabs { grid-template-rows: auto auto; }
+.lock-tabs [data-lk="guest"] { grid-column: 1; grid-row: 1 / span 2; font-size: 16px; }
+.lock-tabs [data-lk="staff"] { grid-column: 2; grid-row: 1; }
+.lock-tabs [data-lk="student"] { grid-column: 2; grid-row: 2; }
 .lock-tabs button[aria-pressed="true"] { background: var(--surface); color: var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
 .lock-msg { min-height: 1.5em; color: var(--issue); font-size: 14px; margin: 6px 0 !important; }
 .lock-card.shake { animation: shake .35s; }
