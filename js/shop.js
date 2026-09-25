@@ -105,13 +105,23 @@
   }
 
   // 導師：新增配件的方法、全班點數（放在最下面，預設收起來）
+  // 特殊道具的小圖示＋數量（滑過去看全名）
+  const ITEM_ICON = { 免費交換位置卡: '🎟', 交換位置卡: '🔀', 抽籤必中卡: '🎯', 抽籤轉移卡: '🔄', 小太陽卡: '☀️', 小雨傘卡: '☂️', 煙火: '🎆', 竊盜卡: '🦹' };
+  const itemChips = m => Object.entries(m || {}).filter(([, c]) => c > 0).map(([n, c]) => `<span class="it-chip" title="${esc(n)}">${ITEM_ICON[n] || '•'}${c > 1 ? '×' + c : ''}</span>`).join('') || '';
   function adminHtml() {
     let h = '';
     h += `<details class="panel"><summary><b>成員點數</b> <span class="muted small">（${S.admin.length} 人）</span></summary>
       <p class="muted small">點數＝加分累計＋作品收入 − 用掉的（配件、竊盜卡、煙火、交換位置卡）。扣分不會減少點數。</p>
-      <table class="admin"><thead><tr><th>同學</th><th>加分</th><th>已用</th><th>剩餘</th><th>配件</th></tr></thead><tbody>`;
-    S.admin.forEach(r => { h += `<tr><td>${esc(r.key)}</td><td>${r.earned}${r.income ? `<div class="muted small">作品 ${r.income}</div>` : ''}</td><td>${r.spent}</td><td><b>${r.coins}</b></td><td>${r.active || ''}</td></tr>`; });
-    return h + `</tbody></table></details>`;
+      <p class="muted small">「持有道具」＝還沒用或還在生效的特殊道具；「用過」＝用過幾次。</p>
+      <div class="admin-wrap"><table class="admin"><thead><tr><th>同學</th><th>加分</th><th>已用</th><th>剩餘</th><th>配件</th><th>持有道具</th><th>用過</th></tr></thead><tbody>`;
+    S.admin.forEach(r => {
+      h += `<tr><td>${esc(r.key)}</td><td>${r.earned}${r.income ? `<div class="muted small">作品 ${r.income}</div>` : ''}</td><td>${r.spent}</td><td><b>${r.coins}</b></td><td>${r.active || ''}</td>
+        <td class="items">${itemChips(r.held)}</td><td class="items muted">${itemChips(r.used)}</td></tr>`;
+    });
+    // 全班合計
+    const sum = key => { const t = {}; S.admin.forEach(r => Object.entries(r[key] || {}).forEach(([n, c]) => { t[n] = (t[n] || 0) + c; })); return t; };
+    h += `</tbody><tfoot><tr><td colspan="5"><b>全班合計</b></td><td class="items">${itemChips(sum('held'))}</td><td class="items muted">${itemChips(sum('used'))}</td></tr></tfoot>`;
+    return h + `</table></div></details>`;
   }
 
   $('#shopRoot').addEventListener('click', async e => {
@@ -636,7 +646,12 @@
     const admin = A.isTeacher() ? A.DEMO_STUDENTS.map(k => {
       const e = 10 + pts.filter(r => r.student === k && r.points > 0).reduce((t, r) => t + r.points, 0);
       const s = inv.filter(x => x.buyer === k).reduce((t, x) => t + x.price, 0);
-      return { key: k, earned: e, spent: s, coins: e - s, active: inv.filter(x => x.owner === k && x.exp >= today).length };
+      const sp = store.get(K.spend, []).filter(x => x.who === k), used = {};
+      sp.forEach(x => { used[x.use] = (used[x.use] || 0) + 1; });
+      const held = {};
+      sp.filter(x => x.use === '抽籤必中卡' && !/^已使用/.test(x.note)).forEach(() => { held.抽籤必中卡 = (held.抽籤必中卡 || 0) + 1; });
+      sp.filter(x => (x.use === '小太陽卡' || x.use === '小雨傘卡') && x.note >= today).forEach(x => { held[x.use] = (held[x.use] || 0) + 1; });
+      return { key: k, earned: e, spent: s, coins: e - s, active: inv.filter(x => x.owner === k && x.exp >= today).length, held, used };
     }) : null;
     if (A.isTeacher()) {
       const st = await studentState(D.teacherLabel);

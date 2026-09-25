@@ -841,10 +841,14 @@ function shopState(who) {
     minus: minusOf(key), swapBan: CONFIG.SWAP_BAN_MINUS, freeSwap: freeSwapCards(key), rankCards: cardRows().filter(x => x.who === key).slice(-5).reverse(),
     unlimited: !!who.teacher, income: c.income, sales: who.teacher ? null : salesOf(key, inv), createPrice: CONFIG.CREATE_PRICE,
     // 導師：全班點數一覽
-    admin: who.teacher ? students.map(k => {
-      const x = coinsOf(k, inv);
-      return { key: k, earned: x.earned, spent: x.spent, coins: x.coins, income: x.income, active: inv.filter(y => y.owner === k && y.exp >= today).length };
-    }) : null,
+    admin: who.teacher ? (() => {
+      const items = itemsByStudent();
+      return students.map(k => {
+        const x = coinsOf(k, inv);
+        return { key: k, earned: x.earned, spent: x.spent, coins: x.coins, income: x.income, active: inv.filter(y => y.owner === k && y.exp >= today).length,
+          held: items.held[k] || {}, used: items.used[k] || {} };
+      });
+    })() : null,
   };
 }
 function buyAcc(who, acc) {
@@ -1124,6 +1128,24 @@ function drawUsed(id) {
     sh.getRange(i + 2, 6).setValue('已使用 ' + Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'MM/dd HH:mm'));
     return { ok: true };
   });
+}
+/** 成員點數用：每位同學持有（還沒用、還有效）的特殊道具，和用過的次數 */
+function itemsByStudent() {
+  const today = ymd(new Date());
+  const spend = spendRows(), cards = cardRows(), fx = drawFx();
+  const held = {}, used = {};
+  const add = (m, k, name, n) => { if (!k || !n) return; (m[k] = m[k] || {})[name] = (m[k][name] || 0) + n; };
+  // 免費交換位置卡（段考前五名）：發的 − 用掉的
+  cards.filter(c => c.card === '交換位置卡').forEach(c => add(held, c.who, '免費交換位置卡', c.n));
+  spend.filter(x => x.use === '交換位置卡' && x.points === 0).forEach(x => add(held, x.who, '免費交換位置卡', -1));
+  fx.sure.forEach(x => add(held, x.by, '抽籤必中卡', 1));                          // 還沒發動
+  const lastTr = {};
+  fx.transfers.forEach(x => { lastTr[x.from] = x; });
+  Object.keys(lastTr).forEach(k => add(held, k, '抽籤轉移卡', 1));                // 還在 10 天內
+  spend.filter(x => (x.use === '小太陽卡' || x.use === '小雨傘卡') && x.note >= today).forEach(x => add(held, x.who, x.use, 1)); // 放出去還有效
+  spend.forEach(x => { if (['煙火', '交換位置卡', '竊盜卡', '小太陽卡', '小雨傘卡', '抽籤轉移卡', '抽籤必中卡'].indexOf(x.use) >= 0) add(used, x.who, x.use, 1); });
+  Object.keys(held).forEach(k => Object.keys(held[k]).forEach(n => { if (held[k][n] <= 0) delete held[k][n]; }));
+  return { held: held, used: used };
 }
 // ── 免費道具卡：段考前五名自動發放交換位置卡 ──
 function cardRows() {

@@ -1046,3 +1046,9 @@ body.locked.test-mode .test-banner { position: fixed; left: 0; right: 0; }
 
 .board-post .bp-edit { width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; padding: 8px; border: 1.5px solid var(--accent); border-radius: 8px; background: var(--surface); color: inherit; }
 .board-post .bp-meta .btn { padding: 4px 12px; font-size: 13px; }
+
+/* 成員點數：特殊道具 */
+.admin-wrap { overflow-x: auto; }
+.admin td.items { white-space: nowrap; }
+.it-chip { display: inline-block; margin-right: 4px; font-size: 13px; }
+.admin tfoot td { border-top: 2px solid var(--line); }
