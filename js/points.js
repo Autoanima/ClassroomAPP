@@ -106,7 +106,12 @@
     if (d.pts) { form.pts = +d.pts; saveForm(); return keepReason(render); }
     if (d.cat) { form.cat = d.cat; saveForm(); return keepReason(render); }
     if (d.scope != null) { scope = d.scope; return keepReason(render); }
-    if (d.reason) { const i = $('#ptReason'); i.value = d.reason; form.reason = d.reason; saveForm(); return; }
+    if (d.reason) {
+      const i = $('#ptReason'); i.value = d.reason; form.reason = d.reason; saveForm();
+      // 「未繳交：」這種要接著打內容的，游標直接放到最後
+      if (/[：:]$/.test(d.reason)) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
+      return;
+    }
     if (d.p === 'clear') { chosen.clear(); return keepReason(render); }
     if (d.p === 'reload') return loadRecent();
     if (d.p === 'submit') return submit();
