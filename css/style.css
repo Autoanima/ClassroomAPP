@@ -1037,3 +1037,12 @@ body.locked.test-mode .test-banner { position: fixed; left: 0; right: 0; }
 .hist-head .link-btn { margin-left: auto; }
 .hist-fx { font-size: 13px; color: #b54708; margin: 2px 0 4px; }
 [data-theme="dark"] .hist-fx { color: #f5b041; }
+
+/* 班名次說明、現場選位的段考選擇 */
+.rank-explain summary { cursor: pointer; }
+.rank-explain ol { padding-left: 1.3em; margin: 8px 0; line-height: 1.6; }
+.rank-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 6px 0 10px; }
+.rank-pick .btn { font-size: 13px; padding: 8px 4px; }
+
+.board-post .bp-edit { width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; padding: 8px; border: 1.5px solid var(--accent); border-radius: 8px; background: var(--surface); color: inherit; }
+.board-post .bp-meta .btn { padding: 4px 12px; font-size: 13px; }

@@ -36,7 +36,7 @@
       if (p.date !== day) { day = p.date; h += `<h3 class="board-day">${esc(dayLabel(p.date))}</h3>`; }
       const mine = A.isTeacher() || p.by === myName();
       h += `<div class="board-post"><div class="bp-text">${esc(p.text)}</div>
-        <div class="bp-meta muted small">${esc(p.by)}・${esc(p.time.slice(-5))}${mine ? `<button type="button" class="link-btn" data-act="boardDel" data-id="${esc(p.id)}">刪除</button>` : ''}</div></div>`;
+        <div class="bp-meta muted small">${esc(p.by)}・${esc(p.time.slice(-5))}${mine ? `<button type="button" class="link-btn" data-act="boardEdit" data-id="${esc(p.id)}">修改</button><button type="button" class="link-btn" data-act="boardDel" data-id="${esc(p.id)}">刪除</button>` : ''}</div></div>`;
     });
     return h + `</div>`;
   }
@@ -57,6 +57,21 @@
       try { const r = await A.api('addPost', { text }); posts = r.posts || posts; toast('✓ 已發布'); } catch (err) { toast(err.message); }
       b.disabled = false;
       paintBtn(); A.sheetBody.innerHTML = html();
+    } else if (act === 'boardEdit') {
+      // 把那一則換成可以編輯的框框
+      const p = posts.find(x => x.id === b.dataset.id);
+      const box = b.closest('.board-post');
+      box.innerHTML = `<textarea class="bp-edit" rows="3" maxlength="300">${esc(p.text)}</textarea>
+        <div class="bp-meta"><button type="button" class="btn btn--primary" data-act="boardSave" data-id="${esc(p.id)}">儲存</button><button type="button" class="btn" data-act="boardCancel">取消</button></div>`;
+      box.querySelector('textarea').focus();
+    } else if (act === 'boardCancel') {
+      A.sheetBody.innerHTML = html();
+    } else if (act === 'boardSave') {
+      const text = b.closest('.board-post').querySelector('textarea').value.trim();
+      if (!text) return toast('內容不能是空的（不要的話請按刪除）');
+      b.disabled = true;
+      try { const r = await A.api('editPost', { id: b.dataset.id, text }); posts = r.posts || posts; toast('✓ 已修改'); } catch (err) { toast(err.message); b.disabled = false; return; }
+      A.sheetBody.innerHTML = html();
     } else if (act === 'boardDel') {
       const p = posts.find(x => x.id === b.dataset.id);
       if (!p || !await A.ask(`刪除這則留言？\n\n${p.text}`, '刪除', true)) return;
@@ -86,6 +101,7 @@
       store.set(TEST_KEY, [...store.get(TEST_KEY, []), { id: Math.random().toString(36).slice(2, 10), t: t.getTime(), date: A.fmtDate(t), time: `${A.fmtDate(t)} ${A.fmtTime(t)}`, text: String(p.text).slice(0, 300), by: myName() }]);
       return { ok: true, posts: list() };
     }
+    if (action === 'editPost') { store.set(TEST_KEY, store.get(TEST_KEY, []).map(x => (x.id === p.id ? { ...x, text: String(p.text).slice(0, 300) } : x))); return { ok: true, posts: list() }; }
     if (action === 'delPost') { store.set(TEST_KEY, store.get(TEST_KEY, []).filter(x => x.id !== p.id)); return { ok: true, posts: list() }; }
     return prevTest ? prevTest(action, p) : null;
   };

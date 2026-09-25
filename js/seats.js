@@ -29,6 +29,7 @@
   let card = 0;
   const trialOn = () => sub === 'swap' && !A.isTeacher();
   const cur = () => chart;
+  const canLive = () => A.isTeacher() || (!A.isStudent() && A.jobsOf(A.me() || '').roles.some(r => /^副?班長$/.test(r)));
   const selLive = () => !!sel && ['ready', 'open', 'paused'].includes(sel.status);
   const inSel = () => trialOn() ? false : (A.isStudent() ? !!sel && (selLive() || (sel.status === 'done' && !sel.applied)) : sub === 'sel' && !!sel && sel.status !== 'idle');
   const takenOf = () => (!sel || sel.status === 'idle' ? {} : sel.taken || SelEngine.taken(sel));
@@ -163,18 +164,18 @@
       </div>`;
       h += sub === 'swap' ? swapBanner() : studentBanner();
     } else {
-      if (sub === 'live' && !A.isTeacher()) sub = 'chart';
+      if (sub === 'live' && !canLive()) sub = 'chart';
       if (A.isGuest()) sub = 'chart'; // 任課老師：只看座位表
       if (!A.isGuest()) h += `<div class="subsw" role="tablist">
         <button type="button" data-sub="chart" aria-selected="${sub === 'chart'}">📋 座位表</button>
-        ${A.isTeacher() ? `<button type="button" data-sub="live" aria-selected="${sub === 'live'}">🎯 現場選位${live?.started && live.idx < live.order.length ? '<span class="live-dot"></span>' : ''}</button>` : ''}
+        ${canLive() ? `<button type="button" data-sub="live" aria-selected="${sub === 'live'}">🎯 現場選位${live?.started && live.idx < live.order.length ? '<span class="live-dot"></span>' : ''}</button>` : ''}
         <button type="button" data-sub="sel" aria-selected="${sub === 'sel'}">🗳 線上選位${selLive() ? '<span class="live-dot" title="選位進行中"></span>' : ''}</button>
         <button type="button" data-sub="swap" aria-selected="${sub === 'swap'}">🔁 交換位置</button>
       </div>`;
       if (sub === 'swap') h += A.isTeacher() ? `<p class="muted small tip">💡 點一個座位、再點另一個座位，兩人就互換；點空位就是搬過去。</p>` : swapBanner();
       if (sub === 'chart') h += `<p class="muted small tip">點同學的大頭照可以放大，再點一次關閉。</p>`;
       if (sub === 'sel' && sel && sel.status !== 'idle') h += teacherBanner();
-      if (A.isTeacher() && dirty()) {
+      if (canLive() && dirty()) {
         const n = Object.keys({ ...chart, ...saved }).filter(k => (chart[k] || '') !== (saved[k] || '')).length;
         h += `<div class="banner draft"><div class="bn-main">⚠ 有 ${n} 個座位變動（紅色）還沒儲存</div>
           <div class="bn-sub">切換畫面就會恢復原本的座位。<span class="draft-btns"><button type="button" class="btn btn--primary" data-tr="commit">💾 存成預設</button><button type="button" class="btn" data-tr="discard">↺ 取消變動</button></span></div></div>`;
@@ -312,8 +313,8 @@
   function renderPanel() {
     const root = $('#seatPanel');
     if (sub === 'swap' && !A.isTeacher()) { root.innerHTML = ''; return; }
-    if (A.isStudent()) { root.innerHTML = legendHtml(); return; }
-    if (sub === 'chart') { root.innerHTML = chartViewPanel(); return; }
+    if (A.isStudent()) { root.innerHTML = legendHtml() + (inSel() ? '' : rankExplainHtml()); return; }
+    if (sub === 'chart') { root.innerHTML = chartViewPanel() + rankExplainHtml(); return; }
     if (sub === 'swap') { root.innerHTML = chartPanel(); return; }
     if (sub === 'live') { root.innerHTML = livePanel(); return; }
     root.innerHTML = selPanel();
@@ -324,6 +325,30 @@
       <li><span class="sw sw-free"></span>空位</li><li><span class="sw sw-has"></span>已被選</li>
       <li><span class="sw sw-me"></span>我的座位</li><li><span class="sw sw-wish">1</span>我的志願</li><li><span class="sw sw-blk"></span>不開放</li></ul>`;
   }
+
+  // ── 班名次怎麼算：放在座位表下方，全班都看得到 ──
+  let rankInfo = null, rankInfoAt = 0;
+  function loadRankInfo() {
+    if (Date.now() - rankInfoAt < 5 * 60e3) return;
+    rankInfoAt = Date.now();
+    A.api('rankInfo').then(r => { rankInfo = r; if (A.currentTab() === 'seats') renderPanel(); }).catch(() => { rankInfoAt = 0; });
+  }
+  function rankExplainHtml() {
+    loadRankInfo();
+    const w = rankInfo?.weight ?? 1;
+    return `<details class="panel rank-explain"${store.get('indoor.rankopen', false) ? ' open' : ''}><summary><b>📊 班名次是怎麼算的？</b></summary>
+      <ol class="small">
+        <li><b>科內排名</b>：每次段考，多媒科只和多媒科比、資料科只和資料科比（兩科考的科目不一樣）。</li>
+        <li><b>換成百分比</b>：百分比＝科內名次 ÷ 該科人數，越小越前面。例如 18 人中第 3 名＝16.7%。</li>
+        <li><b>加上這段期間的加扣分</b>：綜合分數＝（100 − 百分比）＋ 加扣分 × ${esc(String(w))}。<br>加分 1 分≈往前 ${esc(String(w))} 個百分點；被扣分就往後。</li>
+        <li><b>依綜合分數排出班名次</b>（高的在前面）。</li>
+      </ol>
+      <p class="small"><b>期間怎麼分？</b>第一次段考的班名次算「開學～第一次段考排名公布」這段時間的加扣分；公布之後的加扣分，算到第二次段考；第二次公布後，再算到第三次。</p>
+      <p class="small"><b>用在哪裡？</b>線上選位、現場選位的順序，以及前五名的免費交換位置卡。</p>
+      ${rankInfo?.url ? `<div class="actions"><a class="btn wide" href="${esc(rankInfo.url)}" target="_blank" rel="noopener">📄 查看班名次試算表（唯讀）</a></div>` : '<p class="muted small">班名次試算表會在導師公布段考排名後出現。</p>'}
+    </details>`;
+  }
+  $('#seatPanel').addEventListener('toggle', e => { if (e.target.classList?.contains('rank-explain')) store.set('indoor.rankopen', e.target.open); }, true);
 
   // 座位表（只看）：人數與還沒有座位的同學
   function chartViewPanel() {
@@ -451,14 +476,19 @@
     let h = `<div class="panel">`;
     const L = live;
     if (!L || !L.order?.length) {
-      h += `<h3>🎯 依名單順序現場選位</h3>
+      h += `<h3>🎯 依段考班名次現場選位</h3>
+        <p class="small">依「段考排名」的班名次（段考表現＋那段期間的加扣分）排順序，第 1 名先選。</p>
+        <div class="rank-pick">${['第一次', '第二次', '第三次'].map((n, i) => `<button type="button" class="btn${rankInfo?.has?.[i] ? ' btn--primary' : ''}" data-lv="rank" data-exam="${i}">${n}段考班名次</button>`).join('')}</div>
+        <details class="field"><summary class="small"><b>或用其他名單</b></summary>
+        <h3>依名單順序現場選位</h3>
         <p class="small">上傳名單（Excel、CSV 或文字檔）。開始後會先清空所有座位，第 1 位先點任何一個座位，接著第 2 位、第 3 位…直到全部選完。<br>
         名單有「名次」或「排名」欄就依名次排序，沒有就照名單由上到下的順序。名單只在這台裝置上讀取，不會上傳。</p>
         <div class="actions"><label class="btn btn--primary wide file-btn">📄 選擇名單檔案<input type="file" id="liveFile" accept=".xlsx,.xls,.csv,.txt,text/csv,text/plain" hidden></label></div>
         <details class="field"><summary class="small"><b>或直接貼上名單</b></summary>
           <textarea id="livePaste" placeholder="一行一位，例如：&#10;料 24 王小明&#10;多 11 陳小華"></textarea>
           <div class="actions"><button type="button" class="btn wide" data-lv="paste">使用貼上的名單</button></div></details>
-        ${A.TEST ? `<div class="actions"><button type="button" class="btn wide" data-lv="demo">🧪 用示範名單（隨機順序）試試</button></div>` : ''}`;
+        ${A.TEST ? `<div class="actions"><button type="button" class="btn wide" data-lv="demo">🧪 用示範名單（隨機順序）試試</button></div>` : ''}</details>`;
+      loadRankInfo();
       return h + `</div>`;
     }
     const done = L.started && L.idx >= L.order.length;
@@ -499,7 +529,7 @@
     if (live.idx >= live.order.length) toast('🎉 全部選完了！');
     saveChart(true);
   }
-  async function liveAction(act) {
+  async function liveAction(act, el) {
     if (act === 'undo') {
       const last = live.hist.pop();
       if (!last) return;
@@ -526,11 +556,21 @@
     } else if (act === 'paste') {
       const rows = ($('#livePaste').value || '').split(/\r?\n/).map(l => l.split(/[,\t]/));
       useList(rows, '貼上的名單');
+    } else if (act === 'rank') {
+      return useRank(+(el?.dataset.exam || 0));
     } else if (act === 'demo') {
       useList([...A.students()].sort(() => Math.random() - 0.5).map(k => [k]), '示範名單（隨機）');
     }
   }
 
+  async function useRank(exam) {
+    try {
+      toast('讀取班名次中…');
+      const r = await A.api('rankOrder', { exam });
+      await useList(r.order.map(k => [k]), r.label + (r.noRank?.length ? `（${r.noRank.length} 人沒有成績，排在最後）` : ''));
+      if (r.url) { rankInfo = { ...(rankInfo || {}), url: r.url }; }
+    } catch (err) { toast(err.message); }
+  }
   async function useList(rows, source) {
     if (!A.students().length) { try { await A.loadStudents(); } catch (e) { return toast('無法讀取學生名單：' + e.message); } }
     const r = parseOrder(rows);
@@ -665,7 +705,7 @@
       return;
     }
     const lv = e.target.closest('[data-lv]');
-    if (lv && !lv.disabled) return liveAction(lv.dataset.lv);
+    if (lv && !lv.disabled) return liveAction(lv.dataset.lv, lv);
     const b = e.target.closest('[data-sa]');
     if (!b || b.disabled) return;
     const act = b.dataset.sa;
@@ -760,7 +800,7 @@
     const id = b.dataset.seat;
     if (trialOn()) return card ? cardTap(id) : zoomFace(id); // 沒有用交換位置卡：只能看，不能換
     if (A.isStudent()) return studentSeat(id);
-    if (sub === 'live' && A.isTeacher()) return liveSeat(id);
+    if (sub === 'live' && canLive()) return liveSeat(id);
     if (inSel()) return A.isTeacher() ? teacherSelSeat(id) : showSeatInfo(id);
     if (sub === 'swap' && A.isTeacher()) return chartTap(id);
     return zoomFace(id);
@@ -1148,6 +1188,8 @@
       case 'getSeats': return { ok: true, seats: store.get(K.testChart, {}), defaults: store.get('indoor.testdef.v1.test', {}) };
       case 'getDuty': { const d = store.get('indoor.testduty.v1.test', null); return { ok: true, duty: d && d.date === A.fmtDate(new Date()) && d.list ? d : { date: A.fmtDate(new Date()), list: [] } }; }
       case 'setDuty': { const d = { date: A.fmtDate(new Date()), list: p.list, by: A.isTeacher() ? '導師' : A.me() }; store.set('indoor.testduty.v1.test', d); return { ok: true, duty: d }; }
+      case 'rankInfo': return { ok: true, url: '', weight: 1, has: [true, false, false] };
+      case 'rankOrder': return { ok: true, order: [...A.students()].sort(() => Math.random() - 0.5), noRank: [], label: `（測試）第${'一二三'[p.exam || 0]}次段考班名次` };
       case 'saveDefaultSeats': store.set('indoor.testdef.v1.test', p.seats); return { ok: true, defaults: p.seats };
       case 'saveSeats': store.set(K.testChart, p.seats); return { ok: true, seats: p.seats };
       case 'getFaces': return { ok: true, faces: {}, codes: Object.keys(faces) };

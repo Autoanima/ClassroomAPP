@@ -45,7 +45,8 @@ const CONFIG = {
   WEATHER_PRICE: 5,                   // 小太陽卡／小雨傘卡：放在某位同學的座位上方
   WEATHER_DAYS: 10,                   // 小太陽卡／小雨傘卡有效上課日
   SURE_PRICE: 30,                     // 抽籤必中卡：指定一位同學，下一次抽籤第一位一定是他（只有一次）
-  SWAP_BAN_MINUS: 10,                 // 「加扣分紀錄」被扣的分數加起來超過這個數，就不能用交換位置卡
+  SWAP_BAN_MINUS: 10,
+  RANK_POINT_WEIGHT: 1,               // 班名次＝段考表現＋那段期間的加扣分：加扣分 1 分＝百分比 1 個百分點（例如 +3 分≈往前 3%）                 // 「加扣分紀錄」被扣的分數加起來超過這個數，就不能用交換位置卡
   CREATE_PRICE: 20,                   // 創造卡：同學上傳 PNG 變成新商品，預設售價（可以自己改 1–100）
   CREATE_PER_DAY: 3,                  // 每人每天最多創造幾個商品
   FIREWORK_DAYS: 3,                   // 煙火幾天內還會放給還沒看過的人
@@ -64,7 +65,7 @@ const HEAD_SEATS = ['座位', '排', '個', '同學'];
 const SHEET_DUTY = '值日生';           // 班長、副班長每天登記的值日生（兩位）
 const HEAD_DUTY = ['日期', '值日生1', '值日生2', '值日生3', '值日生4', '登記人', '登記時間'];
 const SHEET_BOARD = '公布欄';          // 導師、幹部的留言（例如作業）；刪除只做標記，紀錄保留
-const HEAD_BOARD = ['時間', '內容', '發布人', '編號', '狀態'];
+const HEAD_BOARD = ['時間', '內容', '發布人', '編號', '狀態', '修改紀錄'];
 const BOARD_DAYS = 14;
 const SHEET_CARDS = '道具卡';          // 免費道具卡的發放紀錄（段考前五名）
 const HEAD_CARDS = ['時間', '同學', '卡片', '張數', '來源'];
@@ -84,11 +85,11 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
-const GUEST_OK = { getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
+const GUEST_OK = { rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1 };
 
 function doGet() {
@@ -143,6 +144,7 @@ function doPost(e) {
       case 'createAcc': return json(createAcc(who, req.name, req.price, req.data));
       case 'getBoard': return json({ ok: true, posts: getBoard() });
       case 'addPost': return json({ ok: true, posts: addPost(who, req.text) });
+      case 'editPost': return json({ ok: true, posts: editPost(who, String(req.id || ''), req.text) });
       case 'delPost': return json({ ok: true, posts: delPost(who, String(req.id || '')) });
       case 'getDuty': return json({ ok: true, duty: getDuty() });
       case 'setDuty': return json({ ok: true, duty: setDuty(who, req.list || []) });
@@ -153,8 +155,14 @@ function doPost(e) {
       case 'drawUsed': return json(drawUsed(String(req.id || '')));
       case 'delAcc': return json(delAcc(who, String(req.acc || '')));
       case 'getSeats': return json(who.teacher ? { ok: true, seats: getSeats(), defaults: getDefaultSeats() } : { ok: true, seats: getSeats() });
-      case 'saveDefaultSeats': return json({ ok: true, defaults: saveDefaultSeats(req.seats || {}) });
-      case 'saveSeats': return json({ ok: true, seats: saveSeats(req.seats || {}) });
+      case 'saveDefaultSeats':
+        if (!who.teacher && !isMonitor(who.key)) throw new Error('只有導師、班長、副班長可以儲存座位');
+        return json({ ok: true, defaults: saveDefaultSeats(req.seats || {}) });
+      case 'saveSeats':
+        if (!who.teacher && !isMonitor(who.key)) throw new Error('只有導師、班長、副班長可以儲存座位');
+        return json({ ok: true, seats: saveSeats(req.seats || {}) });
+      case 'rankOrder': return json(rankOrder(who, req.exam));
+      case 'rankInfo': return json({ ok: true, url: rankSheetUrl(), weight: CONFIG.RANK_POINT_WEIGHT, has: (() => { const R = examRanks(); return R ? R.per.map(p => Object.keys(p.rank).length > 0) : [false, false, false]; })() });
       case 'getFaces': return json(getFaces(req.have || {}));
       case 'uploadFace': return json(uploadFace(req.code, req.data));
       case 'setFaceFolder': return json(setFaceFolder(req.url));
@@ -199,6 +207,7 @@ function onOpen() {
     .addItem('計算扣分', 'computeScores')
     .addItem('段考排名', 'showExamRank')
     .addItem('重置扣分統計', 'resetScores')
+    .addItem('重新設定段考結算時間', 'resetExamCuts')
     .addItem('檢查名單與排名（身分證字號）', 'checkPeople')
     .addItem('讓所有人重新登入', 'resetSessions')
     .addSeparator()
@@ -415,6 +424,7 @@ function tableOf(values, name) {
     cRank: col(/^(班排名|名次|排名|班級名次)$/), cId: cId, cRoles: cRoles,
   };
 }
+const isMonitor = key => cadreRoles(key).some(r => /^副?班長$/.test(String(r).trim()));
 /** 班長、副班長、環保股長（衛生股長）可以修改工作分配 */
 function canEditRoster(key) {
   return cadreRoles(key).some(r => /^(副?班長|環保|衛生)/.test(String(r).trim()));
@@ -980,6 +990,23 @@ function addPost(who, text) {
   withLock(() => {
     const sh = getSheet(SHEET_BOARD, HEAD_BOARD);
     sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_BOARD.length).setValues([[new Date(), text, who.teacher ? CONFIG.TEACHER_NAME : who.key, Utilities.getUuid().slice(0, 8), '']]);
+  });
+  return getBoard();
+}
+/** 修改：只能改自己的（導師可以改全部）；原本的內容記在「修改紀錄」欄 */
+function editPost(who, id, text) {
+  text = String(text || '').trim().slice(0, 300);
+  if (!text) throw new Error('內容不能是空的（不要的話請按刪除）');
+  withLock(() => {
+    const sh = getSheet(SHEET_BOARD, HEAD_BOARD);
+    const n = sh.getLastRow() - 1;
+    const vals = n > 0 ? sh.getRange(2, 1, n, 6).getValues() : [];
+    const i = vals.findIndex(r => String(r[3]) === id);
+    if (i < 0 || String(vals[i][4])) throw new Error('找不到這則留言');
+    if (!who.teacher && String(vals[i][2]) !== who.key) throw new Error('只能修改自己發布的留言');
+    const log = String(vals[i][5] || '') + (vals[i][5] ? '\n' : '') + Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'MM/dd HH:mm') + ' 修改前：' + String(vals[i][1]);
+    sh.getRange(i + 2, 2).setValue(text);
+    sh.getRange(i + 2, 6).setValue(log);
   });
   return getBoard();
 }
@@ -1641,15 +1668,24 @@ function examRanks() {
     return r;
   };
   const depts = [...new Set(list.map(x => x.dept))];
+  const cuts = examCuts();
+  const pts = periodPoints(cuts);
+  const W = Number(CONFIG.RANK_POINT_WEIGHT) || 0;
   const per = [0, 1, 2].map(i => {
-    const deptRank = {}, pct = {};
-    if (!has[i]) return { deptRank: deptRank, pct: pct, rank: {} };
+    const deptRank = {}, pct = {}, bonus = {}, score = {};
+    if (!has[i]) return { deptRank: deptRank, pct: pct, bonus: bonus, score: score, rank: {} };
     depts.forEach(d => {
       const g = list.filter(x => x.dept === d && x.s[i] != null);
       const r = byRank ? Object.fromEntries(g.map(x => [x.key, x.s[i]])) : rankBy(g, x => x.s[i], false);
       g.forEach(x => { deptRank[x.key] = r[x.key]; pct[x.key] = r[x.key] / g.length; });
     });
-    return { deptRank: deptRank, pct: pct, rank: rankBy(list, x => (pct[x.key] == null ? null : Math.round(pct[x.key] * 1e6) / 1e6), true) };
+    // 綜合分數＝(1 − 百分比) × 100 ＋ 期間加扣分 × 權重；班名次依綜合分數（越高越前面）
+    list.forEach(x => {
+      if (pct[x.key] == null) return;
+      bonus[x.key] = (pts[i][x.key] || 0);
+      score[x.key] = Math.round(((1 - pct[x.key]) * 100 + bonus[x.key] * W) * 1e4) / 1e4;
+    });
+    return { deptRank: deptRank, pct: pct, bonus: bonus, score: score, rank: rankBy(list, x => (score[x.key] == null ? null : score[x.key]), false) };
   });
   list.forEach(x => {
     const v = [0, 1, 2].map(i => per[i].pct[x.key]).filter(y => y != null);
@@ -1657,12 +1693,47 @@ function examRanks() {
   });
   const overall = rankBy(list, x => (x.avgPct == null ? null : Math.round(x.avgPct * 1e6) / 1e6), true);
   const latest = has.lastIndexOf(true);
-  return { list: list, per: per, overall: overall, latest: latest, latestRank: per[latest].rank, label: EXAMS[latest], byRank: byRank };
+  return { list: list, per: per, overall: overall, latest: latest, latestRank: per[latest].rank, label: EXAMS[latest], byRank: byRank, cuts: cuts };
+}
+/** 各次段考的結算時間（毫秒）；還沒結算的是 0 */
+function examCuts() {
+  const props = PropertiesService.getScriptProperties();
+  return [0, 1, 2].map(i => Number(props.getProperty('EXAM_CUT_' + (i + 1)) || 0));
+}
+/** 加扣分依「登記時間」分到各次段考：第 N 次＝(第 N−1 次結算, 第 N 次結算]，還沒結算的算到現在 */
+function periodPoints(cuts) {
+  const out = [{}, {}, {}];
+  const psh = pointsSheet();
+  if (psh.getLastRow() < 2) return out;
+  psh.getRange(2, 1, psh.getLastRow() - 1, 7).getValues().forEach(r => {
+    const who = String(r[1]).trim(), p = Number(r[2]) || 0;
+    const t = r[6] instanceof Date ? r[6].getTime() : r[0] instanceof Date ? r[0].getTime() : 0;
+    if (!who || !p || !t) return;
+    let i = 0;
+    while (i < 2 && cuts[i] && t > cuts[i]) i++;
+    out[i][who] = (out[i][who] || 0) + p;
+  });
+  return out;
+}
+/** 現場選位用：依第 N 次段考的班名次排好的名單（沒有成績的放最後） */
+function rankOrder(who, exam) {
+  if (!who.teacher && !cadreRoles(who.key).some(r => /^副?班長$/.test(String(r).trim()))) throw new Error('只有導師、班長、副班長可以使用');
+  const i = Math.max(0, Math.min(2, Number(exam) || 0));
+  const R = examRanks();
+  const all = getStudents().students;
+  if (!R || !Object.keys(R.per[i].rank).length) throw new Error(EXAMS[i] + '還沒有成績，請先在「扣分統計」填成績並按「段考排名」');
+  const rk = R.per[i].rank;
+  const ranked = all.filter(k => rk[k]).sort((a, b) => rk[a] - rk[b] || a.localeCompare(b));
+  return { ok: true, order: ranked.concat(all.filter(k => !rk[k])), noRank: all.filter(k => !rk[k]), label: EXAMS[i] + '班名次', url: rankSheetUrl() };
 }
 /** 按鈕「段考排名」：更新「段考排名」工作表並切換過去；也會依最近一次段考發前五名的交換位置卡 */
 function showExamRank() {
   const ss = getSS();
-  const R = examRanks();
+  let R = examRanks();
+  if (R && !R.cuts[R.latest]) { // 第一次排這次段考：記下結算時間，之後的加扣分算到下一次段考
+    PropertiesService.getScriptProperties().setProperty('EXAM_CUT_' + (R.latest + 1), String(Date.now()));
+    R = examRanks();
+  }
   if (!R) { try { SpreadsheetApp.getUi().alert('「扣分統計」的 I～K 欄（第一次～第三次段考）還沒有成績。'); } catch (e) { /* 沒有畫面 */ } return; }
   let sh = ss.getSheetByName(SHEET_EXAMRANK);
   if (!sh) sh = ss.insertSheet(SHEET_EXAMRANK, 1);
@@ -1670,11 +1741,12 @@ function showExamRank() {
   // 每次段考 4 欄，標題都寫明是第幾次（第一次 科內名次、第一次 百分比、第一次 班名次…）
   const head = ['總名次', '科別', '座號', '姓名', '平均百分比'].concat(EXAMS.reduce((a, n) => {
     const w = n.replace('段考', '');
-    return a.concat([n + (R.byRank ? '（科排名）' : '（分數）'), w + ' 科內名次', w + ' 百分比', w + ' 班名次']);
+    return a.concat([n + (R.byRank ? '（科排名）' : '（分數）'), w + ' 科內名次', w + ' 百分比', w + ' 期間加扣分', w + ' 班名次']);
   }, []));
   const rows = R.list.slice().sort((a, b) => (R.overall[a.key] || 999) - (R.overall[b.key] || 999) || a.key.localeCompare(b.key))
     .map(x => [R.overall[x.key] || '', x.dept, x.no, x.name, x.avgPct == null ? '' : x.avgPct]
-      .concat([0, 1, 2].reduce((a, i) => a.concat([x.s[i] == null ? '' : x.s[i], R.per[i].deptRank[x.key] || '', R.per[i].pct[x.key] == null ? '' : R.per[i].pct[x.key], R.per[i].rank[x.key] || '']), [])));
+      .concat([0, 1, 2].reduce((a, i) => a.concat([x.s[i] == null ? '' : x.s[i], R.per[i].deptRank[x.key] || '', R.per[i].pct[x.key] == null ? '' : R.per[i].pct[x.key],
+        R.per[i].bonus[x.key] == null ? '' : R.per[i].bonus[x.key], R.per[i].rank[x.key] || '']), [])));
   sh.getRange(1, 1).setValue('段考排名（' + Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'yyyy/MM/dd HH:mm') + ' 更新）').setFontSize(14).setFontWeight('bold');
   // 排名方式說明（兩科考的科目不同，分數不能直接比，所以用百分比混合排序）
   const note = [
@@ -1682,7 +1754,8 @@ function showExamRank() {
     '多媒科和資料科段考的科目不一樣，分數不能直接互相比較，所以用「百分比」把兩科放在一起排：',
     '① 科內排名：每次段考，多媒科的同學只和多媒科比、資料科的同學只和資料科比，排出「科內名次」（同分同名次）。' + (R.byRank ? '目前「扣分統計」B8 選的是「科排名」，所以直接用填進去的科內名次。' : ''),
     '② 換成百分比：百分比＝科內名次 ÷ 該科有成績的人數。例如多媒 18 人中第 3 名＝16.7%；資料 26 人中第 5 名＝19.2%。百分比越小越前面。',
-    '③ 全班名次（班名次）：把兩科同學的百分比放在一起，由小到大排，就是那次段考的全班名次。',
+    '③ 班名次＝段考表現＋那段期間的加扣分：綜合分數＝(100 − 百分比) ＋ 期間加扣分 × ' + (Number(CONFIG.RANK_POINT_WEIGHT) || 0) + '，由高到低排。（加扣分 1 分≈往前或往後 1 個百分點）',
+    '　期間：第一次段考＝開學～第一次按「段考排名」的時間；第二次＝那之後～第二次段考第一次按「段考排名」；第三次以此類推。' + periodText(R.cuts),
     '④ 總名次：把已經有成績的各次段考百分比平均，再由小到大排。',
     '例子：多媒某同學 70 分，是多媒第 1 名（18 人，5.6%）；資料某同學 90 分，是資料第 2 名（26 人，7.7%）→ 多媒這位同學排在前面，因為他在自己科裡的表現比較前面。',
     '用途：線上選位的順序、前五名交換位置卡（第一名 2 張、第二～五名各 1 張），都依最近一次段考（' + R.label + '）的「班名次」。',
@@ -1691,21 +1764,72 @@ function showExamRank() {
   sh.getRange(2, 1, 1, head.length).merge().setWrap(true).setVerticalAlignment('top').setFontColor('#3d4250').setBackground('#f6f7fb');
   const n1 = note.indexOf('】') + 1; // 標題粗體
   sh.getRange(2, 1).setRichTextValue(SpreadsheetApp.newRichTextValue().setText(note).setTextStyle(0, n1, SpreadsheetApp.newTextStyle().setBold(true).build()).build());
-  sh.setRowHeight(2, 190);
+  sh.setRowHeight(2, 230);
   sh.getRange(3, 1, 1, head.length).setValues([head]).setFontWeight('bold').setBackground('#dff3ea').setWrap(true).setVerticalAlignment('middle');
-  ['#e3edff', '#fff1d6', '#f3e3ff'].forEach((c, i) => sh.getRange(3, 6 + i * 4, 1, 4).setBackground(c)); // 三次段考用不同底色分開
+  ['#e3edff', '#fff1d6', '#f3e3ff'].forEach((c, i) => sh.getRange(3, 6 + i * 5, 1, 5).setBackground(c)); // 三次段考用不同底色分開
   sh.setRowHeight(3, 36);
   if (rows.length) {
     sh.getRange(4, 1, rows.length, head.length).setValues(rows);
     sh.getRange(4, 5, rows.length, 1).setNumberFormat('0.0%');
-    [0, 1, 2].forEach(i => sh.getRange(4, 8 + i * 4, rows.length, 1).setNumberFormat('0.0%'));
+    [0, 1, 2].forEach(i => { sh.getRange(4, 8 + i * 5, rows.length, 1).setNumberFormat('0.0%'); sh.getRange(4, 9 + i * 5, rows.length, 1).setNumberFormat('+0;-0;0'); });
   }
   sh.getRange(4, 1, Math.max(1, rows.length), 1).setFontWeight('bold');
   rows.forEach((r, i) => { if (r[0] && r[0] <= 5) sh.getRange(4 + i, 1, 1, head.length).setBackground('#fff4cc'); });
   sh.setFrozenRows(3);
   try { grantRankCards(true); } catch (e) { Logger.log('發卡失敗：' + e); }
+  try { publishRankCopy(head, rows, note); } catch (e) { Logger.log('唯讀排名表更新失敗：' + e); }
   ss.setActiveSheet(sh);
   try { ss.toast('已排出 ' + rows.length + ' 人的名次', '段考排名', 4); } catch (e) { /* 從編輯器執行 */ }
+}
+/** 唯讀的排名表：另一份試算表（知道連結的人只能檢視），只放名次、百分比、期間加扣分，不放分數和身分證字號。
+ *  每次按「段考排名」都會更新；現場選位畫面會附上連結 */
+function publishRankCopy(head, rows, note) {
+  const props = PropertiesService.getScriptProperties();
+  let ss = null;
+  const id = props.getProperty('PUBLIC_RANK_ID');
+  if (id) { try { ss = SpreadsheetApp.openById(id); } catch (e) { ss = null; } }
+  if (!ss) {
+    ss = SpreadsheetApp.create(CONFIG.CLASS_NAME + ' 段考班名次（唯讀）');
+    const f = DriveApp.getFileById(ss.getId());
+    try { f.moveTo(getRootFolder()); } catch (e) { /* 留在我的雲端硬碟 */ }
+    f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); // 只能檢視
+    f.setShareableByEditors(false);
+    props.setProperty('PUBLIC_RANK_ID', ss.getId());
+  }
+  // 拿掉分數欄（第 6、11、16 欄：各次段考的分數），其他照抄
+  const drop = new Set([5, 10, 15]);
+  const keep = (arr) => arr.filter((_, i) => !drop.has(i));
+  const h = keep(head), data = rows.map(keep);
+  const sh = ss.getSheets()[0];
+  sh.clear();
+  sh.setName('班名次');
+  sh.getRange(1, 1).setValue(CONFIG.CLASS_NAME + ' 段考班名次（' + Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'yyyy/MM/dd HH:mm') + ' 更新，只供檢視）').setFontSize(14).setFontWeight('bold');
+  sh.getRange(2, 1, 1, h.length).merge().setValue(note.replace(/成績填在.*$/m, '').trim()).setWrap(true).setVerticalAlignment('top').setBackground('#f6f7fb');
+  sh.setRowHeight(2, 230);
+  sh.getRange(3, 1, 1, h.length).setValues([h]).setFontWeight('bold').setBackground('#dff3ea').setWrap(true);
+  ['#e3edff', '#fff1d6', '#f3e3ff'].forEach((c, i) => sh.getRange(3, 6 + i * 4, 1, 4).setBackground(c));
+  if (data.length) {
+    sh.getRange(4, 1, data.length, h.length).setValues(data);
+    sh.getRange(4, 5, data.length, 1).setNumberFormat('0.0%');
+    [0, 1, 2].forEach(i => { sh.getRange(4, 7 + i * 4, data.length, 1).setNumberFormat('0.0%'); sh.getRange(4, 8 + i * 4, data.length, 1).setNumberFormat('+0;-0;0'); });
+  }
+  sh.setFrozenRows(3);
+  return ss.getUrl();
+}
+function rankSheetUrl() {
+  const id = PropertiesService.getScriptProperties().getProperty('PUBLIC_RANK_ID');
+  return id ? 'https://docs.google.com/spreadsheets/d/' + id + '/view' : '';
+}
+function periodText(cuts) {
+  const f = t => Utilities.formatDate(new Date(t), CONFIG.TIMEZONE, 'M/d HH:mm');
+  const parts = cuts.map((c, i) => c ? EXAMS[i] + '結算於 ' + f(c) : '').filter(Boolean);
+  return parts.length ? '（' + parts.join('；') + '）' : '';
+}
+/** 試算表選單：重新設定段考結算時間（下次按「段考排名」時重新記） */
+function resetExamCuts() {
+  const props = PropertiesService.getScriptProperties();
+  ['EXAM_CUT_1', 'EXAM_CUT_2', 'EXAM_CUT_3'].forEach(k => props.deleteProperty(k));
+  try { SpreadsheetApp.getUi().alert('已清除三次段考的結算時間。下次按「段考排名」時，最近一次段考會以那時候重新結算。'); } catch (e) { /* 編輯器 */ }
 }
 /** 按鈕「重置扣分統計」：之後只算重置以後的扣分／加扣分（紀錄永遠保留，不會刪除） */
 function resetScores() {
