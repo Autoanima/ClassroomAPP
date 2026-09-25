@@ -83,6 +83,10 @@ body.locked > :not(.lock):not(script):not(.test-banner) { display: none !importa
 }
 .topbar-row { display: flex; align-items: center; gap: 6px; max-width: 1100px; margin: 0 auto; }
 .topbar-row.stats { margin-top: 2px; flex-wrap: wrap; row-gap: 4px; min-height: 24px; }
+/* 身分標籤放在「商一甲」右邊；檢查進度那一行只在掃地檢查時出現 */
+.title .t1 { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.title .t1 .chip--user { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; padding: 2px 8px; line-height: 1.4; }
+body:not([data-tab="clean"]) .topbar-row.stats, body.role-student .topbar-row.stats { display: none; }
 .title { flex: 1; display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .title h1 { font-size: 19px; margin: 0; letter-spacing: .02em; white-space: nowrap; }
 .title .muted { font-size: 14px; white-space: nowrap; }
