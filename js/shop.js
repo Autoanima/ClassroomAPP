@@ -106,7 +106,7 @@
 
   // 導師：新增配件的方法、全班點數（放在最下面，預設收起來）
   function adminHtml() {
-    let h = `<p class="muted small">要加新配件：把去背的 PNG 放到雲端硬碟「${esc(A.className() || '')} APP 專用／配件」資料夾，檔名寫「名稱_價格.png」（例如「墨鏡_3.png」）。10 分鐘內會出現在商店。同學用創造卡做的商品，導師可以按「下架」。</p>`;
+    let h = '';
     h += `<details class="panel"><summary><b>成員點數</b> <span class="muted small">（${S.admin.length} 人）</span></summary>
       <p class="muted small">點數＝加分累計＋作品收入 − 用掉的（配件、竊盜卡、煙火、交換位置卡）。扣分不會減少點數。</p>
       <table class="admin"><thead><tr><th>同學</th><th>加分</th><th>已用</th><th>剩餘</th><th>配件</th></tr></thead><tbody>`;
@@ -211,7 +211,7 @@
           <div class="field"><label for="mkName">商品名稱</label><input type="text" id="mkName" maxlength="12" placeholder="例如：星星髮夾"></div>
           <div class="field"><label for="mkPrice">售價（點）</label><input type="number" id="mkPrice" min="1" max="100" inputmode="numeric" value="${S.createPrice || 20}"></div>
         </div></div>
-      <p class="muted small" id="mkInfo">建議尺寸：<b>正方形 256×256 像素</b>、去背（透明背景）的 PNG，圖案盡量填滿畫面、四周不要留太多空白。比較大的圖會自動縮小到 256 像素以內；不是正方形也可以，會等比例放進正方形裡。同學買了之後，點數會加到你的帳戶（每人每天最多 3 個）。</p>
+      <p class="muted small" id="mkInfo">建議尺寸：<b>正方形 256×256 像素</b>、去背（透明背景）的 PNG，圖案盡量填滿畫面、四周不要留太多空白。比較大的圖會自動縮小到 256 像素以內；不是正方形也可以，會等比例放進正方形裡。同學買了之後，點數會加到你的帳戶（每人每天最多 3 個）。不適當的商品，導師可以按「下架」；你也可以下架自己做的商品。</p>
       <div class="actions"><button type="button" class="btn btn--primary wide" data-act="mkOk">🎨 上架</button></div>`;
     A.openSheet({ kind: 'create' }, h);
   }
