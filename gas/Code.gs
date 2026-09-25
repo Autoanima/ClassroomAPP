@@ -1387,7 +1387,14 @@ function ensureScoreSheet(withButton) {
     sh.getRange('B3:B6').setBackground('#fff8db');
     sh.setFrozenRows(SCORE_START_ROW - 1);
   }
-  sh.getRange('A2').setValue('合併「檢查紀錄」的整潔「不好」與「加扣分紀錄」（秩序、整潔、其他）。段考成績直接填在 I～K 欄，按「段考排名」就能看到全班排名。').setFontColor('#6b7079');
+  sh.getRange('A2').setValue('合併「檢查紀錄」的整潔「不好」與「加扣分紀錄」（秩序、整潔、其他）。段考成績直接填在 I～K 欄，按「段考排名」就能看到全班排名（多媒、資料各自排名後，依百分比合併）。').setFontColor('#6b7079');
+  if (sh.getRange('A8').getValue() !== '段考欄填的是') {
+    sh.getRange('A8').setValue('段考欄填的是').setFontWeight('bold').setFontColor(null);
+    const b8 = sh.getRange('B8');
+    b8.setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(['分數', '科排名'], true).build()).setBackground('#fff8db');
+    if (!b8.getValue()) b8.setValue('分數');
+    sh.getRange('C8').setValue('（分數＝越高越好；科排名＝成績單上的科內名次）').setFontColor('#6b7079');
+  }
   if (withButton) ensureScoreButtons(sh);
   return sh;
 }
@@ -1500,7 +1507,7 @@ function computeScores() {
     sh.getRange(SCORE_START_ROW, 1).setValue('（讀不到學生名單' + (err ? '：' + err : '') + '）');
   }
   sh.getRange('B7').setValue(new Date()).setNumberFormat('yyyy/mm/dd hh:mm');
-  sh.getRange('A8').setValue(rst ? '上次重置：' + Utilities.formatDate(new Date(rst), CONFIG.TIMEZONE, 'yyyy/MM/dd HH:mm') + '（只算這之後的；所有紀錄仍保留在「加扣分紀錄」「檢查紀錄」）' : '').setFontColor('#b54708');
+  sh.getRange('D7').setValue(rst ? '上次重置：' + Utilities.formatDate(new Date(rst), CONFIG.TIMEZONE, 'yyyy/MM/dd HH:mm') + '（只算這之後的；所有紀錄仍保留在「加扣分紀錄」「檢查紀錄」）' : '').setFontColor('#b54708');
   sh.getRange('B6').setValue(false);
   const hit = rows.filter(r => r[7] < 0).length;
   try { ss.toast('已完成加總：全班 ' + rows.length + ' 人，' + hit + ' 人合計為負分', '內掃檢查', 4); } catch (e) { /* 從網頁呼叫時沒有畫面 */ }
@@ -1520,10 +1527,12 @@ function readExamScores(sh) {
   });
   return out;
 }
-/** 段考排名：每次段考的名次＋平均名次；latest＝最近一次有成績的段考（選位與前五名獎勵用這個） */
+/** 段考排名（方法 A）：每次段考先在各科內排名（多媒、資料分開），換成百分比（科內名次 ÷ 該科人數），
+ *  再依百分比排出全班名次；總名次依三次百分比的平均。latest＝最近一次有成績的段考（選位與前五名獎勵用這個） */
 function examRanks() {
   const sh = getSS().getSheetByName(SHEET_SCORE);
   if (!sh) return null;
+  const byRank = String(sh.getRange('B8').getValue()).indexOf('排名') >= 0; // 填的是科排名（越小越好）
   const ex = readExamScores(sh);
   const list = Object.keys(ex).map(k => {
     const p = k.split('|');
@@ -1531,17 +1540,31 @@ function examRanks() {
   });
   const has = [0, 1, 2].map(i => list.some(x => x.s[i] != null));
   if (!has.some(Boolean)) return null;
-  const rankBy = get => {                        // 分數高的名次小；同分同名次（1、1、3）
-    const got = list.filter(x => get(x) != null).sort((a, b) => get(b) - get(a));
+  // 依數值排名：同值同名次（1、1、3）；asc＝小的在前
+  const rankBy = (arr, get, asc) => {
+    const got = arr.filter(x => get(x) != null).sort((a, b) => (asc ? get(a) - get(b) : get(b) - get(a)));
     const r = {};
     got.forEach((x, i) => { r[x.key] = i && get(got[i - 1]) === get(x) ? r[got[i - 1].key] : i + 1; });
     return r;
   };
-  const per = [0, 1, 2].map(i => (has[i] ? rankBy(x => x.s[i]) : {}));
-  list.forEach(x => { const v = x.s.filter(y => y != null); x.avg = v.length ? v.reduce((t, y) => t + y, 0) / v.length : null; });
-  const overall = rankBy(x => x.avg);
+  const depts = [...new Set(list.map(x => x.dept))];
+  const per = [0, 1, 2].map(i => {
+    const deptRank = {}, pct = {};
+    if (!has[i]) return { deptRank: deptRank, pct: pct, rank: {} };
+    depts.forEach(d => {
+      const g = list.filter(x => x.dept === d && x.s[i] != null);
+      const r = byRank ? Object.fromEntries(g.map(x => [x.key, x.s[i]])) : rankBy(g, x => x.s[i], false);
+      g.forEach(x => { deptRank[x.key] = r[x.key]; pct[x.key] = r[x.key] / g.length; });
+    });
+    return { deptRank: deptRank, pct: pct, rank: rankBy(list, x => (pct[x.key] == null ? null : Math.round(pct[x.key] * 1e6) / 1e6), true) };
+  });
+  list.forEach(x => {
+    const v = [0, 1, 2].map(i => per[i].pct[x.key]).filter(y => y != null);
+    x.avgPct = v.length ? v.reduce((t, y) => t + y, 0) / v.length : null;
+  });
+  const overall = rankBy(list, x => (x.avgPct == null ? null : Math.round(x.avgPct * 1e6) / 1e6), true);
   const latest = has.lastIndexOf(true);
-  return { list: list, per: per, overall: overall, latest: latest, latestRank: per[latest], label: EXAMS[latest] };
+  return { list: list, per: per, overall: overall, latest: latest, latestRank: per[latest].rank, label: EXAMS[latest], byRank: byRank };
 }
 /** 按鈕「段考排名」：更新「段考排名」工作表並切換過去；也會依最近一次段考發前五名的交換位置卡 */
 function showExamRank() {
@@ -1551,14 +1574,18 @@ function showExamRank() {
   let sh = ss.getSheetByName(SHEET_EXAMRANK);
   if (!sh) sh = ss.insertSheet(SHEET_EXAMRANK, 1);
   sh.clear();
-  const head = ['總名次', '科別', '座號', '姓名', '平均'].concat(EXAMS.reduce((a, n) => a.concat([n, '名次']), []));
+  const head = ['總名次', '科別', '座號', '姓名', '平均百分比'].concat(EXAMS.reduce((a, n) => a.concat([n + (R.byRank ? '（科排名）' : ''), '科內名次', '百分比', '班名次']), []));
   const rows = R.list.slice().sort((a, b) => (R.overall[a.key] || 999) - (R.overall[b.key] || 999) || a.key.localeCompare(b.key))
-    .map(x => [R.overall[x.key] || '', x.dept, x.no, x.name, x.avg == null ? '' : Math.round(x.avg * 100) / 100]
-      .concat([0, 1, 2].reduce((a, i) => a.concat([x.s[i] == null ? '' : x.s[i], R.per[i][x.key] || '']), [])));
-  sh.getRange(1, 1).setValue('段考排名（依平均分數；' + Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'yyyy/MM/dd HH:mm') + ' 更新）').setFontSize(14).setFontWeight('bold');
-  sh.getRange(2, 1).setValue('成績填在「扣分統計」的 I～K 欄。線上選位和「前五名交換位置卡」依最近一次段考（' + R.label + '）的名次。').setFontColor('#6b7079');
+    .map(x => [R.overall[x.key] || '', x.dept, x.no, x.name, x.avgPct == null ? '' : x.avgPct]
+      .concat([0, 1, 2].reduce((a, i) => a.concat([x.s[i] == null ? '' : x.s[i], R.per[i].deptRank[x.key] || '', R.per[i].pct[x.key] == null ? '' : R.per[i].pct[x.key], R.per[i].rank[x.key] || '']), [])));
+  sh.getRange(1, 1).setValue('段考排名（' + Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'yyyy/MM/dd HH:mm') + ' 更新）').setFontSize(14).setFontWeight('bold');
+  sh.getRange(2, 1).setValue('多媒、資料各自排名 → 換成百分比（科內名次 ÷ 該科人數，越小越好）→ 依百分比排出全班名次；總名次依平均百分比。線上選位和「前五名交換位置卡」依最近一次段考（' + R.label + '）的班名次。').setFontColor('#6b7079');
   sh.getRange(3, 1, 1, head.length).setValues([head]).setFontWeight('bold').setBackground('#dff3ea');
-  if (rows.length) sh.getRange(4, 1, rows.length, head.length).setValues(rows);
+  if (rows.length) {
+    sh.getRange(4, 1, rows.length, head.length).setValues(rows);
+    sh.getRange(4, 5, rows.length, 1).setNumberFormat('0.0%');
+    [0, 1, 2].forEach(i => sh.getRange(4, 8 + i * 4, rows.length, 1).setNumberFormat('0.0%'));
+  }
   sh.getRange(4, 1, Math.max(1, rows.length), 1).setFontWeight('bold');
   rows.forEach((r, i) => { if (r[0] && r[0] <= 5) sh.getRange(4 + i, 1, 1, head.length).setBackground('#fff4cc'); });
   sh.setFrozenRows(3);
