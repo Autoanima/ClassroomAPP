@@ -83,7 +83,7 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 const SHOP_OK = { shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
 const STUDENT_OK = Object.assign({ getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
 const GUEST_OK = { ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1 };
@@ -118,7 +118,9 @@ function doPost(e) {
     switch (req.action) {
       case 'ping': return json(ping());
       case 'getRoster': return json({ ok: true, roster: rosterWithOutdoor() });
-      case 'saveRoster': return json(saveRoster(req.roster || {}));
+      case 'saveRoster':
+        if (!who.teacher && !canEditRoster(who.key)) throw new Error('只有導師、班長、副班長、環保股長可以修改工作分配');
+        return json(saveRoster(req.roster || {}));
       case 'setOutdoorSheet': return json(setOutdoorSheet(req.url));
       case 'getStudents': return json(getStudents());
       case 'saveRecords': return json(saveRecords((req.rows || []).map(r => Object.assign(r, { inspector: who.key }))));
@@ -404,6 +406,10 @@ function tableOf(values, name) {
     cDept: col(/^科別$/), cNo: col(/^座號$/), cName: col(/^姓名$/),
     cRank: col(/^(班排名|名次|排名|班級名次)$/), cId: cId, cRoles: cRoles,
   };
+}
+/** 班長、副班長、環保股長（衛生股長）可以修改工作分配 */
+function canEditRoster(key) {
+  return cadreRoles(key).some(r => /^(副?班長|環保|衛生)/.test(String(r).trim()));
 }
 /** 名單工作表：CONFIG.ROSTER_SHEET，找不到就試常見的名稱（改過分頁名稱也讀得到） */
 function rosterSheet() {

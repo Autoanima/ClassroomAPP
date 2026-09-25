@@ -1123,6 +1123,8 @@
 
   // ── 今日值日生：大家都看得到；班長、副班長（和導師）可以登記 ──
   let duty = null;
+  // 修改工作分配：導師、班長、副班長、環保股長（衛生股長）
+  const canRoster = () => isTeacher() || (isCadre() && jobsOf(settings.me || '').roles.some(r => /^(副?班長|環保|衛生)/.test(r)));
   const canDuty = () => isTeacher() || jobsOf(settings.me || '').roles.some(r => /^副?班長$/.test(r));
   const shortName = k => parseKeyLite(k).name || k;
   function parseKeyLite(k) { const m = String(k || '').match(/^(\D*?)(\d+)(.*)$/); return m ? { name: m[3] } : { name: String(k || '') }; }
@@ -1295,11 +1297,11 @@
   function renderJobs() {
     const root = $('#jobsList');
     let h = '';
-    h += `<div class="jobs-head"><h2>工作分配</h2>${isTeacher()
+    h += `<div class="jobs-head"><h2>工作分配</h2>${canRoster()
       ? `<button type="button" class="btn btn--primary" id="editRoster">✏️ 修改負責人員</button>`
-      : `<span class="muted small">${isStudent() ? '點地圖可以看到負責的同學' : '只有導師可以修改'}</span>`}</div>`;
+      : `<span class="muted small">${isStudent() ? '點地圖可以看到負責的同學' : '只有導師、班長、副班長、環保股長可以修改'}</span>`}</div>`;
     // 導師：還沒有任何掃地工作的同學（外掃區連結後才算得準）
-    if (isTeacher() && students().length) {
+    if (canRoster() && students().length) {
       const free = students().filter(k => !jobsOf(k).jobs.length && k !== inspectorName('I1'));
       if (!roster?.outdoor) h += `<div class="banner warn"><div class="bn-sub">⚠ 外掃區還沒有連結，外掃的同學會顯示「沒有指定」。</div></div>`;
       else if (free.length) h += `<div class="banner warn"><div class="bn-main">還沒有掃地工作：${free.length} 人</div><div class="bn-sub">${free.map(esc).join('、')}</div></div>`;
@@ -1320,7 +1322,7 @@
     const O = roster?.outdoor;
     h += `<details class="jobs-fold"${ui.outdoorOpen ? ' open' : ''} data-fold="outdoor"><summary>🌳 ${esc(D.outdoor.label)}工作分配</summary>`;
     if (O) {
-      h += `<p class="muted small">${isTeacher() ? '<b>點名字就可以換人</b>。' : ''}存在試算表的「外掃工作分配」工作表（以這個 App 為主）。</p>`;
+      h += `<p class="muted small">${canRoster() ? '<b>點名字就可以換人</b>。' : ''}存在試算表的「外掃工作分配」工作表（以這個 App 為主）。</p>`;
       h += outdoorDiagram(O);
     } else if (isTeacher()) {
       h += `<p class="small">還沒有連結外掃區。貼上「外掃區檢查」App 使用的 Google 試算表網址，兩邊的工作分配就會同步。</p>
@@ -1350,7 +1352,7 @@
         });
       }
       h += `</div>${roster?.cadres ? `<p class="muted small">名單來自試算表「${esc(roster.cadreSource || '幹部名單')}」工作表，要修改請直接改試算表（約 2 分鐘內同步）。</p>`
-        : isTeacher() ? `<div class="actions"><button type="button" class="btn btn--primary wide" id="editCadres">✏️ 修改幹部名單</button></div>` : ''}</details>`;
+        : canRoster() ? `<div class="actions"><button type="button" class="btn btn--primary wide" id="editCadres">✏️ 修改幹部名單</button></div>` : ''}</details>`;
     }
     root.innerHTML = h;
     $('#editRoster')?.addEventListener('click', openRosterEditor);
@@ -1434,7 +1436,7 @@
       s += `<polyline points="${pts.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="#aab4bd" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#odArrow)"/>`;
     }));
     s += `</svg>`;
-    const edit = !check && isTeacher();
+    const edit = !check && canRoster();
     const nameBtn = (key, name, sub) => `<button type="button" class="od-nm${name ? '' : ' empty'}${name && name === settings.me ? ' me' : ''}"${edit ? ` data-od="${key}"` : ' tabindex="-1"'}><b>${esc(name || '未設定')}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</button>`;
     const box = ([x, y, w, h]) => `left:${pct(x - vx, vw)};top:${pct(y, H)};width:${pct(w, vw)};height:${pct(h, H)}`;
     let c = '';
@@ -1461,7 +1463,7 @@
   }
   $('#jobsList').addEventListener('click', e => {
     const b = e.target.closest('[data-od]');
-    if (b && isTeacher()) openOutdoorSlot(b.dataset.od);
+    if (b && canRoster()) openOutdoorSlot(b.dataset.od);
   });
 
   // 名單中已經有工作的人（室內＋外掃，含環保股長），選人時自動排除
@@ -1524,7 +1526,7 @@
 
   // ── 幹部名單編輯（同一人可以兼任）──
   async function openCadreEditor() {
-    if (!isTeacher()) return;
+    if (!canRoster()) return;
     if (!students().length) {
       openSheet({ kind: 'cadres' }, sheetHead('修改幹部名單') + '<p class="muted">讀取學生名單中…</p>');
       try { await loadStudents(); } catch (e) { sheetBody.innerHTML = sheetHead('修改幹部名單') + `<p class="lock-msg">無法讀取名單：${esc(e.message)}</p>`; return; }
@@ -1592,7 +1594,7 @@
   function openSettings() {
     let h = sheetHead('設定', `使用人：${esc(isStudent() ? settings.me : settings.inspector || '未選擇')}`);
     if (isStaff()) {
-      if (isTeacher()) h += `<div class="actions"><button type="button" class="btn btn--primary wide" data-act="roster">👥 修改負責人員（工作分配、幹部）</button></div>`;
+      if (canRoster()) h += `<div class="actions"><button type="button" class="btn btn--primary wide" data-act="roster">👥 修改負責人員（工作分配、幹部）</button></div>`;
       if (TEST) h += `<div class="actions"><button type="button" class="btn wide" data-act="who">👤 切換使用人（測試模式）</button></div>`;
       h += `<h3>本次掃地檢查紀錄</h3><p class="muted small" style="margin:0">${state.startedAt
         ? `開始於 ${fmtDateW(new Date(state.startedAt))} ${fmtTime(new Date(state.startedAt))}，將於 ${Math.round(RESET_MS / 3600e3)} 小時後自動清空。`
@@ -1682,7 +1684,7 @@
   let rosterClass = '';
   const rosterHead = extra => sheetHead('修改負責人員', extra || '');
   async function openRosterEditor() {
-    if (!isTeacher()) return toast('只有導師可以修改負責人員');
+    if (!canRoster()) return toast('只有導師、班長、副班長、環保股長可以修改負責人員');
     if (studentList) {
       renderRosterEditor();
       loadStudents().then(changed => {
