@@ -1483,15 +1483,23 @@ function ensureScoreSheet(withButton) {
   if (withButton) ensureScoreButtons(sh);
   return sh;
 }
-/** 三顆按鈕：計算扣分、段考排名、重置扣分統計（缺哪顆補哪顆；手機 App 按不到圖片，請用選單） */
+/** 三顆按鈕：計算扣分、段考排名、重置扣分統計，並排在 D3 右邊（缺哪顆補哪顆，已經有的移到固定位置）。
+ *  手機上的 Google 試算表 App 按不到圖片，請用選單「內掃檢查」 */
 function ensureScoreButtons(sh) {
+  const BTNS = [['computeScores', 'sum-button.png'], ['showExamRank', 'btn-rank.png'], ['resetScores', 'btn-reset.png']];
   const have = {};
-  sh.getImages().forEach(img => { try { have[img.getScript()] = true; } catch (e) { /* 沒有指定程式 */ } });
-  [['computeScores', 'sum-button.png', 4], ['showExamRank', 'btn-rank.png', 6], ['resetScores', 'btn-reset.png', 8]].forEach(b => {
-    if (have[b[0]]) return;
-    try { sh.insertImage(CONFIG.SITE_URL + 'assets/' + b[1], b[2], 3).setWidth(180).setHeight(48).assignScript(b[0]); }
-    catch (e) { Logger.log('按鈕圖片建立失敗，可改用選單「內掃檢查」：' + e); }
+  sh.getImages().forEach(img => { let fn = ''; try { fn = img.getScript(); } catch (e) { /* 沒有指定程式 */ } if (fn) have[fn] = img; });
+  const errs = [];
+  BTNS.forEach((b, i) => {
+    let img = have[b[0]];
+    if (!img) {
+      try { img = sh.insertImage(CONFIG.SITE_URL + 'assets/' + b[1], 4, 3).assignScript(b[0]); }
+      catch (e) { errs.push(b[0] + '：' + (e.message || e)); return; }
+    }
+    // 固定位置：D3 起，每顆往右 190 像素
+    try { img.setWidth(180).setHeight(48).setAnchorCell(sh.getRange(3, 4)).setAnchorCellXOffset(i * 190).setAnchorCellYOffset(0); } catch (e) { errs.push(b[0] + ' 位置：' + (e.message || e)); }
   });
+  sh.getRange('D8').setValue(errs.length ? '按鈕建立失敗（請改用選單「內掃檢查」）：' + errs.join('；') : '').setFontColor('#b42318');
 }
 const resetAt = () => Number(PropertiesService.getScriptProperties().getProperty('SCORE_RESET_AT') || 0);
 /** 檢查紀錄的時間：紀錄編號開頭是那一次檢查的開始時間（S20260924-0011…），沒有就用日期 */
