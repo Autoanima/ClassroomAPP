@@ -499,6 +499,8 @@ textarea:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 
 /* 座位：大頭照滿版，底下兩行小字（組別 座號／姓名） */
 .seat .photo { position: absolute; inset: 0; display: grid; }
 .seat .photo img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 25%; display: block; }
+/* 座位圖的放大縮小：只放大大頭照（以臉部為中心），座位大小和位置不變 */
+.seats-map .seat .photo > .av { display: block; width: 100%; height: 100%; transform: scale(var(--fz, 1)); transform-origin: 50% 28%; }
 .seat-big .face img, .dcard .face img, .swapbar .face img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 25%; display: block; }
 .ava { width: 100%; height: 100%; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 1.1em; }
 .seat .photo .ava { font-size: max(12px, calc(var(--u) * 40px)); padding-bottom: 30%; }

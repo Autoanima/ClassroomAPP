@@ -450,17 +450,26 @@
     const box = boxOf(m.mode), W = box.x1 - box.x0, H = box.y1 - box.y0;
     const { fit } = levels(m);
     // 緊縮排列時預設「剛好塞進畫面寬度」
-    const want = ui.zoom[name] ?? (isCompact(m.mode) ? fit : Math.max(fit, MIN_U[name] || fit));
+    // 座位圖：永遠剛好塞進畫面，放大縮小只改大頭照（座位排列不變）
+    const want = m.mode === 'seats' ? fit : ui.zoom[name] ?? (isCompact(m.mode) ? fit : Math.max(fit, MIN_U[name] || fit));
     const u = Math.max(fit, want);
     m.u = u;
     m.el.style.width = Math.floor(W * u) + 'px';
     m.el.style.height = Math.floor(H * u) + 'px';
     m.el.style.setProperty('--u', u.toFixed(4));
     const zo = m.wrap.parentElement.querySelector('.zoom-val');
+    if (m.mode === 'seats') { const f = ui.faceZoom || 1; m.el.style.setProperty('--fz', f); if (zo) zo.textContent = Math.round(f * 100) + '%'; return; }
     if (zo) zo.textContent = Math.round(u / fit * 100) + '%';
   }
+  const FACE_ZOOM = [0.7, 0.85, 1, 1.2, 1.4, 1.7, 2];
   function zoomMap(name, dir) {
     const m = maps[name];
+    if (m.mode === 'seats') { // 大頭照放大縮小
+      const i = FACE_ZOOM.findIndex(v => v >= (ui.faceZoom || 1) - 1e-6);
+      ui.faceZoom = FACE_ZOOM[Math.max(0, Math.min(FACE_ZOOM.length - 1, i + dir))]; saveUi();
+      sizeMap(name);
+      return;
+    }
     const { list } = levels(m);
     let i = list.findIndex(v => v >= m.u - 1e-6);
     if (i < 0) i = list.length - 1;
