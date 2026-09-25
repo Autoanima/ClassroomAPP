@@ -744,8 +744,18 @@ body.presenting .compass, body.presenting .swapbar { display: none; }
   .title .muted { display: block !important; font-size: 12px; line-height: 1.2; }
   .icon-btn { width: 34px; height: 34px; }
   .view-toggle span { padding: 4px 7px; }
+  /* 導師多一顆「除霧」按鈕：窄螢幕上縮小一點才放得下 */
+  body.role-teacher .topbar-row { gap: 3px; }
+  body.role-teacher .icon-btn { width: 30px; height: 32px; }
+  body.role-teacher .view-toggle span { padding: 4px 5px; }
+  body.role-teacher #defogBtn, body.role-teacher #themeBtn { font-size: 16px; }
 }
 #themeBtn { font-size: 18px; }
+#defogBtn { font-size: 18px; }
+#defogBtn[aria-pressed="true"] { background: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+/* 除霧模式：大頭照上的配件全部隱藏（裝扮編輯器除外） */
+body.defog .av .acc { display: none; }
+body.defog #decoStage .acc { display: block; }
 .view-toggle i { font-style: normal; }
 .title { flex: 1 1 auto; min-width: 72px; }
 @media (max-width: 460px) { .view-toggle i { display: none; } .topbar-row { gap: 4px; } }

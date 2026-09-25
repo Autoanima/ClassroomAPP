@@ -486,6 +486,18 @@
     toast(flipOn() ? '老師視角：黑板在下方' : '學生視角：黑板在上方');
   });
 
+  // ── 除霧模式（只有導師）：暫時隱藏大家大頭照上的配件，只影響這台裝置，不影響同學看到的樣子 ──
+  function paintDefog() {
+    const on = isTeacher() && !!ui.defog;
+    $('#defogBtn').hidden = !isTeacher();
+    $('#defogBtn').setAttribute('aria-pressed', on);
+    document.body.classList.toggle('defog', on);
+  }
+  $('#defogBtn').addEventListener('click', () => {
+    ui.defog = !ui.defog; saveUi(); paintDefog();
+    toast(ui.defog ? '🌫️ 除霧模式：已暫時拿掉大家的配件（只有你看得到）' : '已恢復顯示配件');
+  });
+
   // ── 夜間模式：按月亮／太陽切換，記在這台裝置；沒選過就跟著手機設定 ──
   const darkNow = () => document.documentElement.dataset.theme === 'dark';
   function paintTheme() {
@@ -1808,6 +1820,7 @@
     document.body.classList.remove('locked');
     document.body.classList.toggle('role-student', isStudent());
     document.body.classList.toggle('role-teacher', isTeacher());
+    paintDefog();
     $('#userChip').textContent = '👤 ' + (isStudent() ? settings.me : settings.inspector);
     paintView();
     renderMap('clean'); renderMap('jobs');
