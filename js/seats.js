@@ -882,12 +882,12 @@
   A.ensureFaces = force => {
     if (!force && Date.now() - facesLoaded < 10 * 60e3) return;
     facesLoaded = Date.now();
-    Promise.all([loadFaces(), loadChart()]).then(c => { if (c.some(Boolean)) A.emit('faces'); }).catch(() => { facesLoaded = 0; });
+    Promise.all([loadFaces(), loadChart()]).then(c => { if (c.some(Boolean)) A.emit('faces'); }).catch(err => { facesLoaded = 0; if (A.isTeacher() && !A.TEST) toast('大頭照讀取失敗：' + err.message); });
   };
   async function refreshData() {
     try {
       const jobs = [loadChart(), loadSel(true)];
-      if (Date.now() - facesLoaded > 10 * 60e3) jobs.push(loadFaces().then(c => { facesLoaded = Date.now(); return c; }).catch(() => false));
+      if (Date.now() - facesLoaded > 10 * 60e3) jobs.push(loadFaces().then(c => { facesLoaded = Date.now(); return c; }).catch(err => { if (A.isTeacher()) toast('大頭照讀取失敗：' + err.message); return false; }));
       const res = await Promise.all(jobs);
       // 第一次使用、座位表還是空的：自動套用預設座位
       if (A.isTeacher() && !Object.keys(chart).length && !store.get(K.defaulted, false) && !live?.started) {
