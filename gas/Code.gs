@@ -993,7 +993,7 @@ function addPost(who, text) {
   if (!text) throw new Error('請寫下要公布的內容');
   withLock(() => {
     const sh = getSheet(SHEET_BOARD, HEAD_BOARD);
-    sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_BOARD.length).setValues([[new Date(), text, who.teacher ? CONFIG.TEACHER_NAME : who.key, Utilities.getUuid().slice(0, 8), '']]);
+    sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_BOARD.length).setValues([[new Date(), text, who.teacher ? CONFIG.TEACHER_NAME : who.key, Utilities.getUuid().slice(0, 8), '', '']]);
   });
   return getBoard();
 }
