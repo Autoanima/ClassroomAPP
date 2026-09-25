@@ -225,6 +225,7 @@ function onOpen() {
     .addItem('段考排名', 'showExamRank')
     .addItem('重置扣分統計', 'resetScores')
     .addItem('重新設定段考結算時間', 'resetExamCuts')
+    .addItem('清除導師測試的道具', 'clearTeacherTestItems')
     .addItem('檢查名單與排名（身分證字號）', 'checkPeople')
     .addItem('讓所有人重新登入', 'resetSessions')
     .addSeparator()
@@ -1999,6 +2000,36 @@ function publishRankCopy(head, rows, note) {
 function rankSheetUrl() {
   const id = PropertiesService.getScriptProperties().getProperty('PUBLIC_RANK_ID');
   return id ? 'https://docs.google.com/spreadsheets/d/' + id + '/view' : '';
+}
+/** 試算表選單：清除導師測試時買的、送出去的配件，和導師用過的特殊道具（煙火、小太陽、抽籤卡…）。
+ *  不會真的刪掉：整列搬到「已清除的測試資料」工作表，需要時可以搬回去 */
+function clearTeacherTestItems() {
+  const T = CONFIG.TEACHER_NAME;
+  let ui = null;
+  try { ui = SpreadsheetApp.getUi(); } catch (e) { /* 從編輯器執行 */ }
+  const inv = getSheet(SHEET_INV, HEAD_INV), sp = getSheet(SHEET_SPEND, HEAD_SPEND);
+  const invRowsAll = inv.getLastRow() > 1 ? inv.getRange(2, 1, inv.getLastRow() - 1, HEAD_INV.length).getValues() : [];
+  const spRowsAll = sp.getLastRow() > 1 ? sp.getRange(2, 1, sp.getLastRow() - 1, HEAD_SPEND.length).getValues() : [];
+  const invHit = invRowsAll.map((r, i) => (String(r[5]) === T || String(r[1]) === T ? i : -1)).filter(i => i >= 0); // 導師買的（含送人的）、導師擁有的
+  const spHit = spRowsAll.map((r, i) => (String(r[1]) === T ? i : -1)).filter(i => i >= 0);                         // 導師用過的特殊道具
+  if (!invHit.length && !spHit.length) { if (ui) ui.alert('沒有找到導師測試的道具。'); return; }
+  const who = {};
+  invHit.forEach(i => { if (String(invRowsAll[i][1]) !== T) who[String(invRowsAll[i][1])] = 1; });
+  const msg = '找到：\n・導師買的／送出去的配件 ' + invHit.length + ' 個' + (Object.keys(who).length ? '（目前在 ' + Object.keys(who).join('、') + ' 身上）' : '') +
+    '\n・導師用過的特殊道具 ' + spHit.length + ' 筆（煙火、小太陽、小雨傘、抽籤卡…）\n\n要清除嗎？（會搬到「已清除的測試資料」工作表，不是真的刪掉）';
+  if (ui && ui.alert('清除導師測試的道具', msg, ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  withLock(() => {
+    const bin = getSheet('已清除的測試資料', ['清除時間', '來源工作表', '原本的資料…']);
+    const now = new Date();
+    const moved = invHit.map(i => [now, SHEET_INV].concat(invRowsAll[i])).concat(spHit.map(i => [now, SHEET_SPEND].concat(spRowsAll[i])));
+    const w = Math.max.apply(null, moved.map(r => r.length));
+    bin.getRange(bin.getLastRow() + 1, 1, moved.length, w).setValues(moved.map(r => r.concat(Array(w - r.length).fill(''))));
+    // 由下往上刪，列號才不會跑掉
+    invHit.slice().reverse().forEach(i => inv.deleteRow(i + 2));
+    spHit.slice().reverse().forEach(i => sp.deleteRow(i + 2));
+  });
+  CacheService.getScriptCache().remove('ACC_CATALOG');
+  if (ui) ui.alert('完成：已清除 ' + invHit.length + ' 個配件、' + spHit.length + ' 筆特殊道具。同學的大頭照裝飾會自動拿掉這些配件。');
 }
 function periodText(cuts) {
   const f = t => Utilities.formatDate(new Date(t), CONFIG.TIMEZONE, 'M/d HH:mm');
