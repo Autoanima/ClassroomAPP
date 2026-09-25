@@ -21,10 +21,10 @@
   let highlight = new Set(), popSeats = new Set();
   let savingWishes = false;
 
-  // 非導師的「交換位置」＝試用：改的是一份副本，不會儲存；用了交換位置卡（card）才會真的對調
-  let trial = null, card = 0;
+  // 非導師的「交換位置」：只有用了交換位置卡（card）時，才能把「自己」和一位同學對調
+  let card = 0;
   const trialOn = () => sub === 'swap' && !A.isTeacher();
-  const cur = () => (trialOn() && !card ? trial || (trial = { ...chart }) : chart);
+  const cur = () => chart;
   const selLive = () => !!sel && ['ready', 'open', 'paused'].includes(sel.status);
   const inSel = () => trialOn() ? false : (A.isStudent() ? !!sel && (selLive() || (sel.status === 'done' && !sel.applied)) : sub === 'sel' && !!sel && sel.status !== 'idle');
   const takenOf = () => (!sel || sel.status === 'idle' ? {} : sel.taken || SelEngine.taken(sel));
@@ -172,9 +172,9 @@
       return `<div class="banner myturn"><div class="bn-main">🔀 交換位置卡：點一位同學的座位，和你對調</div>
         <div class="bn-sub">對調後會扣 ${card} 點，並且真的儲存。<button type="button" class="link-btn" data-tr="cancelCard">取消</button></div></div>`;
     }
-    return `<div class="banner warn"><div class="bn-main">⚠ 僅供試用，無法儲存座位的分配狀態</div>
-      <div class="bn-sub">點一個座位、再點另一個座位就互換，只有你自己看得到。要真的換位置，請等導師開放選位，或在商店用「交換位置卡」。
-        <button type="button" class="link-btn" data-tr="reset">↺ 還原</button></div></div>`;
+    return `<div class="banner warn"><div class="bn-main">🔒 要使用「交換位置卡」才能換座位</div>
+      <div class="bn-sub">交換位置卡可以讓你和一位同學對調座位（只能是你自己和別人對調）。
+        <button type="button" class="link-btn" data-tr="shop">🛍 到商店</button></div></div>`;
   }
   // 商店按「交換位置卡」→ 到這裡點同學的座位
   A.useSwapCard = price => {
@@ -191,7 +191,7 @@
     if (!await A.ask(`花 ${card} 點，和 ${k} 對調座位？\n（${seatName(mine)} ⇄ ${seatName(id)}）`, '對調！', true)) return;
     try {
       await A.api('swapSeatCard', { to: k });
-      card = 0; trial = null;
+      card = 0;
       popSeats.add(id); popSeats.add(mine);
       await loadChart();
       toast(`🔀 已和 ${k} 對調座位！`);
@@ -248,7 +248,7 @@
   $('#seatTop').addEventListener('click', e => {
     const tr = e.target.closest('[data-tr]');
     if (tr) {
-      if (tr.dataset.tr === 'reset') { trial = { ...chart }; toast('已還原成目前的座位表'); }
+      if (tr.dataset.tr === 'shop') return A.showTab('shop');
       if (tr.dataset.tr === 'cancelCard') card = 0;
       picked = null; renderAll(); return;
     }
@@ -256,7 +256,6 @@
     if (s) {
       sub = s.dataset.sub; store.set(K.sub, sub);
       picked = null;
-      if (sub === 'swap' && !A.isTeacher()) trial = { ...chart }; // 每次進來都從目前的座位表開始試
       renderAll();
       if (sub === 'sel') loadSel(true).then(renderAll).catch(err => toast(err.message)).finally(schedulePoll);
       return;
@@ -321,7 +320,7 @@
   function renderBar() {
     const bar = $('#swapBar');
     let h = '';
-    if (sub === 'swap' && picked && (A.isTeacher() || !card)) {
+    if (sub === 'swap' && picked && A.isTeacher()) {
       const k = picked.key || cur()[picked.seat];
       const what = picked.key ? `${esc(k)}（還沒有座位）` : `${picked.seat}　${k ? esc(k) : '空位'}`;
       const job = k ? A.jobsOf(k).jobs.join('、') : '';
@@ -363,7 +362,6 @@
       popSeats.add(a); popSeats.add(id);
     }
     picked = null;
-    if (trialOn()) { renderAll(); return; } // 試用：不儲存
     saveChart(true);
   }
 
@@ -708,7 +706,7 @@
     const b = e.target.closest('[data-seat]');
     if (!b) return;
     const id = b.dataset.seat;
-    if (trialOn()) return card ? cardTap(id) : chartTap(id);
+    if (trialOn()) return card ? cardTap(id) : zoomFace(id); // 沒有用交換位置卡：只能看，不能換
     if (A.isStudent()) return studentSeat(id);
     if (sub === 'live' && A.isTeacher()) return liveSeat(id);
     if (inSel()) return A.isTeacher() ? teacherSelSeat(id) : showSeatInfo(id);
