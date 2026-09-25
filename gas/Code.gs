@@ -170,7 +170,7 @@ function doPost(e) {
       case 'buyDrawCard': return json(buyDrawCard(who, String(req.kind || ''), String(req.to || '')));
       case 'getDrawFx': return json(Object.assign({ ok: true }, drawFx()));
       case 'drawUsed': return json(drawUsed(String(req.id || '')));
-      case 'delAcc': return json(delAcc(who, String(req.acc || '')));
+      case 'delAcc': return json(delAcc(who, String(req.acc || ''), req.mode === 'remove'));
       case 'getSeats': return json(who.teacher ? { ok: true, seats: getSeats(), defaults: getDefaultSeats() } : { ok: true, seats: getSeats() });
       case 'saveDefaultSeats':
         if (!who.teacher && !isMonitor(who.key)) throw new Error('只有導師、班長、副班長可以儲存座位');
@@ -749,9 +749,17 @@ function catalog() {
     if (!/^image\//.test(f.getMimeType())) continue;
     const base = f.getName().replace(/\.[^.]+$/, '');
     const m = base.normalize('NFKC').match(/^(.*?)[_\s-]+(\d+)$/);
-    let creator = '';
-    try { creator = String(JSON.parse(f.getDescription() || '{}').creator || ''); } catch (e) { /* 說明欄不是創造卡的格式 */ }
-    list.push({ id: 'd:' + f.getId(), name: (m ? m[1] : base).trim(), price: m ? Number(m[2]) : CONFIG.ACC_DEFAULT_PRICE, t: f.getLastUpdated().getTime(), creator: creator });
+    let meta = {};
+    try { meta = JSON.parse(f.getDescription() || '{}') || {}; } catch (e) { /* 說明欄不是創造卡的格式 */ }
+    list.push({ id: 'd:' + f.getId(), name: (m ? m[1] : base).trim(), price: m ? Number(m[2]) : CONFIG.ACC_DEFAULT_PRICE, t: f.getLastUpdated().getTime(), creator: String(meta.creator || ''), delisted: !!meta.delisted });
+  }
+  // 已下架的商品：等到買的人都過期了，才把圖片丟到垃圾桶
+  const off = list.filter(a => a.delisted);
+  if (off.length) {
+    const today = ymd(new Date()), inUse = {};
+    invRows().forEach(x => { if (x.exp >= today) inUse[x.acc] = true; });
+    off.filter(a => !inUse[a.id]).forEach(a => { try { DriveApp.getFileById(a.id.slice(2)).setTrashed(true); } catch (e) { /* 已經不在了 */ } });
+    list = list.filter(a => !a.delisted || inUse[a.id]);
   }
   cache.put('ACC_CATALOG', JSON.stringify(list), 600);
   return list;
@@ -795,7 +803,7 @@ function salesOf(key, inv) {
   const mine = {};
   catalog().forEach(a => { if (a.creator === key) mine[a.id] = a; });
   const rows = (inv || invRows()).filter(x => mine[x.acc] && x.buyer !== CONFIG.TEACHER_NAME);
-  return { n: rows.length, income: rows.reduce((t, x) => t + x.price, 0), items: Object.keys(mine).map(id => ({ id: id, name: mine[id].name, price: mine[id].price, sold: rows.filter(x => x.acc === id).length })) };
+  return { n: rows.length, income: rows.reduce((t, x) => t + x.price, 0), items: Object.keys(mine).map(id => ({ id: id, name: mine[id].name, price: mine[id].price, sold: rows.filter(x => x.acc === id).length, delisted: !!mine[id].delisted })) };
 }
 function coinsOf(key, inv) {
   if (key === CONFIG.TEACHER_NAME) return { earned: UNLIMITED, spent: 0, coins: UNLIMITED, income: 0 };
@@ -836,7 +844,7 @@ function shopState(who) {
   try { grantRankCards(); } catch (e) { /* 排名檔有問題時不影響商店 */ }
   const today = ymd(new Date());
   const inv = invRows();
-  const cat = catalog().map(a => ({ id: a.id, name: a.name, price: a.price, src: a.src || '', t: a.t || 0, creator: a.creator || '' }));
+  const cat = catalog().map(a => ({ id: a.id, name: a.name, price: a.price, src: a.src || '', t: a.t || 0, creator: a.creator || '', delisted: !!a.delisted }));
   const key = who.key, c = coinsOf(key, inv);
   const psh = pointsSheet();
   const plus = psh.getLastRow() > 1 ? psh.getRange(2, 1, psh.getLastRow() - 1, 5).getValues()
@@ -874,6 +882,7 @@ function shopState(who) {
 function buyAcc(who, acc) {
   const a = catalog().find(x => x.id === acc);
   if (!a) throw new Error('沒有這個配件');
+  if (a.delisted) throw new Error('這個商品已經下架了');
   withLock(() => {
     const c = coinsOf(who.key);
     if (c.coins < a.price) throw new Error('點數不夠（需要 ' + a.price + ' 點，你有 ' + c.coins + ' 點）');
@@ -979,11 +988,32 @@ function createAcc(who, name, price, data) {
   return shopState(who);
 }
 /** 下架創造的商品：導師可以下架任何一個，同學只能下架自己的（已經買的人還是保有到期為止，只是看不到圖） */
-function delAcc(who, acc) {
+/** 下架：不能再買，但已經買的人可以繼續用到到期（圖片保留，等大家都過期才刪）。
+ *  remove（只有導師）：內容不適當時立刻移除圖片，並把點數退給每一位買的人 */
+function delAcc(who, acc, remove) {
   const a = catalog().find(x => x.id === acc);
   if (!a || acc.indexOf('d:') !== 0) throw new Error('找不到這個商品');
   if (!who.teacher && a.creator !== who.key) throw new Error('只能下架自己創造的商品');
-  DriveApp.getFileById(acc.slice(2)).setTrashed(true);
+  if (remove && !who.teacher) throw new Error('只有導師可以移除並退點');
+  const f = DriveApp.getFileById(acc.slice(2));
+  if (remove) {
+    withLock(() => {
+      // 退點：把這個商品的每一筆購買改成 0 點、今天到期（紀錄還在）
+      const sh = getSheet(SHEET_INV, HEAD_INV);
+      const y = new Date(); y.setDate(y.getDate() - 1);
+      invRows().filter(x => x.acc === acc).forEach(x => {
+        sh.getRange(x.row, 5).setValue('0');
+        sh.getRange(x.row, 8).setValue(ymd(y));
+        sh.getRange(x.row, 9).setValue('導師移除商品，已退還 ' + x.price + ' 點');
+      });
+    });
+    f.setTrashed(true);
+  } else {
+    let meta = {};
+    try { meta = JSON.parse(f.getDescription() || '{}') || {}; } catch (e) { /* 不是 JSON */ }
+    meta.delisted = true; meta.delistedBy = who.teacher ? CONFIG.TEACHER_NAME : who.key; meta.delistedAt = Date.now();
+    f.setDescription(JSON.stringify(meta));
+  }
   CacheService.getScriptCache().remove('ACC_CATALOG');
   return shopState(who);
 }

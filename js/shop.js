@@ -78,14 +78,14 @@
     }
     if (S.sales?.items.length) {
       h += `<div class="panel"><h3>我創造的商品</h3><p class="muted small">已經賣出 ${S.sales.n} 次，收入 ${S.sales.income} 點（已算進你的點數）。</p><ul class="inv">${S.sales.items.map(a =>
-        `<li><span class="acc-thumb" style="${accImgStyle(a.id)}"></span><div class="inv-what"><b>${esc(a.name)}</b><div class="muted small">售價 ${a.price} 點・賣出 ${a.sold} 次</div></div>
-          <button type="button" class="btn btn--danger" data-s="delAcc" data-acc="${esc(a.id)}" data-name="${esc(a.name)}">下架</button></li>`).join('')}</ul></div>`;
+        `<li><span class="acc-thumb" style="${accImgStyle(a.id)}"></span><div class="inv-what"><b>${esc(a.name)}</b>${a.delisted ? ' <span class="tag">已下架</span>' : ''}<div class="muted small">售價 ${a.price} 點・賣出 ${a.sold} 次${a.delisted ? '｜已經買的人可以用到到期' : ''}</div></div>
+          ${a.delisted ? '' : `<button type="button" class="btn btn--danger" data-s="delAcc" data-acc="${esc(a.id)}" data-name="${esc(a.name)}">下架</button>`}</li>`).join('')}</ul></div>`;
     }
     h += `<div class="panel"><h3>商店</h3><p class="muted small">每個配件買了之後有效 10 個上課日（週六、週日不算），可以自己用，也可以送給同學。</p><div class="shop-grid">`;
-    S.catalog.forEach(a => {
+    S.catalog.filter(a => !a.delisted).forEach(a => {
       const can = S.coins >= a.price;
       h += `<div class="shop-item"><span class="acc-thumb big" style="${accImgStyle(a.id)}"></span><b>${esc(a.name)}</b>${a.creator ? `<span class="muted small">🎨 ${esc(a.creator)}</span>` : ''}
-        ${S.admin && a.creator ? `<button type="button" class="link-btn" data-s="delAcc" data-acc="${esc(a.id)}" data-name="${esc(a.name)}">下架</button>` : ''}
+        ${S.admin && a.creator ? `<span class="shop-admin"><button type="button" class="link-btn" data-s="delAcc" data-acc="${esc(a.id)}" data-name="${esc(a.name)}">下架</button><button type="button" class="link-btn danger" data-s="removeAcc" data-acc="${esc(a.id)}" data-name="${esc(a.name)}">移除並退點</button></span>` : ''}
         <button type="button" class="btn${can ? ' btn--primary' : ''}" data-s="buy" data-acc="${esc(a.id)}"${can ? '' : ' disabled'}>💰 ${a.price} 點</button></div>`;
     });
     h += `</div></div>`;
@@ -166,9 +166,14 @@
     } else if (act === 'transfer' || act === 'sure') {
       openDrawCard(act);
     } else if (act === 'delAcc') {
-      if (!await A.ask(`下架「${b.dataset.name}」？\n已經買的人不會退點數。`, '下架', true)) return;
+      if (!await A.ask(`下架「${b.dataset.name}」？\n下架後不能再買；已經買的人可以繼續用到到期，大頭照上的裝扮不會消失。`, '下架', true)) return;
       b.disabled = true;
-      try { S = await A.api('delAcc', { acc: b.dataset.acc }); toast('已下架'); } catch (err) { toast(err.message); }
+      try { S = await A.api('delAcc', { acc: b.dataset.acc }); toast('已下架（已經買的人可以用到到期）'); } catch (err) { toast(err.message); }
+      render();
+    } else if (act === 'removeAcc') {
+      if (!await A.ask(`立刻移除「${b.dataset.name}」？\n內容不適當時才用：圖片會馬上拿掉（大家的大頭照上也會消失），並把點數退還給每一位買的人。`, '移除並退點', true)) return;
+      b.disabled = true;
+      try { S = await A.api('delAcc', { acc: b.dataset.acc, mode: 'remove' }); toast('已移除，點數已退還'); A.ensureFaces?.(true); } catch (err) { toast(err.message); }
       render();
     }
   });
