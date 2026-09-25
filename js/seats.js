@@ -12,7 +12,11 @@
   const HOW = { wish: '志願', self: '自選', teacher: '老師指定', auto: '系統分配' };
   const STATUS = { idle: '沒有進行選位', ready: '準備中（可預選志願）', open: '選位中', paused: '暫停中', done: '選位結束' };
 
-  let chart = store.get(K.chart, {});   // 座位代號 → 同學
+  let chart = store.get(K.chart, {});   // 座位代號 → 同學（畫面上的，可能是還沒存的草稿）
+  // 已儲存的座位表：導師改座位只是「草稿」，變動的座位變紅色；按「把目前座位存成預設」才會存，切換畫面就恢復
+  let saved = { ...chart };
+  const sameSeats = (a, b) => { const ks = new Set([...Object.keys(a), ...Object.keys(b)]); return [...ks].every(k => (a[k] || '') === (b[k] || '')); };
+  const dirty = () => !sameSeats(chart, saved);
   let faces = store.get(K.faces, {});   // 座號（料05）→ { t, d }
   let sel = null, selSkew = 0;          // 選位狀態（老師：完整；學生：只含自己的資料）
   let sub = store.get(K.sub, 'chart');  // 老師看「座位表」「現場選位」或「線上選位」
@@ -127,6 +131,7 @@
       if (liveRunning() && !k) c.push('free');
     }
     if (sub === 'swap' && picked?.seat === s.id) c.push('picked');
+    if (!inSel() && (chart[s.id] || '') !== (saved[s.id] || '')) c.push('changed');
     if (k) c.push('has');
     if (k && k === A.me()) c.push('me');
     if (k && highlight.has(k)) c.push('hl');
@@ -169,6 +174,11 @@
       if (sub === 'swap') h += A.isTeacher() ? `<p class="muted small tip">💡 點一個座位、再點另一個座位，兩人就互換；點空位就是搬過去。</p>` : swapBanner();
       if (sub === 'chart') h += `<p class="muted small tip">點同學的大頭照可以放大，再點一次關閉。</p>`;
       if (sub === 'sel' && sel && sel.status !== 'idle') h += teacherBanner();
+      if (A.isTeacher() && dirty()) {
+        const n = Object.keys({ ...chart, ...saved }).filter(k => (chart[k] || '') !== (saved[k] || '')).length;
+        h += `<div class="banner draft"><div class="bn-main">⚠ 有 ${n} 個座位變動（紅色）還沒儲存</div>
+          <div class="bn-sub">切換畫面就會恢復原本的座位。<span class="draft-btns"><button type="button" class="btn btn--primary" data-tr="commit">💾 存成預設</button><button type="button" class="btn" data-tr="discard">↺ 取消變動</button></span></div></div>`;
+      }
     }
     root.innerHTML = h;
   }
@@ -251,15 +261,43 @@
     return h;
   }
 
+  // 切換畫面時：沒有存成預設的變動全部取消，恢復成已儲存的座位
+  function discardDraft(quiet) {
+    if (!dirty()) return false;
+    chart = { ...saved }; picked = null;
+    if (live?.started) { Object.assign(live, { started: false, idx: 0, hist: [] }); saveLive(); }
+    if (!quiet) toast('座位的變動沒有存成預設，已恢復原本的座位');
+    return true;
+  }
+  A.discardSeatDraft = discardDraft;
+  async function commitDraft(b) {
+    const n = Object.keys(chart).length;
+    if (!n) return toast('座位表是空的，沒有東西可以存');
+    if (!await A.ask(`把目前的座位表（${n} 人）存起來，並設為預設座位？\n紅色的座位變動會正式生效。`, '存成預設')) return;
+    const seats = Object.fromEntries(Object.entries(chart).map(([id, k]) => [id, parseKey(k).code]));
+    if (b) b.disabled = true;
+    try {
+      await A.api('saveSeats', { seats: chart });
+      const r = await A.api('saveDefaultSeats', { seats });
+      savedDef = r.defaults || seats; store.set(K.def, savedDef);
+      saved = { ...chart }; store.set(K.chart, chart);
+      toast(`✓ 已儲存座位（${n} 人）並設為預設`);
+    } catch (err) { toast('儲存失敗：' + err.message); }
+    if (b) b.disabled = false;
+    renderAll();
+  }
   $('#seatTop').addEventListener('click', e => {
     const tr = e.target.closest('[data-tr]');
     if (tr) {
       if (tr.dataset.tr === 'shop') return A.showTab('shop');
+      if (tr.dataset.tr === 'commit') return commitDraft(tr);
+      if (tr.dataset.tr === 'discard') { discardDraft(true); toast('已取消變動'); renderAll(); return; }
       if (tr.dataset.tr === 'cancelCard') card = 0;
       picked = null; renderAll(); return;
     }
     const s = e.target.closest('[data-sub]');
     if (s) {
+      if (s.dataset.sub !== sub) discardDraft();
       sub = s.dataset.sub; store.set(K.sub, sub);
       picked = null;
       renderAll();
@@ -309,7 +347,7 @@
       const bak = store.get(K.backup, null);
       h += `<div class="actions">
         <button type="button" class="btn" data-sa="default">↺ 恢復預設座位</button>
-        <button type="button" class="btn" data-sa="saveDefault">💾 把目前座位存成預設</button>
+        <button type="button" class="btn${dirty() ? ' btn--primary' : ''}" data-sa="saveDefault">💾 把目前座位存成預設</button>
         <button type="button" class="btn btn--danger" data-sa="clear">清空座位表</button>
         ${bak ? `<button type="button" class="btn wide" data-sa="restore">↶ 還原到現場選位前的座位表</button>` : ''}</div>
         <details class="field"><summary><b>📁 大頭照資料夾</b></summary>
@@ -396,7 +434,7 @@
     const def = defaultChart();
     let n = 0;
     Object.entries(def).forEach(([id, k]) => { if (!chart[id] && !seated.has(k)) { chart[id] = k; seated.add(k); n++; } });
-    if (n) saveChart(true);
+    if (n) saveChart(true, true);
     return n > 0;
   }
   async function applyDefault(ask) {
@@ -405,7 +443,7 @@
     if (ask && Object.keys(chart).length && !await A.ask('恢復成預設座位？目前的座位表會被取代。', '恢復預設')) return;
     chart = defaultChart();
     store.set(K.defaulted, true);
-    saveChart(!ask);
+    saveChart(!ask, !ask); // 按按鈕恢復預設＝草稿；第一次自動套用＝直接存
   }
 
   // ── 🎯 現場選位：依上傳名單的順序，一位一位點座位 ──
@@ -633,20 +671,7 @@
     const act = b.dataset.sa;
     if (act === 'copyUrl') { toast(await A.copyText(studentUrl()) ? '已複製學生登入網址' : '複製失敗'); return; }
     if (act === 'default') return applyDefault(true);
-    if (act === 'saveDefault') {
-      const n = Object.keys(chart).length;
-      if (!n) return toast('座位表是空的，沒有東西可以存');
-      if (!await A.ask(`把目前的座位表（${n} 人）存成預設座位？\n之後按「恢復預設座位」就會回到這個樣子。`, '存成預設')) return;
-      const seats = Object.fromEntries(Object.entries(chart).map(([id, k]) => [id, parseKey(k).code]));
-      b.disabled = true;
-      try {
-        const r = await A.api('saveDefaultSeats', { seats });
-        savedDef = r.defaults || seats; store.set(K.def, savedDef);
-        toast(`✓ 已把目前座位（${n} 人）存成預設`);
-      } catch (err) { toast('儲存失敗：' + err.message); }
-      b.disabled = false;
-      return;
-    }
+    if (act === 'saveDefault') return commitDraft(b);
     if (act === 'clear') {
       if (!await A.ask('確定要清空整張座位表嗎？\n（清空前的座位表會備份，可以還原）', '清空', true)) return;
       store.set(K.backup, chart);
@@ -900,7 +925,9 @@
 
   // 連續換位時合併成一次上傳；quiet＝不顯示「已儲存」
   let chartTimer = null, chartQuiet = true;
-  function saveChart(quiet = false) {
+  function saveChart(quiet = false, commit = false) {
+    if (!commit) { renderAll(); return; } // 草稿：只改畫面
+    saved = { ...chart };
     store.set(K.chart, chart);
     renderAll();
     chartQuiet = chartQuiet && quiet;
@@ -970,8 +997,12 @@
     const r = await A.api('getSeats');
     if (r.defaults) { savedDef = r.defaults; store.set(K.def, savedDef); }
     const next = r.seats || {};
-    if (JSON.stringify(next) === JSON.stringify(chart)) return false;
-    chart = next; store.set(K.chart, chart);
+    const wasDirty = dirty();
+    const changed = !sameSeats(next, saved);
+    saved = { ...next }; store.set(K.chart, next);
+    if (wasDirty) return changed; // 有草稿：畫面保留，只更新紅色標示
+    if (sameSeats(next, chart)) return changed;
+    chart = { ...next };
     return true;
   }
   async function loadFaces() {
@@ -1043,6 +1074,7 @@
   }, 500);
 
   A.tabHooks.seats = () => {
+    discardDraft();
     if (A.isStudent() || A.isTeacher() || A.isStaff()) renderAll();
     refreshData();
   };

@@ -523,6 +523,14 @@ textarea:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 
 }
 .seat .sn b { font-size: max(7px, calc(var(--u) * 14px)); font-weight: 700; opacity: .92; }
 .seat .sid { font-size: max(9px, calc(var(--u) * 22px)); color: #7e9d91; font-weight: 700; opacity: .5; }
+/* 還沒儲存的座位變動：紅色 */
+.seat.changed { border-color: #dc2626; box-shadow: 0 0 0 2px #dc2626; }
+.seat.changed::after { content: ''; position: absolute; inset: 0; background: rgba(220,38,38,.38); z-index: 1; pointer-events: none; }
+.seat.changed:not(.has) { background: #fca5a5; }
+.banner.draft { border-color: #f5a3a3; background: #fdecec; }
+[data-theme="dark"] .banner.draft { background: #3a1f22; border-color: #7a3b40; }
+.draft-btns { display: inline-flex; gap: 6px; margin-left: 6px; flex-wrap: wrap; }
+.draft-btns .btn { padding: 4px 10px; font-size: 13px; }
 .seat.picked { outline: 4px solid #f59f00; outline-offset: 2px; z-index: 6; animation: hl 1s infinite; }
 .seat.has.picked { transform: scale(1.04); }
 .seat .blk { font-size: max(8px, calc(var(--u) * 16px)); color: #fff; background: #999; border-radius: 6px; padding: 0 4px; margin-top: 2px; }
