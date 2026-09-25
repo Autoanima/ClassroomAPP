@@ -815,7 +815,8 @@ function fileCode(fileName, byName) {
 function getFaces(have) {
   const latest = {}, byName = faceNameMap();
   // 連結的資料夾＋網頁上傳的「大頭照」資料夾；同一位同學有好幾張時用最新的
-  [linkedFaceFolder(), getFaceFolder()].filter(Boolean).forEach(folder => {
+  const folders = [linkedFaceFolder(), getFaceFolder()].filter(Boolean);
+  folders.filter((f, i) => folders.findIndex(g => g.getId() === f.getId()) === i).forEach(folder => { // 同一個資料夾只讀一次
     const it = folder.getFiles();
     while (it.hasNext()) {
       const f = it.next();
