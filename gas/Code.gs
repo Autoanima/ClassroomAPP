@@ -669,7 +669,7 @@ function addPoints(rows, who) {
     sh.getRange(start, 1, clean.length, 1).setNumberFormat('yyyy/mm/dd');
     sh.getRange(start, 7, clean.length, 1).setNumberFormat('yyyy/mm/dd hh:mm');
   });
-  return { ok: true, rows: getPoints(14, who) };
+  return { ok: true, rows: getPoints(7, who) };
 }
 function getPoints(days, who) {
   const sh = pointsSheet();
@@ -696,7 +696,7 @@ function delPoints(id, who) {
     if (!who.teacher && String(vals[i][5]) !== who.key) throw new Error('只能刪除自己登記的紀錄');
     sh.deleteRow(i + 2);
   });
-  return { ok: true, rows: getPoints(14, who) };
+  return { ok: true, rows: getPoints(7, who) };
 }
 
 // ── 商店：用加分的點數買大頭照配件（可以自己用或送人），配件有效 10 個上課日 ──

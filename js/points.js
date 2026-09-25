@@ -49,8 +49,8 @@
     h += `</div></div>`;
     const label = `${form.sign < 0 ? '扣' : '加'} ${form.pts} 分${chosen.size ? ` × ${chosen.size} 人` : ''}`;
     h += `<div class="pt-submit"><button type="button" class="btn ${form.sign < 0 ? 'btn--dangerfill' : 'btn--primary'} big" data-p="submit"${busy ? ' disabled' : ''}>送出：${label}</button></div>`;
-    h += `<div class="panel"><div class="pt-head"><b>${A.isTeacher() ? '最近的加扣分紀錄（全班）' : '我登記的紀錄'}</b><button type="button" class="link-btn" data-p="reload">重新整理</button></div>`;
-    if (!recent.length) h += `<p class="muted small">最近兩週沒有紀錄。</p>`;
+    h += `<div class="panel"><div class="pt-head"><b>${A.isTeacher() ? '最近 7 天的加扣分紀錄（全班）' : '我最近 7 天登記的紀錄'}</b><button type="button" class="link-btn" data-p="reload">重新整理</button></div>`;
+    if (!recent.length) h += `<p class="muted small">最近 7 天沒有紀錄。</p>`;
     else {
       h += `<ul class="pt-list">`;
       recent.forEach(r => {
@@ -68,7 +68,7 @@
 
   async function loadRecent() {
     try {
-      const r = await A.api('getPoints', { days: 14 });
+      const r = await A.api('getPoints', { days: 7 }) // 只顯示最近 7 天，免得太亂（完整紀錄在試算表「加扣分紀錄」）;
       recent = r.rows || [];
     } catch (e) { toast('紀錄讀取失敗：' + e.message); }
     if (A.currentTab() === 'points') render();
