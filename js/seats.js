@@ -31,7 +31,8 @@
 
   function parseKey(k) {
     const m = String(k || '').match(/^(\D*?)(\d+)(.*)$/);
-    return m ? { code: m[1] + A.pad2(+m[2]), name: m[3] } : { code: '', name: String(k || '') };
+    if (m) return { code: m[1] + A.pad2(+m[2]), name: m[3] };
+    return k ? { code: 'T00', name: String(k) } : { code: '', name: '' }; // 沒有座號的只有導師
   }
   const hue = s => [...String(s)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
   // 大頭照底圖（雲端硬碟）；沒有照片時顯示姓氏
@@ -652,6 +653,7 @@
 
   // ── 點座位 ──
   function onSeatClick(e) {
+    if (e.target.closest('[data-tch]')) return zoomTeacher();
     const b = e.target.closest('[data-seat]');
     if (!b) return;
     const id = b.dataset.seat;
@@ -907,6 +909,7 @@
     }
     if (r.fireworks?.length) A.emit('fireworks', r.fireworks);
     await catalogP;
+    if (r.decoT) setTimeout(() => A.emit('decoNews', r.decoT), 400);
     return changed;
   }
   let facesLoaded = 0;
@@ -974,6 +977,15 @@
     const { code, name } = parseKey(k);
     z.dataset.seat = id;
     z.innerHTML = `<div class="fz-card"><span class="fz-face">${faceHtml(k)}</span><div class="fz-name"><b>${esc(code.replace(/(\d+)$/, ' $1'))}</b> ${esc(name)}</div><div class="muted small">${seatName(id)}</div></div>`;
+    z.hidden = false;
+  }
+  // 點講桌／講台：顯示導師的大頭照（平常不顯示）
+  function zoomTeacher() {
+    const z = $('#faceZoom');
+    if (!z.hidden && z.dataset.seat === 'T') { z.hidden = true; return; }
+    if (!faces.T00?.d) return toast('講台');
+    z.dataset.seat = 'T';
+    z.innerHTML = `<div class="fz-card"><span class="fz-face">${faceHtml(D.teacherLabel)}</span><div class="fz-name"><b>${esc(D.teacherLabel)}</b></div></div>`;
     z.hidden = false;
   }
   $('#faceZoom').addEventListener('click', () => { $('#faceZoom').hidden = true; });

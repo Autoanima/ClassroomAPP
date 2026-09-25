@@ -397,7 +397,7 @@
       if (live) {
         h += `<button type="button" class="${cls}" data-id="${it.id}" aria-label="${esc(it.full)}" style="${style}">${inner}${it.floor ? '' : '<span class="badge"></span>'}<span class="mk"></span></button>`;
       } else {
-        h += `<div class="${cls} deco" style="${style}">${inner}</div>`;
+        h += `<div class="${cls} deco"${['desk', 'board'].includes(it.id) ? ' data-tch="1"' : ''} style="${style}">${inner}</div>`;
       }
       if (it.bin && live) {
         h += `<div class="binlbl" style="${rectStyle({ x: it.x - 8, y: it.y + it.h + 10, w: it.w + 16, h: 118 }, box)}"><span>${esc(it.name)}</span></div>`;

@@ -1,7 +1,7 @@
 'use strict';
 /* 🛍 商店：同學用「加分」得到的點數買大頭照配件，可以自己用或送人；配件有效 10 個上課日 */
 (() => {
-  const A = window.App;
+  const A = window.App, D = A.D;
   const { $, esc, toast, store } = A;
   const K = { inv: 'indoor.shopinv.v1.test', deco: 'indoor.shopdeco.v1.test', spend: 'indoor.shopspend.v1.test', seenFx: 'indoor.fxseen.v1' + A.SFX };
   let S = null;          // 雲端回傳的商店狀態
@@ -33,16 +33,16 @@
   function render() {
     const root = $('#shopRoot');
     if (!S) { root.innerHTML = `<div class="panel"><p class="muted">商店載入中…</p></div>`; return; }
-    if (S.admin) { root.innerHTML = adminHtml(); return; }
     const me = S.me || A.me();
+    const coinTxt = S.unlimited ? '∞' : S.coins;
     const active = S.inv.filter(x => !x.expired);
     const used = new Set((S.deco || []).map(l => l.inv));
     let h = (S.stolen || []).map(x => `<div class="banner warn"><div class="bn-sub">⚠ 你的「${esc(x.name)}」被 ${esc(x.thief)} 用竊盜卡奪走了（${esc(x.time)}）</div></div>`).join('');
     h += (S.swapped || []).map(x => `<div class="banner warn"><div class="bn-sub">🔀 ${esc(x.by)} 用交換位置卡和你對調了座位（${esc(x.time)}）</div></div>`).join('');
     h += `<div class="panel shop-me">
       <div class="shop-face"><span class="photo">${A.faceHtml(me)}</span></div>
-      <div class="shop-wallet"><div class="coins">💰 <b>${S.coins}</b> 點</div>
-        <div class="muted small">加分累計 ${S.earned} 點・已使用 ${S.spent} 點</div>
+      <div class="shop-wallet"><div class="coins">💰 <b>${coinTxt}</b> 點</div>
+        <div class="muted small">${S.unlimited ? '導師點數無限，可以試用所有商品' : `加分累計 ${S.earned} 點${S.income ? `（含作品收入 ${S.income} 點）` : ''}・已使用 ${S.spent} 點`}</div>
         <button type="button" class="btn btn--primary" data-s="edit"${active.length ? '' : ' disabled'}>🎨 裝扮大頭照</button>
         ${active.length ? '' : '<div class="muted small">先在下面的商店買配件</div>'}</div>
     </div>`;
@@ -66,11 +66,18 @@
       <button type="button" class="special" data-s="firework"${S.coins >= S.fireworkPrice ? '' : ' disabled'}><span class="sp-ico">🎆</span><b>煙火</b><span class="muted small">放在同學的座位上，大家下次打開 App 時都會看到</span><span class="sp-price">💰 ${S.fireworkPrice} 點</span></button>
       <button type="button" class="special swap" data-s="swap"${S.coins >= (S.swapPrice || 20) ? '' : ' disabled'}><span class="sp-ico">🔀</span><b>交換位置卡</b><span class="muted small">和另一位同學強制對調座位</span><span class="sp-price">💰 ${S.swapPrice || 20} 點</span></button>
       <button type="button" class="special steal" data-s="steal"${S.coins >= S.stealPrice && othersN ? '' : ' disabled'}><span class="sp-ico">🦹</span><b>竊盜卡</b><span class="muted small">把別人的一個配件變成你的（到期日不變）${othersN ? '' : '｜目前沒有人有配件'}</span><span class="sp-price">💰 ${S.stealPrice} 點</span></button>
+      <button type="button" class="special create" data-s="create"><span class="sp-ico">🎨</span><b>創造卡</b><span class="muted small">上傳自己畫的 PNG 變成新商品；別人買了，點數算給你</span><span class="sp-price">免費建立</span></button>
     </div></div>`;
+    if (S.sales?.items.length) {
+      h += `<div class="panel"><h3>我創造的商品</h3><p class="muted small">已經賣出 ${S.sales.n} 次，收入 ${S.sales.income} 點（已算進你的點數）。</p><ul class="inv">${S.sales.items.map(a =>
+        `<li><span class="acc-thumb" style="${accImgStyle(a.id)}"></span><div class="inv-what"><b>${esc(a.name)}</b><div class="muted small">售價 ${a.price} 點・賣出 ${a.sold} 次</div></div>
+          <button type="button" class="btn btn--danger" data-s="delAcc" data-acc="${esc(a.id)}" data-name="${esc(a.name)}">下架</button></li>`).join('')}</ul></div>`;
+    }
     h += `<div class="panel"><h3>商店</h3><p class="muted small">每個配件買了之後有效 10 個上課日（週六、週日不算），可以自己用，也可以送給同學。</p><div class="shop-grid">`;
     S.catalog.forEach(a => {
       const can = S.coins >= a.price;
-      h += `<div class="shop-item"><span class="acc-thumb big" style="${accImgStyle(a.id)}"></span><b>${esc(a.name)}</b>
+      h += `<div class="shop-item"><span class="acc-thumb big" style="${accImgStyle(a.id)}"></span><b>${esc(a.name)}</b>${a.creator ? `<span class="muted small">🎨 ${esc(a.creator)}</span>` : ''}
+        ${S.admin && a.creator ? `<button type="button" class="link-btn" data-s="delAcc" data-acc="${esc(a.id)}" data-name="${esc(a.name)}">下架</button>` : ''}
         <button type="button" class="btn${can ? ' btn--primary' : ''}" data-s="buy" data-acc="${esc(a.id)}"${can ? '' : ' disabled'}>💰 ${a.price} 點</button></div>`;
     });
     h += `</div></div>`;
@@ -78,24 +85,17 @@
       h += `<details class="panel"><summary><b>我的加分紀錄</b></summary><ul class="pt-list">${S.plus.map(p =>
         `<li><span class="pt-v plus">+${p.points}</span><div class="pt-what">${esc(p.reason)}<div class="muted small">${esc(p.date)}</div></div></li>`).join('')}</ul></details>`;
     }
+    if (S.admin) h += adminHtml();
     root.innerHTML = h;
   }
 
+  // 導師：新增配件的方法、全班點數（放在最下面，預設收起來）
   function adminHtml() {
-    // 導師看得到特殊道具（只能看，學生和幹部才能買）
-    let h = `<div class="panel"><h3>特殊道具</h3><p class="muted small">學生、幹部登入後才能購買；價格可以在 Code.gs 的 CONFIG 修改。</p><div class="specials">
-      <div class="special"><span class="sp-ico">🎆</span><b>煙火</b><span class="muted small">放在同學的座位上，大家下次打開 App 時都會看到</span><span class="sp-price">💰 ${S.fireworkPrice ?? 1} 點</span></div>
-      <div class="special swap"><span class="sp-ico">🔀</span><b>交換位置卡</b><span class="muted small">和另一位同學強制對調座位</span><span class="sp-price">💰 ${S.swapPrice ?? 20} 點</span></div>
-      <div class="special steal"><span class="sp-ico">🦹</span><b>竊盜卡</b><span class="muted small">把別人的一個配件變成自己的</span><span class="sp-price">💰 ${S.stealPrice ?? 10} 點</span></div>
-    </div></div>`;
-    h += `<div class="panel"><h3>商品（${S.catalog.length}）</h3><p class="muted small">要加新配件：把去背的 PNG 放到雲端硬碟「內掃檢查／配件」資料夾，檔名寫「名稱_價格.png」（例如「墨鏡_3.png」，沒寫價格就是 3 點）。10 分鐘內會出現在商店。</p><div class="shop-grid">`;
-    S.catalog.forEach(a => { h += `<div class="shop-item"><span class="acc-thumb big" style="${accImgStyle(a.id)}"></span><b>${esc(a.name)}</b><span class="muted small">${a.price} 點</span></div>`; });
-    h += `</div></div>`;
-    // 成員點數：放在最下面，預設收起來
+    let h = `<p class="muted small">要加新配件：把去背的 PNG 放到雲端硬碟「${esc(A.className() || '')} APP 專用／配件」資料夾，檔名寫「名稱_價格.png」（例如「墨鏡_3.png」）。10 分鐘內會出現在商店。同學用創造卡做的商品，導師可以按「下架」。</p>`;
     h += `<details class="panel"><summary><b>成員點數</b> <span class="muted small">（${S.admin.length} 人）</span></summary>
-      <p class="muted small">點數＝加分累計 − 用掉的（配件、竊盜卡、煙火）。扣分不會減少點數。</p>
+      <p class="muted small">點數＝加分累計＋作品收入 − 用掉的（配件、竊盜卡、煙火、交換位置卡）。扣分不會減少點數。</p>
       <table class="admin"><thead><tr><th>同學</th><th>加分</th><th>已用</th><th>剩餘</th><th>配件</th></tr></thead><tbody>`;
-    S.admin.forEach(r => { h += `<tr><td>${esc(r.key)}</td><td>${r.earned}</td><td>${r.spent}</td><td><b>${r.coins}</b></td><td>${r.active || ''}</td></tr>`; });
+    S.admin.forEach(r => { h += `<tr><td>${esc(r.key)}</td><td>${r.earned}${r.income ? `<div class="muted small">作品 ${r.income}</div>` : ''}</td><td>${r.spent}</td><td><b>${r.coins}</b></td><td>${r.active || ''}</td></tr>`; });
     return h + `</tbody></table></details>`;
   }
 
@@ -119,8 +119,74 @@
       openFirework();
     } else if (act === 'swap') {
       openSwap();
+    } else if (act === 'create') {
+      openCreate();
+    } else if (act === 'delAcc') {
+      if (!await A.ask(`下架「${b.dataset.name}」？\n已經買的人不會退點數。`, '下架', true)) return;
+      b.disabled = true;
+      try { S = await A.api('delAcc', { acc: b.dataset.acc }); toast('已下架'); } catch (err) { toast(err.message); }
+      render();
     }
   });
+
+  // ── 創造卡：上傳 PNG（自動縮小壓縮），取名字、訂價格 ──
+  let made = null; // 壓縮後的 data URL
+  function openCreate() {
+    made = null;
+    let h = A.sheetHead('🎨 創造卡', '上傳一張 PNG（最好是去背的），變成商店裡的新商品');
+    h += `<div class="create-box">
+        <label class="create-pick"><input type="file" id="mkFile" accept="image/png,image/*" hidden><span id="mkPrev" class="create-prev">＋<br><span class="small">選擇圖片</span></span></label>
+        <div class="create-f">
+          <div class="field"><label for="mkName">商品名稱</label><input type="text" id="mkName" maxlength="12" placeholder="例如：星星髮夾"></div>
+          <div class="field"><label for="mkPrice">售價（點）</label><input type="number" id="mkPrice" min="1" max="100" inputmode="numeric" value="${S.createPrice || 20}"></div>
+        </div></div>
+      <p class="muted small" id="mkInfo">圖片會自動縮小到 256 像素以內。同學買了之後，點數會加到你的帳戶（每人每天最多 3 個）。</p>
+      <div class="actions"><button type="button" class="btn btn--primary wide" data-act="mkOk">🎨 上架</button></div>`;
+    A.openSheet({ kind: 'create' }, h);
+  }
+  // 縮小到 256 以內；還是太大就再縮
+  async function shrinkPng(file) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error('讀不到這張圖片')); i.src = url; });
+      for (let max = 256; max >= 96; max = Math.round(max * 0.8)) {
+        const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+        const cv = document.createElement('canvas');
+        cv.width = Math.max(1, Math.round(img.naturalWidth * k)); cv.height = Math.max(1, Math.round(img.naturalHeight * k));
+        cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+        const d = cv.toDataURL('image/png');
+        if (d.length < 200000) return d;
+      }
+      throw new Error('圖片太複雜，壓縮後還是太大，請換一張');
+    } finally { URL.revokeObjectURL(url); }
+  }
+  A.sheetBody.addEventListener('change', async e => {
+    if (e.target.id !== 'mkFile' || A.sheetMode()?.kind !== 'create') return;
+    const f = e.target.files[0];
+    if (!f) return;
+    try {
+      made = await shrinkPng(f);
+      $('#mkPrev').innerHTML = `<img src="${made}" alt="">`;
+      $('#mkInfo').textContent = `壓縮後 ${Math.round(made.length * 0.75 / 1024)} KB。`;
+      if (!$('#mkName').value) $('#mkName').value = f.name.replace(/\.[^.]+$/, '').slice(0, 12);
+    } catch (err) { made = null; toast(err.message); }
+  });
+  A.sheetHandlers.create = async (act, b) => {
+    if (act !== 'mkOk') return;
+    const name = $('#mkName').value.trim(), price = +$('#mkPrice').value || 20;
+    if (!made) return toast('請先選擇圖片');
+    if (!name) return toast('請幫商品取個名字');
+    if (price < 1 || price > 100) return toast('售價要在 1–100 點之間');
+    if (!await A.ask(`上架「${name}」，售價 ${price} 點？`, '上架')) return;
+    b.disabled = true; b.textContent = '上傳中…';
+    try {
+      S = await A.api('createAcc', { name, price, data: made });
+      await A.loadAccImages().catch(() => {});
+      A.closeSheet();
+      toast(`🎨「${name}」已經上架了！`);
+    } catch (err) { toast(err.message); b.disabled = false; b.textContent = '🎨 上架'; }
+    render();
+  };
 
   // ── 送人 ──
   function openGift(invId) {
@@ -141,7 +207,7 @@
       S = await A.api('giftAcc', { inv, to });
       A.closeSheet();
       toast(`✓ 已送給 ${to}`);
-      A.setDeco(A.me(), decoFromState());
+      A.setDeco(S.me || A.me(), decoFromState());
     } catch (err) { toast(err.message); b.disabled = false; }
     render();
   };
@@ -407,13 +473,43 @@
       b.disabled = true; b.textContent = '儲存中…';
       try {
         S = await A.api('saveDeco', { layers: ed.layers.map(({ inv, x, y, s, r }) => ({ inv, x, y, s, r })) });
-        A.setDeco(A.me(), decoFromState());
+        A.setDeco(S.me || A.me(), decoFromState());
         A.closeSheet();
         toast('✓ 大頭照已更新，大家都看得到');
       } catch (err) { toast('儲存失敗：' + err.message); b.disabled = false; b.textContent = '儲存'; }
       render();
     }
   };
+
+  // ── 換了新造型的同學：每天第一次打開 App 時，大頭照快速閃過＋震動 ──
+  const FLASH = 'indoor.decoflash.v1' + A.SFX;
+  A.on('decoNews', decoT => {
+    const st = store.get(FLASH, {}), today = A.fmtDate(new Date());
+    if (st.day === today) return;
+    const since = st.since || Date.now() - 3 * 86400e3;
+    const byCode = Object.fromEntries(A.students().map(k => [code(k), k]));
+    const keys = Object.entries(decoT || {}).filter(([c, t]) => t > since && byCode[c] && A.decoOf(byCode[c]).length).sort((a, b) => b[1] - a[1]).map(([c]) => byCode[c]);
+    if (!keys.length) return;
+    store.set(FLASH, { day: today, since: Date.now() });
+    playFlash(keys.slice(0, 12));
+  });
+  function playFlash(keys) {
+    let el = $('#decoFlash');
+    if (!el) { el = document.createElement('div'); el.id = 'decoFlash'; document.body.append(el); el.addEventListener('click', () => { el.hidden = true; }); }
+    el.innerHTML = `<div class="df-title">✨ 新造型</div><div class="df-face"></div>`;
+    el.hidden = false;
+    const box = el.querySelector('.df-face');
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const step = still ? 600 : 100;                               // 每張 0.1 秒
+    const total = Math.max(1000, keys.length * step) + (still ? 0 : 300); // 至少震動 1 秒
+    box.classList.toggle('shake', !still);
+    let i = 0;
+    const show = () => { const k = keys[i++ % keys.length]; box.innerHTML = `${A.faceHtml(k)}<span class="df-nm">${esc(k)}</span>`; };
+    show();
+    const t = setInterval(show, step);
+    setTimeout(() => { clearInterval(t); el.classList.add('out'); setTimeout(() => { el.hidden = true; el.classList.remove('out'); }, 250); }, total);
+  }
+  A.flashTest = () => playFlash(A.students().filter(k => A.decoOf(k).length).slice(0, 12)); // 除錯用
 
   A.tabHooks.shop = () => { render(); load(); };
   A.on('start', () => setTimeout(() => A.ensureFaces?.(true), 1200));
@@ -436,13 +532,25 @@
     const plus = pts.filter(r => r.student === me && r.points > 0);
     const earned = 10 + plus.reduce((t, r) => t + r.points, 0);
     const spent = inv.filter(x => x.buyer === me).reduce((t, x) => t + x.price, 0);
+    const admin = A.isTeacher() ? A.DEMO_STUDENTS.map(k => {
+      const e = 10 + pts.filter(r => r.student === k && r.points > 0).reduce((t, r) => t + r.points, 0);
+      const s = inv.filter(x => x.buyer === k).reduce((t, x) => t + x.price, 0);
+      return { key: k, earned: e, spent: s, coins: e - s, active: inv.filter(x => x.owner === k && x.exp >= today).length };
+    }) : null;
     if (A.isTeacher()) {
-      return { ok: true, today, catalog: list, stealPrice: 10, fireworkPrice: 1, swapPrice: 20, admin: A.DEMO_STUDENTS.map(k => {
-        const e = 10 + pts.filter(r => r.student === k && r.points > 0).reduce((t, r) => t + r.points, 0);
-        const s = inv.filter(x => x.buyer === k).reduce((t, x) => t + x.price, 0);
-        return { key: k, earned: e, spent: s, coins: e - s, active: inv.filter(x => x.owner === k && x.exp >= today).length };
-      }) };
+      const st = await studentState(D.teacherLabel);
+      return { ...st, coins: 999999, unlimited: true, admin, classmates: A.DEMO_STUDENTS };
     }
+    return studentState(me);
+  }
+  async function studentState(me) {
+    const today = ymd(new Date());
+    const list = await A.builtinCatalog();
+    const inv = store.get(K.inv, []);
+    const pts = store.get('indoor.points.v1.test', []);
+    const plus = pts.filter(r => r.student === me && r.points > 0);
+    const earned = 10 + plus.reduce((t, r) => t + r.points, 0);
+    const spent = inv.filter(x => x.buyer === me).reduce((t, x) => t + x.price, 0);
     // 示範：幾位同學先有配件，才能試竊盜卡
     if (!store.get('indoor.shopdemo.v1.test', false) && list.length) {
       store.set('indoor.shopdemo.v1.test', true);
@@ -464,7 +572,8 @@
     };
   }
   A.testSeatApi = async (action, p = {}) => {
-    const me = A.me(), today = ymd(new Date());
+    const me = A.isTeacher() ? D.teacherLabel : A.me(), today = ymd(new Date());
+    if (action === 'createAcc' || action === 'delAcc') throw new Error('測試模式不能創造商品，請用正式登入試用');
     if (action === 'shopState') return testState();
     if (action === 'accImages') return { ok: true, images: {}, ids: [] };
     if (action === 'buyAcc') {

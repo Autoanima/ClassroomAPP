@@ -29,6 +29,7 @@ const CONFIG = {
   TIMEZONE: 'Asia/Taipei',
   SESSION_DAYS: 30,                    // 學生、幹部登入後幾天內有效（試算表選單「內掃檢查 → 讓所有人重新登入」可以提早全部失效）
   TEACHER_NAME: '導師',
+  TEACHER_PHOTO: '',                   // 導師大頭照的檔名（不含 .png），放在大頭照資料夾；只有在座位表點「講桌／講台」時才會顯示
   OUTDOOR_SHEET_ID: '',                // 外掃區 App 的試算表 ID（也可以在網頁「工作分配 → 外掃區」貼連結設定）
   BUTTON_IMAGE: 'https://autoanima.github.io/outdoor-cleaning-map/assets/sum-button.png',
   SITE_URL: 'https://autoanima.github.io/indoor-cleaning-map/',   // 網站網址（讀取內建配件清單 assets/acc/catalog.json）
@@ -38,6 +39,8 @@ const CONFIG = {
   STEAL_PRICE: 10,                    // 竊盜卡：奪取別人的配件
   FIREWORK_PRICE: 1,                  // 煙火：放在某位同學的座位上，大家下次打開 App 時會看到
   SWAP_PRICE: 20,                     // 交換位置卡：和另一位同學強制對調座位
+  CREATE_PRICE: 20,                   // 創造卡：同學上傳 PNG 變成新商品，預設售價（可以自己改 1–100）
+  CREATE_PER_DAY: 3,                  // 每人每天最多創造幾個商品
   FIREWORK_DAYS: 3,                   // 煙火幾天內還會放給還沒看過的人
 };
 
@@ -63,7 +66,7 @@ const SHEET_POINTS = '加扣分紀錄';
 const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記人', '登記時間', '編號'];
 
 // 學生（身分證字號登入）可以用的動作
-const SHOP_OK = { shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1 };
+const SHOP_OK = { shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1 };
 const STUDENT_OK = Object.assign({ getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
 const CADRE_OK = Object.assign({ ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
@@ -114,6 +117,8 @@ function doPost(e) {
       case 'stealAcc': return json(stealAcc(who, String(req.inv || '')));
       case 'buyFirework': return json(buyFirework(who, String(req.to || '')));
       case 'swapSeatCard': return json(swapSeatCard(who, String(req.to || '')));
+      case 'createAcc': return json(createAcc(who, req.name, req.price, req.data));
+      case 'delAcc': return json(delAcc(who, String(req.acc || '')));
       case 'getSeats': return json({ ok: true, seats: getSeats() });
       case 'saveSeats': return json({ ok: true, seats: saveSeats(req.seats || {}) });
       case 'getFaces': return json(getFaces(req.have || {}));
@@ -573,7 +578,9 @@ function catalog() {
     if (!/^image\//.test(f.getMimeType())) continue;
     const base = f.getName().replace(/\.[^.]+$/, '');
     const m = base.normalize('NFKC').match(/^(.*?)[_\s-]+(\d+)$/);
-    list.push({ id: 'd:' + f.getId(), name: (m ? m[1] : base).trim(), price: m ? Number(m[2]) : CONFIG.ACC_DEFAULT_PRICE, t: f.getLastUpdated().getTime() });
+    let creator = '';
+    try { creator = String(JSON.parse(f.getDescription() || '{}').creator || ''); } catch (e) { /* 說明欄不是創造卡的格式 */ }
+    list.push({ id: 'd:' + f.getId(), name: (m ? m[1] : base).trim(), price: m ? Number(m[2]) : CONFIG.ACC_DEFAULT_PRICE, t: f.getLastUpdated().getTime(), creator: creator });
   }
   cache.put('ACC_CATALOG', JSON.stringify(list), 600);
   return list;
@@ -611,25 +618,37 @@ function invRows() {
     row: i + 2, id: r[0], owner: r[1], acc: r[2], name: r[3], price: Number(r[4]) || 0, buyer: r[5], time: r[6], exp: r[7], note: r[8],
   })) : [];
 }
+const UNLIMITED = 999999; // 導師的點數（無限，方便試用商店）
+/** 創造卡的收入：別人買了我創造的商品（導師試買的不算） */
+function salesOf(key, inv) {
+  const mine = {};
+  catalog().forEach(a => { if (a.creator === key) mine[a.id] = a; });
+  const rows = (inv || invRows()).filter(x => mine[x.acc] && x.buyer !== CONFIG.TEACHER_NAME);
+  return { n: rows.length, income: rows.reduce((t, x) => t + x.price, 0), items: Object.keys(mine).map(id => ({ id: id, name: mine[id].name, price: mine[id].price, sold: rows.filter(x => x.acc === id).length })) };
+}
 function coinsOf(key, inv) {
+  if (key === CONFIG.TEACHER_NAME) return { earned: UNLIMITED, spent: 0, coins: UNLIMITED, income: 0 };
   const psh = pointsSheet();
   let earned = 0;
   if (psh.getLastRow() > 1) psh.getRange(2, 2, psh.getLastRow() - 1, 2).getValues().forEach(r => { if (String(r[0]).trim() === key && Number(r[1]) > 0) earned += Number(r[1]); });
+  const income = salesOf(key, inv).income;
   const spent = (inv || invRows()).filter(x => x.buyer === key).reduce((t, x) => t + x.price, 0)
     + spendRows().filter(x => x.who === key).reduce((t, x) => t + x.points, 0);
-  return { earned: earned, spent: spent, coins: earned - spent };
+  return { earned: earned + income, spent: spent, coins: earned + income - spent, income: income };
 }
 function decoRows() {
   const sh = getSheet(SHEET_DECO, HEAD_DECO);
   const n = sh.getLastRow() - 1;
   const out = {};
-  if (n > 0) sh.getRange(2, 1, n, 2).getValues().forEach((r, i) => {
-    try { out[String(r[0]).trim()] = { row: i + 2, layers: JSON.parse(String(r[1]) || '[]') }; } catch (e) { /* 格式錯誤就略過 */ }
+  if (n > 0) sh.getRange(2, 1, n, 3).getValues().forEach((r, i) => {
+    try { out[String(r[0]).trim()] = { row: i + 2, layers: JSON.parse(String(r[1]) || '[]'), t: r[2] instanceof Date ? r[2].getTime() : 0 }; } catch (e) { /* 格式錯誤就略過 */ }
   });
   return out;
 }
+/** 同學（或導師）→ 大頭照代號；導師是 T00 */
+const keyCode = key => (key === CONFIG.TEACHER_NAME ? 'T00' : faceCode(key));
 /** 大家的大頭照裝飾（只留仍然擁有、沒有過期的配件），依座號 */
-function decoMap() {
+function decoMap(times) {
   const today = ymd(new Date());
   const inv = {};
   invRows().forEach(x => { inv[x.id] = x; });
@@ -637,30 +656,21 @@ function decoMap() {
   Object.keys(rows).forEach(key => {
     const ok = rows[key].layers.filter(l => inv[l.inv] && inv[l.inv].owner === key && inv[l.inv].exp >= today)
       .map(l => ({ acc: inv[l.inv].acc, x: l.x, y: l.y, s: l.s, r: l.r }));
-    if (ok.length) out[faceCode(key)] = ok;
+    if (ok.length) { out[keyCode(key)] = ok; if (times) times[keyCode(key)] = rows[key].t; }
   });
   return out;
 }
 function shopState(who) {
   const today = ymd(new Date());
   const inv = invRows();
-  const cat = catalog().map(a => ({ id: a.id, name: a.name, price: a.price, src: a.src || '', t: a.t || 0 }));
-  if (who.teacher) {
-    // 導師：全班點數一覽
-    let students = [];
-    try { students = getStudents().students; } catch (e) { /* 沒有名單 */ }
-    return { ok: true, admin: students.map(k => {
-      const c = coinsOf(k, inv);
-      return { key: k, earned: c.earned, spent: c.spent, coins: c.coins, active: inv.filter(x => x.owner === k && x.exp >= today).length };
-    }), catalog: cat, today: today, stealPrice: CONFIG.STEAL_PRICE, fireworkPrice: CONFIG.FIREWORK_PRICE, swapPrice: CONFIG.SWAP_PRICE };
-  }
+  const cat = catalog().map(a => ({ id: a.id, name: a.name, price: a.price, src: a.src || '', t: a.t || 0, creator: a.creator || '' }));
   const key = who.key, c = coinsOf(key, inv);
   const psh = pointsSheet();
   const plus = psh.getLastRow() > 1 ? psh.getRange(2, 1, psh.getLastRow() - 1, 5).getValues()
     .filter(r => String(r[1]).trim() === key && Number(r[2]) > 0).slice(-20).reverse()
     .map(r => ({ date: r[0] instanceof Date ? ymd(r[0]) : String(r[0]), points: Number(r[2]), reason: String(r[4]) })) : [];
-  let classmates = [];
-  try { classmates = getStudents().students.filter(k => k !== key); } catch (e) { /* 沒有名單 */ }
+  let students = [], classmates = [];
+  try { students = getStudents().students; classmates = students.filter(k => k !== key); } catch (e) { /* 沒有名單 */ }
   // 可以偷的：別人身上還有效的配件；被偷紀錄：最近 14 天
   const others = {};
   inv.filter(x => x.owner !== key && x.exp >= today).forEach(x => { (others[x.owner] = others[x.owner] || []).push({ id: x.id, acc: x.acc, name: x.name, exp: x.exp }); });
@@ -672,10 +682,15 @@ function shopState(who) {
     swapped: spendRows().filter(x => x.use === '交換位置卡' && x.target === key && x.t >= since).map(x => ({ time: x.time, by: x.who, note: x.note })),
     inv: inv.filter(x => x.owner === key).map(x => ({ id: x.id, acc: x.acc, name: x.name, exp: x.exp, expired: x.exp < today, note: x.note })),
     deco: (decoRows()[key] || { layers: [] }).layers,
+    unlimited: !!who.teacher, income: c.income, sales: who.teacher ? null : salesOf(key, inv), createPrice: CONFIG.CREATE_PRICE,
+    // 導師：全班點數一覽
+    admin: who.teacher ? students.map(k => {
+      const x = coinsOf(k, inv);
+      return { key: k, earned: x.earned, spent: x.spent, coins: x.coins, income: x.income, active: inv.filter(y => y.owner === k && y.exp >= today).length };
+    }) : null,
   };
 }
 function buyAcc(who, acc) {
-  if (who.teacher) throw new Error('導師不用買配件');
   const a = catalog().find(x => x.id === acc);
   if (!a) throw new Error('沒有這個配件');
   withLock(() => {
@@ -688,7 +703,6 @@ function buyAcc(who, acc) {
   return shopState(who);
 }
 function giftAcc(who, invId, to) {
-  if (who.teacher) throw new Error('導師不能送配件');
   const students = getStudents().students;
   if (students.indexOf(to) < 0 || to === who.key) throw new Error('請選擇要送的同學');
   withLock(() => {
@@ -715,7 +729,6 @@ function addSpend(who, points, use, target, note) {
 }
 /** 竊盜卡：花 10 點，把別人的配件變成自己的（到期日不變） */
 function stealAcc(who, invId) {
-  if (who.teacher) throw new Error('導師不能用竊盜卡');
   withLock(() => {
     const x = invRows().find(r => r.id === invId);
     if (!x || x.owner === who.key) throw new Error('找不到這個配件');
@@ -731,7 +744,6 @@ function stealAcc(who, invId) {
 }
 /** 煙火：花 1 點，放在某位同學的座位上 */
 function buyFirework(who, to) {
-  if (who.teacher) throw new Error('導師不用買煙火');
   if (getStudents().students.indexOf(to) < 0) throw new Error('請選擇同學');
   withLock(() => {
     const c = coinsOf(who.key);
@@ -742,7 +754,7 @@ function buyFirework(who, to) {
 }
 /** 交換位置卡：花 20 點，和另一位同學強制對調座位（兩個人都要已經有座位） */
 function swapSeatCard(who, to) {
-  if (who.teacher) throw new Error('導師請用「座位 → 交換位置」');
+  if (who.teacher) throw new Error('導師沒有座位，請用「座位 → 交換位置」');
   if (to === who.key) throw new Error('請選擇另一位同學');
   withLock(() => {
     const seats = getSeats();
@@ -758,13 +770,43 @@ function swapSeatCard(who, to) {
   });
   return shopState(who);
 }
+/** 創造卡：上傳 PNG 變成新商品（存在「配件」資料夾，說明欄記下創作者）；別人買了，點數算給創作者 */
+function createAcc(who, name, price, data) {
+  name = String(name || '').normalize('NFKC').replace(/[\\/:*?"<>|_\s]+/g, ' ').trim().slice(0, 12);
+  if (!name) throw new Error('請幫商品取個名字');
+  price = Math.round(Number(price));
+  if (!(price >= 1 && price <= 100)) price = CONFIG.CREATE_PRICE;
+  const m = String(data || '').match(/^data:image\/png;base64,(.+)$/);
+  if (!m) throw new Error('請上傳 PNG 圖片');
+  const bytes = Utilities.base64Decode(m[1]);
+  if (bytes.length > 300000) throw new Error('圖片太大了（最多 300KB）');
+  withLock(() => {
+    if (!who.teacher) {
+      const today = ymd(new Date());
+      const n = catalog().filter(a => a.creator === who.key && ymd(new Date(a.t)) === today).length;
+      if (n >= CONFIG.CREATE_PER_DAY) throw new Error('今天已經創造 ' + n + ' 個商品了，明天再來');
+    }
+    const f = accFolder().createFile(Utilities.newBlob(bytes, 'image/png', name + '_' + price + '.png'));
+    f.setDescription(JSON.stringify({ creator: who.key }));
+    CacheService.getScriptCache().remove('ACC_CATALOG');
+  });
+  return shopState(who);
+}
+/** 下架創造的商品：導師可以下架任何一個，同學只能下架自己的（已經買的人還是保有到期為止，只是看不到圖） */
+function delAcc(who, acc) {
+  const a = catalog().find(x => x.id === acc);
+  if (!a || acc.indexOf('d:') !== 0) throw new Error('找不到這個商品');
+  if (!who.teacher && a.creator !== who.key) throw new Error('只能下架自己創造的商品');
+  DriveApp.getFileById(acc.slice(2)).setTrashed(true);
+  CacheService.getScriptCache().remove('ACC_CATALOG');
+  return shopState(who);
+}
 /** 最近幾天的煙火（每支手機自己記得哪些已經看過） */
 function fireworksList() {
   const since = Date.now() - CONFIG.FIREWORK_DAYS * 86400e3;
   return spendRows().filter(x => x.use === '煙火' && x.t >= since).map(x => ({ id: x.id, by: x.who, to: x.target, time: x.time }));
 }
 function saveDeco(who, layers) {
-  if (who.teacher) throw new Error('導師沒有大頭照裝飾');
   const today = ymd(new Date());
   const mine = {};
   invRows().forEach(x => { if (x.owner === who.key && x.exp >= today) mine[x.id] = x; });
@@ -836,6 +878,7 @@ function setFaceFolder(url) {
 function faceNameMap() {
   const out = {};
   try { getStudents().students.forEach(k => { const m = k.match(/^(\D*?)(\d+)(.*)$/); if (m) out[m[3]] = m[1] + m[2]; }); } catch (e) { /* 沒有名單 */ }
+  [CONFIG.TEACHER_PHOTO, CONFIG.TEACHER_NAME].forEach(n => { if (n) out[String(n).replace(/\s+/g, '')] = 'T00'; });
   return out;
 }
 /** 檔名 → 座號：「料05.jpg」「料 24 王小明.jpg」「王小明.png」都可以 */
@@ -866,7 +909,8 @@ function getFaces(have) {
     if (blob.getBytes().length > 1500000) return;
     faces[code] = { t: t, d: 'data:' + (blob.getContentType() || 'image/jpeg') + ';base64,' + Utilities.base64Encode(blob.getBytes()) };
   });
-  return { ok: true, faces: faces, codes: Object.keys(latest), deco: decoMap(), fireworks: fireworksList() };
+  const decoT = {};
+  return { ok: true, faces: faces, codes: Object.keys(latest), deco: decoMap(decoT), decoT: decoT, fireworks: fireworksList() };
 }
 function uploadFace(code, data) {
   code = String(code || '');
