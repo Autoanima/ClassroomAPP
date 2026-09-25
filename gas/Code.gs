@@ -61,6 +61,8 @@ const HEAD_ROSTER = ['代號', '工作內容', '負責人1', '負責人2'];
 const SHEET_OUT = '外掃工作分配';     // 外掃區的工作分配（以這個 App 為主）
 const SHEET_SEATS = '座位表';
 const HEAD_SEATS = ['座位', '排', '個', '同學'];
+const SHEET_DUTY = '值日生';           // 班長、副班長每天登記的值日生（兩位）
+const HEAD_DUTY = ['日期', '值日生1', '值日生2', '登記人', '登記時間'];
 const SHEET_CARDS = '道具卡';          // 免費道具卡的發放紀錄（段考前五名）
 const HEAD_CARDS = ['時間', '同學', '卡片', '張數', '來源'];
 const SHEET_DEFSEAT = '預設座位';    // 導師按「把目前座位存成預設」存的（只存座號）
@@ -79,9 +81,9 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1 };
 
 function doGet() {
@@ -130,6 +132,8 @@ function doPost(e) {
       case 'buyFirework': return json(buyFirework(who, String(req.to || '')));
       case 'swapSeatCard': return json(swapSeatCard(who, String(req.to || '')));
       case 'createAcc': return json(createAcc(who, req.name, req.price, req.data));
+      case 'getDuty': return json({ ok: true, duty: getDuty() });
+      case 'setDuty': return json({ ok: true, duty: setDuty(who, req.a, req.b) });
       case 'buyWeather': return json(buyWeather(who, String(req.kind || ''), String(req.to || '')));
       case 'buyDrawCard': return json(buyDrawCard(who, String(req.kind || ''), String(req.to || '')));
       case 'getDrawFx': return json(Object.assign({ ok: true }, drawFx()));
@@ -865,6 +869,37 @@ function minusOf(key) {
   let m = 0;
   if (psh.getLastRow() > 1) psh.getRange(2, 2, psh.getLastRow() - 1, 2).getValues().forEach(r => { if (String(r[0]).trim() === key && Number(r[1]) < 0) m -= Number(r[1]); });
   return m;
+}
+// ── 值日生：班長、副班長（或導師）每天登記兩位 ──
+function getDuty() {
+  const sh = getSS().getSheetByName(SHEET_DUTY);
+  const today = ymd(new Date());
+  if (!sh || sh.getLastRow() < 2) return { date: today, a: '', b: '' };
+  const rows = sh.getRange(2, 1, sh.getLastRow() - 1, 4).getValues();
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const r = rows[i], d = r[0] instanceof Date ? ymd(r[0]) : String(r[0]);
+    if (d === today) return { date: today, a: String(r[1]), b: String(r[2]), by: String(r[3]) };
+  }
+  return { date: today, a: '', b: '' };
+}
+function setDuty(who, a, b) {
+  if (!who.teacher && !cadreRoles(who.key).some(r => /^副?班長$/.test(String(r).trim()))) throw new Error('只有班長、副班長可以登記值日生');
+  const list = getStudents().students;
+  a = String(a || ''); b = String(b || '');
+  if (list.indexOf(a) < 0 || list.indexOf(b) < 0) throw new Error('請選擇兩位同學');
+  if (a === b) throw new Error('兩位值日生不能是同一個人');
+  withLock(() => {
+    const sh = getSheet(SHEET_DUTY, HEAD_DUTY);
+    const today = ymd(new Date());
+    const vals = [[today, a, b, who.key, new Date()]];
+    // 今天已經登記過就改那一列
+    const n = sh.getLastRow() - 1;
+    const i = n > 0 ? sh.getRange(2, 1, n, 1).getValues().findIndex(r => (r[0] instanceof Date ? ymd(r[0]) : String(r[0])) === today) : -1;
+    const row = i >= 0 ? i + 2 : sh.getLastRow() + 1;
+    sh.getRange(row, 1, 1, 5).setValues(vals);
+    sh.getRange(row, 1).setNumberFormat('yyyy/mm/dd');
+  });
+  return getDuty();
 }
 // ── 小太陽卡／小雨傘卡：放在某位同學的座位上方，維持 10 個上課日（到期日記在「說明」欄）──
 const WEATHER = { sun: '小太陽卡', rain: '小雨傘卡' };

@@ -1118,6 +1118,48 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden && isStaff()) { checkExpiry(); flush(); } });
   setInterval(() => { if (!isStaff()) return; checkExpiry(); if (syncError || queue.length) flush(); }, 60e3);
 
+  // ── 今日值日生：大家都看得到；班長、副班長（和導師）可以登記 ──
+  let duty = null;
+  const canDuty = () => isTeacher() || jobsOf(settings.me || '').roles.some(r => /^副?班長$/.test(r));
+  const shortName = k => parseKeyLite(k).name || k;
+  function parseKeyLite(k) { const m = String(k || '').match(/^(\D*?)(\d+)(.*)$/); return m ? { name: m[3] } : { name: String(k || '') }; }
+  function paintDuty() {
+    const b = $('#dutyChip');
+    const has = duty && duty.date === fmtDate(new Date()) && duty.a;
+    b.hidden = !has && !canDuty();
+    b.textContent = has ? `🧹 值日：${shortName(duty.a)}、${shortName(duty.b)}` : '＋ 登記今日值日生';
+    b.classList.toggle('empty', !has);
+  }
+  async function loadDuty() {
+    if (!started) return;
+    try { const r = await api('getDuty'); duty = r.duty; } catch { /* 讀不到就先不顯示 */ }
+    paintDuty();
+  }
+  $('#dutyChip').addEventListener('click', () => {
+    const has = duty && duty.a && duty.date === fmtDate(new Date());
+    if (!canDuty()) return toast(has ? `今日值日生：${duty.a}、${duty.b}` : '今天還沒有登記值日生');
+    const list = students();
+    if (!list.length) { loadStudents().catch(() => {}); return toast('讀取名單中，請再按一次'); }
+    const opt = sel => `<option value="">— 請選擇 —</option>${list.map(k => `<option value="${esc(k)}"${k === sel ? ' selected' : ''}>${esc(k)}</option>`).join('')}`;
+    let h = sheetHead('🧹 今日值日生', `${fmtDateW(new Date())}｜班長、副班長登記`);
+    h += `<div class="field"><label for="dutyA">值日生 1</label><select id="dutyA">${opt(has ? duty.a : '')}</select></div>
+      <div class="field"><label for="dutyB">值日生 2</label><select id="dutyB">${opt(has ? duty.b : '')}</select></div>
+      ${has && duty.by ? `<p class="muted small">目前由 ${esc(duty.by)} 登記</p>` : ''}
+      <div class="actions"><button type="button" class="btn btn--primary wide" data-act="dutyOk">儲存</button></div>`;
+    openSheet({ kind: 'duty' }, h);
+  });
+  sheetHandlers.duty = async (act, b) => {
+    if (act !== 'dutyOk') return;
+    const a = $('#dutyA').value, c = $('#dutyB').value;
+    if (!a || !c) return toast('請選擇兩位值日生');
+    if (a === c) return toast('兩位值日生不能是同一個人');
+    b.disabled = true;
+    try { const r = await api('setDuty', { a, b: c }); duty = r.duty; closeSheet(); toast('✓ 今日值日生已更新'); } catch (err) { toast(err.message); b.disabled = false; }
+    paintDuty();
+  };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) loadDuty(); });
+  setInterval(loadDuty, 5 * 60e3);
+
   // ── 報表 ──
   function buildReport() {
     const cnt = { '好': 0, '不好': 0, '未出席': 0 };
@@ -1827,6 +1869,7 @@
     document.body.classList.toggle('role-student', isStudent());
     document.body.classList.toggle('role-teacher', isTeacher());
     paintDefog();
+    setTimeout(loadDuty, 300);
     $('#userChip').textContent = '👤 ' + (isStudent() ? settings.me : settings.inspector);
     paintView();
     renderMap('clean'); renderMap('jobs');
