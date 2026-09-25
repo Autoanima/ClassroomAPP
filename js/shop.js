@@ -38,6 +38,7 @@
     const active = S.inv.filter(x => !x.expired);
     const used = new Set((S.deco || []).map(l => l.inv));
     let h = (S.stolen || []).map(x => `<div class="banner warn"><div class="bn-sub">⚠ 你的「${esc(x.name)}」被 ${esc(x.thief)} 用竊盜卡奪走了（${esc(x.time)}）</div></div>`).join('');
+    h += (S.swapped || []).map(x => `<div class="banner warn"><div class="bn-sub">🔀 ${esc(x.by)} 用交換位置卡和你對調了座位（${esc(x.time)}）</div></div>`).join('');
     h += `<div class="panel shop-me">
       <div class="shop-face"><span class="photo">${A.faceHtml(me)}</span></div>
       <div class="shop-wallet"><div class="coins">💰 <b>${S.coins}</b> 點</div>
@@ -63,6 +64,7 @@
     const othersN = Object.values(S.others || {}).flat().length;
     h += `<div class="panel"><h3>特殊道具</h3><div class="specials">
       <button type="button" class="special" data-s="firework"${S.coins >= S.fireworkPrice ? '' : ' disabled'}><span class="sp-ico">🎆</span><b>煙火</b><span class="muted small">放在同學的座位上，大家下次打開 App 時都會看到</span><span class="sp-price">💰 ${S.fireworkPrice} 點</span></button>
+      <button type="button" class="special swap" data-s="swap"${S.coins >= (S.swapPrice || 20) ? '' : ' disabled'}><span class="sp-ico">🔀</span><b>交換位置卡</b><span class="muted small">和另一位同學強制對調座位</span><span class="sp-price">💰 ${S.swapPrice || 20} 點</span></button>
       <button type="button" class="special steal" data-s="steal"${S.coins >= S.stealPrice && othersN ? '' : ' disabled'}><span class="sp-ico">🦹</span><b>竊盜卡</b><span class="muted small">把別人的一個配件變成你的（到期日不變）${othersN ? '' : '｜目前沒有人有配件'}</span><span class="sp-price">💰 ${S.stealPrice} 點</span></button>
     </div></div>`;
     h += `<div class="panel"><h3>商店</h3><p class="muted small">每個配件買了之後有效 10 個上課日（週六、週日不算），可以自己用，也可以送給同學。</p><div class="shop-grid">`;
@@ -80,7 +82,13 @@
   }
 
   function adminHtml() {
-    let h = `<div class="panel"><h3>商品（${S.catalog.length}）</h3><p class="muted small">要加新配件：把去背的 PNG 放到雲端硬碟「內掃檢查／配件」資料夾，檔名寫「名稱_價格.png」（例如「墨鏡_3.png」，沒寫價格就是 3 點）。10 分鐘內會出現在商店。</p><div class="shop-grid">`;
+    // 導師看得到特殊道具（只能看，學生和幹部才能買）
+    let h = `<div class="panel"><h3>特殊道具</h3><p class="muted small">學生、幹部登入後才能購買；價格可以在 Code.gs 的 CONFIG 修改。</p><div class="specials">
+      <div class="special"><span class="sp-ico">🎆</span><b>煙火</b><span class="muted small">放在同學的座位上，大家下次打開 App 時都會看到</span><span class="sp-price">💰 ${S.fireworkPrice ?? 1} 點</span></div>
+      <div class="special swap"><span class="sp-ico">🔀</span><b>交換位置卡</b><span class="muted small">和另一位同學強制對調座位</span><span class="sp-price">💰 ${S.swapPrice ?? 20} 點</span></div>
+      <div class="special steal"><span class="sp-ico">🦹</span><b>竊盜卡</b><span class="muted small">把別人的一個配件變成自己的</span><span class="sp-price">💰 ${S.stealPrice ?? 10} 點</span></div>
+    </div></div>`;
+    h += `<div class="panel"><h3>商品（${S.catalog.length}）</h3><p class="muted small">要加新配件：把去背的 PNG 放到雲端硬碟「內掃檢查／配件」資料夾，檔名寫「名稱_價格.png」（例如「墨鏡_3.png」，沒寫價格就是 3 點）。10 分鐘內會出現在商店。</p><div class="shop-grid">`;
     S.catalog.forEach(a => { h += `<div class="shop-item"><span class="acc-thumb big" style="${accImgStyle(a.id)}"></span><b>${esc(a.name)}</b><span class="muted small">${a.price} 點</span></div>`; });
     h += `</div></div>`;
     // 成員點數：放在最下面，預設收起來
@@ -109,6 +117,8 @@
       openSteal();
     } else if (act === 'firework') {
       openFirework();
+    } else if (act === 'swap') {
+      openSwap();
     }
   });
 
@@ -154,6 +164,33 @@
       A.closeSheet();
       toast(`🦹 成功奪取「${b.dataset.name}」！`);
       A.ensureFaces?.(true);
+    } catch (err) { toast(err.message); b.disabled = false; }
+    render();
+  };
+
+  // ── 交換位置卡：選一位同學，和他對調座位 ──
+  function openSwap() {
+    const mine = A.seatOf?.(S.me);
+    let h = A.sheetHead(`🔀 交換位置卡（${S.swapPrice || 20} 點）`, mine ? `你現在坐在 ${mine}` : '你還沒有座位，不能交換');
+    h += `<div class="field"><select id="swapTo"><option value="">— 要和誰對調？ —</option>${S.classmates.map(k => {
+      const at = A.seatOf?.(k);
+      return `<option value="${esc(k)}"${at ? '' : ' disabled'}>${esc(k)}${at ? `（${at}）` : '（沒有座位）'}</option>`;
+    }).join('')}</select></div>
+      <div class="actions"><button type="button" class="btn btn--primary wide" data-act="swapOk"${mine ? '' : ' disabled'}>🔀 對調座位</button></div>
+      <p class="muted small">對方打開商店時會看到通知。</p>`;
+    A.openSheet({ kind: 'swapcard' }, h);
+  }
+  A.sheetHandlers.swapcard = async (act, b) => {
+    if (act !== 'swapOk') return;
+    const to = $('#swapTo').value;
+    if (!to) return toast('請選擇同學');
+    if (!await A.ask(`花 ${S.swapPrice || 20} 點，和 ${to} 對調座位？\n（${A.seatOf?.(S.me)} ⇄ ${A.seatOf?.(to)}）`, '對調！', true)) return;
+    b.disabled = true;
+    try {
+      S = await A.api('swapSeatCard', { to });
+      A.closeSheet();
+      toast(`🔀 已和 ${to} 對調座位！`);
+      A.ensureFaces?.(true); // 重新讀座位表
     } catch (err) { toast(err.message); b.disabled = false; }
     render();
   };
@@ -400,7 +437,7 @@
     const earned = 10 + plus.reduce((t, r) => t + r.points, 0);
     const spent = inv.filter(x => x.buyer === me).reduce((t, x) => t + x.price, 0);
     if (A.isTeacher()) {
-      return { ok: true, today, catalog: list, admin: A.DEMO_STUDENTS.map(k => {
+      return { ok: true, today, catalog: list, stealPrice: 10, fireworkPrice: 1, swapPrice: 20, admin: A.DEMO_STUDENTS.map(k => {
         const e = 10 + pts.filter(r => r.student === k && r.points > 0).reduce((t, r) => t + r.points, 0);
         const s = inv.filter(x => x.buyer === k).reduce((t, x) => t + x.price, 0);
         return { key: k, earned: e, spent: s, coins: e - s, active: inv.filter(x => x.owner === k && x.exp >= today).length };
@@ -419,6 +456,7 @@
     return {
       ok: true, me, today, coins: earned - spent2, earned, spent: spent2, catalog: list, stealPrice: 10, fireworkPrice: 1, others,
       stolen: spend.filter(x => x.use === '竊盜卡' && x.target === me).map(x => ({ time: x.time, thief: x.who, name: x.note })),
+      swapPrice: 20, swapped: spend.filter(x => x.use === '交換位置卡' && x.target === me).map(x => ({ time: x.time, by: x.who, note: x.note })),
       plus: [{ date: today, points: 10, reason: '🧪 測試模式送的點數' }, ...plus.map(r => ({ date: r.date, points: r.points, reason: r.reason }))],
       classmates: A.DEMO_STUDENTS.filter(k => k !== me),
       inv: inv2.filter(x => x.owner === me).map(x => ({ ...x, expired: x.exp < today })),
@@ -442,6 +480,18 @@
       if (!x || x.owner !== me) throw new Error('這個配件不是你的');
       x.owner = p.to; x.note = '由 ' + me + ' 贈送';
       store.set(K.inv, inv);
+      return testState();
+    }
+    if (action === 'swapSeatCard') {
+      const st = await testState();
+      if (st.coins < 20) throw new Error(`點數不夠（交換位置卡要 20 點，你有 ${st.coins} 點）`);
+      const chart = store.get('indoor.testchart.v1.test', {});
+      const mine = Object.keys(chart).find(id => chart[id] === me), theirs = Object.keys(chart).find(id => chart[id] === p.to);
+      if (!mine || !theirs) throw new Error('兩個人都要有座位才能交換');
+      chart[mine] = p.to; chart[theirs] = me;
+      store.set('indoor.testchart.v1.test', chart);
+      const t = new Date();
+      store.set(K.spend, [...store.get(K.spend, []), { id: Math.random().toString(36).slice(2, 10), who: me, points: 20, use: '交換位置卡', target: p.to, note: `${mine} ⇄ ${theirs}`, time: `${A.pad2(t.getMonth() + 1)}/${A.pad2(t.getDate())} ${A.fmtTime(t)}`, t: Date.now() }]);
       return testState();
     }
     if (action === 'stealAcc' || action === 'buyFirework') {

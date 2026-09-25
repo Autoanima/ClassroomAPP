@@ -37,6 +37,7 @@ const CONFIG = {
   ACC_DAYS: 10,                       // 配件有效天數（只算週一到週五）
   STEAL_PRICE: 10,                    // 竊盜卡：奪取別人的配件
   FIREWORK_PRICE: 1,                  // 煙火：放在某位同學的座位上，大家下次打開 App 時會看到
+  SWAP_PRICE: 20,                     // 交換位置卡：和另一位同學強制對調座位
   FIREWORK_DAYS: 3,                   // 煙火幾天內還會放給還沒看過的人
 };
 
@@ -62,7 +63,7 @@ const SHEET_POINTS = '加扣分紀錄';
 const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記人', '登記時間', '編號'];
 
 // 學生（身分證字號登入）可以用的動作
-const SHOP_OK = { shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1 };
+const SHOP_OK = { shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1 };
 const STUDENT_OK = Object.assign({ getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
 const CADRE_OK = Object.assign({ ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
@@ -112,6 +113,7 @@ function doPost(e) {
       case 'saveDeco': return json(saveDeco(who, req.layers || []));
       case 'stealAcc': return json(stealAcc(who, String(req.inv || '')));
       case 'buyFirework': return json(buyFirework(who, String(req.to || '')));
+      case 'swapSeatCard': return json(swapSeatCard(who, String(req.to || '')));
       case 'getSeats': return json({ ok: true, seats: getSeats() });
       case 'saveSeats': return json({ ok: true, seats: saveSeats(req.seats || {}) });
       case 'getFaces': return json(getFaces(req.have || {}));
@@ -643,7 +645,7 @@ function shopState(who) {
     return { ok: true, admin: students.map(k => {
       const c = coinsOf(k, inv);
       return { key: k, earned: c.earned, spent: c.spent, coins: c.coins, active: inv.filter(x => x.owner === k && x.exp >= today).length };
-    }), catalog: cat, today: today };
+    }), catalog: cat, today: today, stealPrice: CONFIG.STEAL_PRICE, fireworkPrice: CONFIG.FIREWORK_PRICE, swapPrice: CONFIG.SWAP_PRICE };
   }
   const key = who.key, c = coinsOf(key, inv);
   const psh = pointsSheet();
@@ -659,7 +661,8 @@ function shopState(who) {
   const stolen = spendRows().filter(x => x.use === '竊盜卡' && x.target === key && x.t >= since).map(x => ({ time: x.time, thief: x.who, name: x.note }));
   return {
     ok: true, me: key, today: today, coins: c.coins, earned: c.earned, spent: c.spent, catalog: cat, plus: plus, classmates: classmates,
-    stealPrice: CONFIG.STEAL_PRICE, fireworkPrice: CONFIG.FIREWORK_PRICE, others: others, stolen: stolen,
+    stealPrice: CONFIG.STEAL_PRICE, fireworkPrice: CONFIG.FIREWORK_PRICE, swapPrice: CONFIG.SWAP_PRICE, others: others, stolen: stolen,
+    swapped: spendRows().filter(x => x.use === '交換位置卡' && x.target === key && x.t >= since).map(x => ({ time: x.time, by: x.who, note: x.note })),
     inv: inv.filter(x => x.owner === key).map(x => ({ id: x.id, acc: x.acc, name: x.name, exp: x.exp, expired: x.exp < today, note: x.note })),
     deco: (decoRows()[key] || { layers: [] }).layers,
   };
@@ -730,6 +733,24 @@ function buyFirework(who, to) {
   });
   return shopState(who);
 }
+/** 交換位置卡：花 20 點，和另一位同學強制對調座位（兩個人都要已經有座位） */
+function swapSeatCard(who, to) {
+  if (who.teacher) throw new Error('導師請用「座位 → 交換位置」');
+  if (to === who.key) throw new Error('請選擇另一位同學');
+  withLock(() => {
+    const seats = getSeats();
+    const mine = Object.keys(seats).find(id => seats[id] === who.key);
+    const theirs = Object.keys(seats).find(id => seats[id] === to);
+    if (!mine) throw new Error('你還沒有座位，不能交換');
+    if (!theirs) throw new Error(to + ' 還沒有座位，不能交換');
+    const c = coinsOf(who.key);
+    if (c.coins < CONFIG.SWAP_PRICE) throw new Error('點數不夠（交換位置卡要 ' + CONFIG.SWAP_PRICE + ' 點，你有 ' + c.coins + ' 點）');
+    seats[mine] = to; seats[theirs] = who.key;
+    writeSeats(seats);
+    addSpend(who.key, CONFIG.SWAP_PRICE, '交換位置卡', to, mine + ' ⇄ ' + theirs);
+  });
+  return shopState(who);
+}
 /** 最近幾天的煙火（每支手機自己記得哪些已經看過） */
 function fireworksList() {
   const since = Date.now() - CONFIG.FIREWORK_DAYS * 86400e3;
@@ -766,7 +787,10 @@ function getSeats() {
   return seats;
 }
 function saveSeats(seats) {
-  return withLock(() => {
+  return withLock(() => writeSeats(seats));
+}
+function writeSeats(seats) {
+  {
     const sh = getSheet(SHEET_SEATS, HEAD_SEATS);
     const ids = Object.keys(seats).filter(id => /^\d+-\d+$/.test(id) && seats[id]);
     ids.sort((a, b) => { const x = a.split('-').map(Number), y = b.split('-').map(Number); return x[0] - y[0] || x[1] - y[1]; });
@@ -774,7 +798,7 @@ function saveSeats(seats) {
     if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_SEATS.length).clearContent();
     if (rows.length) sh.getRange(2, 1, rows.length, HEAD_SEATS.length).setNumberFormat('@').setValues(rows);
     return getSeats();
-  });
+  }
 }
 
 // ── 大頭照：檔名開頭是組別＋座號（料05.jpg、料 24 王小明.jpg、多11陳小華.png 都可以）──

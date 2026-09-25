@@ -658,6 +658,7 @@ table.admin th:first-child, table.admin td:first-child { text-align: left; }
 .special .sp-ico { grid-row: 1 / 4; font-size: 34px; align-self: center; }
 .special .sp-price { font-weight: 800; color: #b7791f; }
 .special.steal { border-color: #c4b5fd; background: #f5f3ff; }
+.special.swap { border-color: #9fd8c0; background: #eefaf4; }
 .special:disabled { opacity: .5; }
 .steal-row { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
 .steal-face { width: 48px; aspect-ratio: 3 / 4; border-radius: 8px; overflow: hidden; flex: none; }
@@ -762,6 +763,7 @@ body.presenting .compass, body.presenting .swapbar { display: none; }
 [data-theme="dark"] .nm.empty { background: #2a2c33; }
 [data-theme="dark"] .special { background: #2e2a18; border-color: #6b5a1c; }
 [data-theme="dark"] .special.steal { background: #26213a; border-color: #5b4a99; }
+[data-theme="dark"] .special.swap { background: #17302a; border-color: #2c6a55; }
 [data-theme="dark"] .issue-box.on { background: #3a1f1f; }
 [data-theme="dark"] .part:has(input:checked) { background: #3a1f1f; color: #ff9b9b; }
 [data-theme="dark"] .acc-thumb { background-image: none; background-color: #2a2c33; }
