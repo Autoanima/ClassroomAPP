@@ -299,11 +299,19 @@
   });
   const origSeatsHook = A.tabHooks.seats;
   A.tabHooks.seats = () => { origSeatsHook?.(); setTimeout(playPending, 700); };
+  // 一次只放一支：正在放的時候又有新的，就排在後面依序放
+  let playing = false;
   async function playPending() {
-    if (!pendingFx.length || A.currentTab() !== 'seats' || document.hidden) return;
-    const list = pendingFx.splice(0);
-    store.set(K.seenFx, [...store.get(K.seenFx, []), ...list.map(f => f.id)].slice(-300));
-    for (const f of list) await burst(f);
+    if (playing || !pendingFx.length || A.currentTab() !== 'seats' || document.hidden) return;
+    playing = true;
+    try {
+      while (pendingFx.length && A.currentTab() === 'seats' && !document.hidden) {
+        const f = pendingFx.shift();
+        store.set(K.seenFx, [...store.get(K.seenFx, []), f.id].slice(-300));
+        await burst(f);
+        await new Promise(r => setTimeout(r, 250));
+      }
+    } finally { playing = false; }
   }
   function burst(f) {
     return new Promise(done => {
@@ -327,6 +335,16 @@
           }
         });
         const label = `🎆 ${f.by} 送給 ${f.to}`;
+        // 文字框：字太長就縮小；位置夾在畫面內（不被上方標題列擋住、不超出左右）
+        const top = (document.querySelector('.topbar, header')?.getBoundingClientRect().bottom || 0) + 8;
+        let fs = 16;
+        g.font = `700 ${fs}px system-ui, sans-serif`;
+        while (fs > 11 && g.measureText(label).width + 20 > innerWidth - 16) { fs--; g.font = `700 ${fs}px system-ui, sans-serif`; }
+        const bw = Math.min(innerWidth - 16, g.measureText(label).width + 20), bh = fs + 12;
+        const bx = Math.max(8, Math.min(innerWidth - 8 - bw, cx - bw / 2));
+        let by = cy - r.height / 2 - bh - 14;                       // 預設在座位上方
+        if (by < top) by = cy + r.height / 2 + 14;                   // 上面放不下就放下面
+        by = Math.max(top, Math.min(innerHeight - bh - 8, by));
         let t = 0;
         const step = () => {
           g.clearRect(0, 0, innerWidth, innerHeight);
@@ -338,10 +356,10 @@
             g.beginPath(); g.arc(p.x, p.y, 2.6, 0, Math.PI * 2); g.fill();
           });
           g.globalAlpha = Math.min(1, t / 10) * (t > 110 ? Math.max(0, 1 - (t - 110) / 20) : 1);
-          g.font = '700 16px system-ui, sans-serif'; g.textAlign = 'center';
-          const w = g.measureText(label).width + 20;
-          g.fillStyle = 'rgba(25,25,35,.85)'; g.fillRect(cx - w / 2, cy - r.height / 2 - 44, w, 28);
-          g.fillStyle = '#fff'; g.fillText(label, cx, cy - r.height / 2 - 24);
+          g.font = `700 ${fs}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.fillStyle = 'rgba(25,25,35,.88)';
+          g.beginPath(); g.roundRect ? g.roundRect(bx, by, bw, bh, 8) : g.rect(bx, by, bw, bh); g.fill();
+          g.fillStyle = '#fff'; g.fillText(label, bx + bw / 2, by + bh / 2, bw - 12);
           if (++t < 130) requestAnimationFrame(step); else { cv.hidden = true; done(); }
         };
         step();
