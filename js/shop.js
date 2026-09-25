@@ -68,8 +68,19 @@
       <button type="button" class="special" data-s="firework"${S.coins >= S.fireworkPrice ? '' : ' disabled'}><span class="sp-ico">🎆</span><b>煙火</b><span class="muted small">放在同學的座位上，大家下次打開 App 時都會看到</span><span class="sp-price">💰 ${S.fireworkPrice} 點</span></button>
       <button type="button" class="special swap" data-s="swap"${!banned && (S.freeSwap || S.coins >= (S.swapPrice || 20)) ? '' : ' disabled'}><span class="sp-ico">🔀</span><b>交換位置卡</b><span class="muted small">${banned ? `你被扣了 ${S.minus} 分（超過 ${S.swapBan} 分），不能使用` : '和另一位同學強制對調座位'}</span><span class="sp-price">${S.freeSwap ? `🎟 免費卡 ${S.freeSwap} 張` : `💰 ${S.swapPrice || 20} 點`}</span></button>
       <button type="button" class="special steal" data-s="steal"${S.coins >= S.stealPrice && othersN ? '' : ' disabled'}><span class="sp-ico">🦹</span><b>竊盜卡</b><span class="muted small">把別人的一個配件變成你的（到期日不變）${othersN ? '' : '｜目前沒有人有配件'}</span><span class="sp-price">💰 ${S.stealPrice} 點</span></button>
+      <button type="button" class="special wx" data-s="sun"${S.coins >= (S.weatherPrice || 5) ? '' : ' disabled'}><span class="sp-ico">☀️</span><b>小太陽卡</b><span class="muted small">放在一位同學的座位上方，維持 ${S.weatherDays || 10} 個上課日</span><span class="sp-price">💰 ${S.weatherPrice || 5} 點</span></button>
+      <button type="button" class="special wx" data-s="rain"${S.coins >= (S.weatherPrice || 5) ? '' : ' disabled'}><span class="sp-ico">☂️</span><b>小雨傘卡</b><span class="muted small">放在一位同學的座位上方，維持 ${S.weatherDays || 10} 個上課日</span><span class="sp-price">💰 ${S.weatherPrice || 5} 點</span></button>
+      <button type="button" class="special draw" data-s="transfer"${S.coins >= (S.transferPrice || 20) && !S.unlimited ? '' : S.unlimited ? '' : ' disabled'}><span class="sp-ico">🔄</span><b>抽籤轉移卡</b><span class="muted small">設定一位替身：${S.transferDays || 10} 天內抽籤抽到你，會立刻換成替身上場（次數不限）</span><span class="sp-price">💰 ${S.transferPrice || 20} 點</span></button>
+      <button type="button" class="special draw" data-s="sure"${S.coins >= (S.surePrice || 30) ? '' : ' disabled'}><span class="sp-ico">🎯</span><b>抽籤必中卡</b><span class="muted small">指定一位同學：下一次抽籤，第一位一定會變成他（只有一次）</span><span class="sp-price">💰 ${S.surePrice || 30} 點</span></button>
       <button type="button" class="special create" data-s="create"><span class="sp-ico">🎨</span><b>創造卡</b><span class="muted small">上傳自己畫的 PNG 變成新商品；別人買了，點數算給你</span><span class="sp-price">免費建立</span></button>
     </div></div>`;
+    const md = S.myDraw || {};
+    if (md.transfer || md.sure?.length) {
+      h += `<div class="panel"><h3>我的抽籤卡</h3><ul class="inv">`;
+      if (md.transfer) h += `<li><span class="sp-ico">🔄</span><div class="inv-what"><b>抽籤轉移卡生效中</b><div class="muted small">替身：${esc(md.transfer.to)}｜到 ${esc(md.transfer.until)}</div></div></li>`;
+      (md.sure || []).forEach(x => { h += `<li><span class="sp-ico">🎯</span><div class="inv-what"><b>抽籤必中卡（等待發動）</b><div class="muted small">指定：${esc(x.target)}</div></div></li>`; });
+      h += `</ul></div>`;
+    }
     if (S.sales?.items.length) {
       h += `<div class="panel"><h3>我創造的商品</h3><p class="muted small">已經賣出 ${S.sales.n} 次，收入 ${S.sales.income} 點（已算進你的點數）。</p><ul class="inv">${S.sales.items.map(a =>
         `<li><span class="acc-thumb" style="${accImgStyle(a.id)}"></span><div class="inv-what"><b>${esc(a.name)}</b><div class="muted small">售價 ${a.price} 點・賣出 ${a.sold} 次</div></div>
@@ -123,6 +134,10 @@
       openSwap();
     } else if (act === 'create') {
       openCreate();
+    } else if (act === 'sun' || act === 'rain') {
+      openWeather(act);
+    } else if (act === 'transfer' || act === 'sure') {
+      openDrawCard(act);
     } else if (act === 'delAcc') {
       if (!await A.ask(`下架「${b.dataset.name}」？\n已經買的人不會退點數。`, '下架', true)) return;
       b.disabled = true;
@@ -130,6 +145,58 @@
       render();
     }
   });
+
+  // ── 小太陽卡／小雨傘卡：選一位同學 ──
+  function openWeather(kind) {
+    const sun = kind === 'sun';
+    let h = A.sheetHead(`${sun ? '☀️ 小太陽卡' : '☂️ 小雨傘卡'}（${S.weatherPrice || 5} 點）`, `放在誰的座位上方？維持 ${S.weatherDays || 10} 個上課日`);
+    const list = [S.me, ...S.classmates].filter(k => k && k !== A.D.teacherLabel);
+    h += `<div class="field"><select id="wxTo"><option value="">— 請選擇同學 —</option>${list.map(k => `<option value="${esc(k)}">${esc(k)}${k === S.me ? '（自己）' : ''}</option>`).join('')}</select></div>
+      <div class="actions"><button type="button" class="btn btn--primary wide" data-act="wxOk">${sun ? '☀️ 放小太陽' : '☂️ 放小雨傘'}</button></div>`;
+    A.openSheet({ kind: 'weather', card: kind }, h);
+  }
+  A.sheetHandlers.weather = async (act, b) => {
+    if (act !== 'wxOk') return;
+    const { card } = A.sheetMode();
+    const to = $('#wxTo').value;
+    if (!to) return toast('請選擇同學');
+    b.disabled = true;
+    try {
+      S = await A.api('buyWeather', { kind: card, to });
+      A.closeSheet();
+      toast(`${card === 'sun' ? '☀️ 小太陽' : '☂️ 小雨傘'}放在 ${to} 的座位上了！`);
+      A.ensureFaces?.(true);
+    } catch (err) { toast(err.message); b.disabled = false; }
+    render();
+  };
+
+  // ── 抽籤轉移卡／抽籤必中卡：選一位同學 ──
+  function openDrawCard(kind) {
+    const tr = kind === 'transfer';
+    const price = tr ? S.transferPrice || 20 : S.surePrice || 30;
+    let h = A.sheetHead(tr ? `🔄 抽籤轉移卡（${price} 點）` : `🎯 抽籤必中卡（${price} 點）`,
+      tr ? `${S.transferDays || 10} 天內，抽籤抽到你時會立刻換成替身（次數不限）` : '下一次抽籤，第一位一定會切換成你指定的同學（只有一次）');
+    const list = tr ? S.classmates : [S.me, ...S.classmates].filter(k => k && k !== A.D.teacherLabel);
+    h += `<div class="field"><label for="dcTo">${tr ? '替身' : '指定同學'}</label><select id="dcTo"><option value="">— 請選擇同學 —</option>${list.map(k => `<option value="${esc(k)}">${esc(k)}${k === S.me ? '（自己）' : ''}</option>`).join('')}</select></div>
+      ${tr && S.myDraw?.transfer ? `<p class="muted small">你已經有一張生效中的轉移卡（替身 ${esc(S.myDraw.transfer.to)}），買新的會改用新的替身、重新算 ${S.transferDays || 10} 天。</p>` : ''}
+      <div class="actions"><button type="button" class="btn btn--primary wide" data-act="dcOk">${tr ? '🔄 設定替身' : '🎯 使用必中卡'}</button></div>`;
+    A.openSheet({ kind: 'drawcard', card: kind }, h);
+  }
+  A.sheetHandlers.drawcard = async (act, b) => {
+    if (act !== 'dcOk') return;
+    const { card } = A.sheetMode();
+    const to = $('#dcTo').value;
+    if (!to) return toast('請選擇同學');
+    const tr = card === 'transfer';
+    if (!await A.ask(tr ? `花 ${S.transferPrice || 20} 點，設定 ${to} 當你的替身？` : `花 ${S.surePrice || 30} 點，下一次抽籤第一位一定是 ${to}？`, tr ? '設定' : '使用')) return;
+    b.disabled = true;
+    try {
+      S = await A.api('buyDrawCard', { kind: card, to });
+      A.closeSheet();
+      toast(tr ? `🔄 替身設定好了：${to}` : `🎯 必中卡已設定：${to}`);
+    } catch (err) { toast(err.message); b.disabled = false; }
+    render();
+  };
 
   // ── 創造卡：上傳 PNG（自動縮小壓縮），取名字、訂價格 ──
   let made = null; // 壓縮後的 data URL
@@ -597,6 +664,13 @@
       ok: true, me, today, coins: earned - spent2, earned, spent: spent2, catalog: list, stealPrice: 10, fireworkPrice: 1, others,
       stolen: spend.filter(x => x.use === '竊盜卡' && x.target === me).map(x => ({ time: x.time, thief: x.who, name: x.note })),
       minus: pts.filter(r => r.student === me && r.points < 0).reduce((t, r) => t - r.points, 0), swapBan: 10,
+      transferPrice: 20, surePrice: 30, transferDays: 10, weatherPrice: 5, weatherDays: 10,
+      myDraw: (() => {
+        const sp = spend, since = Date.now() - 10 * 86400e3;
+        const trs = sp.filter(x => x.use === '抽籤轉移卡' && x.who === me && x.t >= since);
+        const t = trs.pop();
+        return { transfer: t ? { to: t.target, until: ymd(new Date(t.t + 10 * 86400e3)) } : null, sure: sp.filter(x => x.use === '抽籤必中卡' && x.who === me && !/^已使用/.test(x.note)).map(x => ({ target: x.target })) };
+      })(),
       swapPrice: 20, swapped: spend.filter(x => x.use === '交換位置卡' && x.target === me).map(x => ({ time: x.time, by: x.who, note: x.note })),
       plus: [{ date: today, points: 10, reason: '🧪 測試模式送的點數' }, ...plus.map(r => ({ date: r.date, points: r.points, reason: r.reason }))],
       classmates: A.DEMO_STUDENTS.filter(k => k !== me),
@@ -607,6 +681,35 @@
   A.testSeatApi = async (action, p = {}) => {
     const me = A.isTeacher() ? D.teacherLabel : A.me(), today = ymd(new Date());
     if (action === 'createAcc' || action === 'delAcc') throw new Error('測試模式不能創造商品，請用正式登入試用');
+    const testFx = () => {
+      const sp = store.get(K.spend, []), since = Date.now() - 10 * 86400e3;
+      return {
+        transfers: sp.filter(x => x.use === '抽籤轉移卡' && x.t >= since).map(x => ({ id: x.id, from: x.who, to: x.target, until: ymd(new Date(x.t + 10 * 86400e3)), t: x.t })),
+        sure: sp.filter(x => x.use === '抽籤必中卡' && !/^已使用/.test(x.note)).map(x => ({ id: x.id, by: x.who, target: x.target, t: x.t })),
+      };
+    };
+    if (action === 'getDrawFx') return { ok: true, ...testFx() };
+    if (action === 'drawUsed') {
+      const sp = store.get(K.spend, []), x = sp.find(y => y.id === p.id);
+      if (!x || /^已使用/.test(x.note)) return { ok: false };
+      x.note = '已使用'; store.set(K.spend, sp); return { ok: true };
+    }
+    if (action === 'buyWeather') {
+      const st = await testState();
+      if (st.coins < 5) throw new Error('點數不夠');
+      const t = new Date();
+      store.set(K.spend, [...store.get(K.spend, []), { id: Math.random().toString(36).slice(2, 10), who: me, points: 5, use: p.kind === 'sun' ? '小太陽卡' : '小雨傘卡', target: p.to, note: schoolDaysLater(10), time: `${A.pad2(t.getMonth() + 1)}/${A.pad2(t.getDate())} ${A.fmtTime(t)}`, t: Date.now() }]);
+      return testState();
+    }
+    if (action === 'buyDrawCard') {
+      const st = await testState();
+      const tr = p.kind === 'transfer', price = tr ? 20 : 30;
+      if (tr && p.to === me) throw new Error('替身不能是自己');
+      if (st.coins < price) throw new Error('點數不夠');
+      const t = new Date();
+      store.set(K.spend, [...store.get(K.spend, []), { id: Math.random().toString(36).slice(2, 10), who: me, points: price, use: tr ? '抽籤轉移卡' : '抽籤必中卡', target: p.to, note: '', time: `${A.pad2(t.getMonth() + 1)}/${A.pad2(t.getDate())} ${A.fmtTime(t)}`, t: Date.now() }]);
+      return testState();
+    }
     if (action === 'shopState') return testState();
     if (action === 'accImages') return { ok: true, images: {}, ids: [] };
     if (action === 'buyAcc') {
@@ -671,6 +774,7 @@
         if (ok.length) deco[code(k)] = ok;
       });
       r.deco = deco;
+      r.weather = store.get(K.spend, []).filter(x => (x.use === '小太陽卡' || x.use === '小雨傘卡') && x.note >= today).map(x => ({ kind: x.use === '小太陽卡' ? 'sun' : 'rain', to: x.target, by: x.who, exp: x.note }));
       r.fireworks = store.get(K.spend, []).filter(x => x.use === '煙火' && x.t > Date.now() - 3 * 86400e3).map(x => ({ id: x.id, by: x.who, to: x.target, time: x.time }));
     }
     return r;

@@ -7,7 +7,7 @@
     chart: 'indoor.chart.v1' + A.SFX, faces: 'indoor.faces.v1' + A.SFX, sub: 'indoor.seatsub.v1',
     testSel: 'indoor.testsel.v1.test', testChart: 'indoor.testchart.v1.test', bots: 'indoor.bots.v1.test',
     live: 'indoor.live.v1' + A.SFX, backup: 'indoor.chartbak.v1' + A.SFX, defaulted: 'indoor.defaulted.v1' + A.SFX,
-    decos: 'indoor.decos.v1' + A.SFX, acc: 'indoor.accimg.v1' + A.SFX, def: 'indoor.defseats.v1' + A.SFX,
+    decos: 'indoor.decos.v1' + A.SFX, acc: 'indoor.accimg.v1' + A.SFX, wx: 'indoor.weather.v1' + A.SFX, def: 'indoor.defseats.v1' + A.SFX,
   };
   const HOW = { wish: '志願', self: '自選', teacher: '老師指定', auto: '系統分配' };
   const STATUS = { idle: '沒有進行選位', ready: '準備中（可預選志願）', open: '選位中', paused: '暫停中', done: '選位結束' };
@@ -47,6 +47,7 @@
     return `<span class="ava" style="background:hsl(${hue(k)} 40% 58%)">${esc((name || code).slice(0, 1))}</span>`;
   }
   // 大頭照＝底圖＋同學買的配件（位置、大小、角度都是相對於大頭照的比例）
+  let weather = store.get(K.wx, []);     // 小太陽卡／小雨傘卡：[{ kind, to, by, exp }]
   let decos = store.get(K.decos, {});   // 座號 → [{ acc, x, y, s, r }]
   let accImg = store.get(K.acc, {});    // 雲端硬碟配件 id → { t, d }
   let builtin = {};                     // 內建配件 id → 圖片網址
@@ -105,8 +106,12 @@
     } else k = cur()[s.id];
     if (!k) return `<span class="sid">${s.id}</span>${extra}`;
     const { code, name } = parseKey(k);
+    // 小太陽（左上角）、小雨傘（右上角）：放在這位同學座位的上方，不會蓋到別人
+    const today = A.fmtDate(new Date());
+    const wx = weather.filter(w => w.to === k && w.exp >= today);
+    const wxHtml = ['sun', 'rain'].filter(t => wx.some(w => w.kind === t)).map(t => `<span class="wx wx-${t}" title="${esc(wx.filter(w => w.kind === t).map(w => w.by).join('、'))}">${t === 'sun' ? '☀️' : '☂️'}</span>`).join('');
     // 大頭照滿版，底下兩行小字：組別 座號／姓名
-    return `<span class="photo">${faceHtml(k)}</span><span class="sn"><b>${esc(code.replace(/(\d+)$/, ' $1'))}</b><span>${esc(name)}</span></span>${extra}`;
+    return `<span class="photo">${faceHtml(k)}</span>${wxHtml}<span class="sn"><b>${esc(code.replace(/(\d+)$/, ' $1'))}</b><span>${esc(name)}</span></span>${extra}`;
   }
   function seatClass(s) {
     const c = [];
@@ -981,6 +986,7 @@
       if (Object.values(decos).flat().some(l => l.acc.startsWith('d:') && !accImg[l.acc])) await A.loadAccImages().catch(() => {});
     }
     if (r.fireworks?.length) A.emit('fireworks', r.fireworks);
+    if (r.weather && JSON.stringify(r.weather) !== JSON.stringify(weather)) { weather = r.weather; store.set(K.wx, weather); changed = true; }
     await catalogP;
     if (r.decoT) setTimeout(() => A.emit('decoNews', r.decoT), 400);
     return changed;

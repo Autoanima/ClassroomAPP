@@ -40,6 +40,11 @@ const CONFIG = {
   FIREWORK_PRICE: 1,                  // 煙火：放在某位同學的座位上，大家下次打開 App 時會看到
   SWAP_PRICE: 20,                     // 交換位置卡：和另一位同學強制對調座位
   RANK_CARDS: { 1: 2, 2: 1, 3: 1, 4: 1, 5: 1 }, // 段考排名前五名自動獲得免費交換位置卡（第一名 2 張）；每份新的排名只發一次
+  TRANSFER_PRICE: 20,                 // 抽籤轉移卡：設定替身，抽籤抽到自己時由替身上場（次數不限）
+  TRANSFER_DAYS: 10,                  // 抽籤轉移卡有效天數
+  WEATHER_PRICE: 5,                   // 小太陽卡／小雨傘卡：放在某位同學的座位上方
+  WEATHER_DAYS: 10,                   // 小太陽卡／小雨傘卡有效上課日
+  SURE_PRICE: 30,                     // 抽籤必中卡：指定一位同學，下一次抽籤第一位一定是他（只有一次）
   SWAP_BAN_MINUS: 10,                 // 「加扣分紀錄」被扣的分數加起來超過這個數，就不能用交換位置卡
   CREATE_PRICE: 20,                   // 創造卡：同學上傳 PNG 變成新商品，預設售價（可以自己改 1–100）
   CREATE_PER_DAY: 3,                  // 每人每天最多創造幾個商品
@@ -73,10 +78,10 @@ const SHEET_POINTS = '加扣分紀錄';
 const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記人', '登記時間', '編號'];
 
 // 學生（身分證字號登入）可以用的動作
-const SHOP_OK = { shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1 };
+const SHOP_OK = { shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
 const STUDENT_OK = Object.assign({ getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1 };
 
 function doGet() {
@@ -125,6 +130,10 @@ function doPost(e) {
       case 'buyFirework': return json(buyFirework(who, String(req.to || '')));
       case 'swapSeatCard': return json(swapSeatCard(who, String(req.to || '')));
       case 'createAcc': return json(createAcc(who, req.name, req.price, req.data));
+      case 'buyWeather': return json(buyWeather(who, String(req.kind || ''), String(req.to || '')));
+      case 'buyDrawCard': return json(buyDrawCard(who, String(req.kind || ''), String(req.to || '')));
+      case 'getDrawFx': return json(Object.assign({ ok: true }, drawFx()));
+      case 'drawUsed': return json(drawUsed(String(req.id || '')));
       case 'delAcc': return json(delAcc(who, String(req.acc || '')));
       case 'getSeats': return json(who.teacher ? { ok: true, seats: getSeats(), defaults: getDefaultSeats() } : { ok: true, seats: getSeats() });
       case 'saveDefaultSeats': return json({ ok: true, defaults: saveDefaultSeats(req.seats || {}) });
@@ -720,6 +729,8 @@ function shopState(who) {
   return {
     ok: true, me: key, today: today, coins: c.coins, earned: c.earned, spent: c.spent, catalog: cat, plus: plus, classmates: classmates,
     stealPrice: CONFIG.STEAL_PRICE, fireworkPrice: CONFIG.FIREWORK_PRICE, swapPrice: CONFIG.SWAP_PRICE, others: others, stolen: stolen,
+    weatherPrice: CONFIG.WEATHER_PRICE, weatherDays: CONFIG.WEATHER_DAYS,
+    transferPrice: CONFIG.TRANSFER_PRICE, surePrice: CONFIG.SURE_PRICE, transferDays: CONFIG.TRANSFER_DAYS, myDraw: myDrawCards(key),
     swapped: spendRows().filter(x => x.use === '交換位置卡' && x.target === key && x.t >= since).map(x => ({ time: x.time, by: x.who, note: x.note })),
     inv: inv.filter(x => x.owner === key).map(x => ({ id: x.id, acc: x.acc, name: x.name, exp: x.exp, expired: x.exp < today, note: x.note })),
     deco: (decoRows()[key] || { layers: [] }).layers,
@@ -854,6 +865,67 @@ function minusOf(key) {
   let m = 0;
   if (psh.getLastRow() > 1) psh.getRange(2, 2, psh.getLastRow() - 1, 2).getValues().forEach(r => { if (String(r[0]).trim() === key && Number(r[1]) < 0) m -= Number(r[1]); });
   return m;
+}
+// ── 小太陽卡／小雨傘卡：放在某位同學的座位上方，維持 10 個上課日（到期日記在「說明」欄）──
+const WEATHER = { sun: '小太陽卡', rain: '小雨傘卡' };
+function buyWeather(who, kind, to) {
+  const card = WEATHER[kind];
+  if (!card) throw new Error('沒有這種卡片');
+  if (getStudents().students.indexOf(to) < 0) throw new Error('請選擇同學');
+  withLock(() => {
+    const c = coinsOf(who.key);
+    if (c.coins < CONFIG.WEATHER_PRICE) throw new Error('點數不夠（' + card + '要 ' + CONFIG.WEATHER_PRICE + ' 點，你有 ' + c.coins + ' 點）');
+    addSpend(who.key, CONFIG.WEATHER_PRICE, card, to, schoolDaysLater(CONFIG.WEATHER_DAYS));
+  });
+  return shopState(who);
+}
+/** 還有效的小太陽、小雨傘：[{ kind, to, by, exp }] */
+function weatherList() {
+  const today = ymd(new Date());
+  return spendRows().filter(x => (x.use === WEATHER.sun || x.use === WEATHER.rain) && x.note >= today)
+    .map(x => ({ kind: x.use === WEATHER.sun ? 'sun' : 'rain', to: x.target, by: x.who, exp: x.note }));
+}
+// ── 抽籤轉移卡／抽籤必中卡：記在「點數使用」；抽籤畫面（導師、幹部）讀取後套用 ──
+const isUsedNote = n => /^已使用/.test(String(n));
+function drawFx() {
+  const since = Date.now() - CONFIG.TRANSFER_DAYS * 86400e3;
+  const rows = spendRows();
+  return {
+    // 同一人買好幾次：用最新的那張
+    transfers: rows.filter(x => x.use === '抽籤轉移卡' && x.t >= since).map(x => ({ id: x.id, from: x.who, to: x.target, until: ymd(new Date(x.t + CONFIG.TRANSFER_DAYS * 86400e3)), t: x.t })),
+    sure: rows.filter(x => x.use === '抽籤必中卡' && !isUsedNote(x.note)).map(x => ({ id: x.id, by: x.who, target: x.target, t: x.t })),
+  };
+}
+function myDrawCards(key) {
+  const fx = drawFx();
+  return { transfer: fx.transfers.filter(x => x.from === key).pop() || null, sure: fx.sure.filter(x => x.by === key) };
+}
+function buyDrawCard(who, kind, to) {
+  const card = kind === 'transfer' ? '抽籤轉移卡' : kind === 'sure' ? '抽籤必中卡' : '';
+  if (!card) throw new Error('沒有這種卡片');
+  if (getStudents().students.indexOf(to) < 0) throw new Error('請選擇同學');
+  if (kind === 'transfer' && who.teacher) throw new Error('導師不會被抽到，不用轉移卡');
+  if (kind === 'transfer' && to === who.key) throw new Error('替身不能是自己');
+  const price = kind === 'transfer' ? CONFIG.TRANSFER_PRICE : CONFIG.SURE_PRICE;
+  withLock(() => {
+    const c = coinsOf(who.key);
+    if (c.coins < price) throw new Error('點數不夠（' + card + '要 ' + price + ' 點，你有 ' + c.coins + ' 點）');
+    addSpend(who.key, price, card, to, '');
+  });
+  return shopState(who);
+}
+/** 抽籤畫面用掉一張必中卡 */
+function drawUsed(id) {
+  return withLock(() => {
+    const sh = getSheet(SHEET_SPEND, HEAD_SPEND);
+    const n = sh.getLastRow() - 1;
+    if (n < 1) return { ok: false };
+    const ids = sh.getRange(2, 7, n, 1).getValues();
+    const i = ids.findIndex(r => String(r[0]) === id);
+    if (i < 0 || isUsedNote(sh.getRange(i + 2, 6).getValue())) return { ok: false };
+    sh.getRange(i + 2, 6).setValue('已使用 ' + Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'MM/dd HH:mm'));
+    return { ok: true };
+  });
 }
 // ── 免費道具卡：段考前五名自動發放交換位置卡 ──
 function cardRows() {
@@ -1025,7 +1097,7 @@ function getFaces(have) {
     faces[code] = { t: t, d: 'data:' + (blob.getContentType() || 'image/jpeg') + ';base64,' + Utilities.base64Encode(blob.getBytes()) };
   });
   const decoT = {};
-  return { ok: true, faces: faces, codes: Object.keys(latest), deco: decoMap(decoT), decoT: decoT, fireworks: fireworksList() };
+  return { ok: true, faces: faces, codes: Object.keys(latest), deco: decoMap(decoT), decoT: decoT, fireworks: fireworksList(), weather: weatherList() };
 }
 function uploadFace(code, data) {
   code = String(code || '');

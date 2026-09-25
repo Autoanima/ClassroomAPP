@@ -866,6 +866,42 @@ code.url { display: inline-block; margin: 2px 0; }
 .dseat { font-size: 14px; color: var(--muted); }
 .dcard.spin { opacity: .55; filter: blur(.5px); }
 .stage.reveal .dcard { animation: reveal .5s ease-out; }
+/* 抽籤卡動畫：蓄力（光環＋震動）→ 翻牌 → 新的人落地（閃光） */
+.stage { position: relative; }
+.dcard { position: relative; }
+.dcard.fx-charge .face { animation: fxShake .12s linear infinite; }
+.dcard.fx-charge .face::after { content: ''; position: absolute; inset: -14px; border-radius: 50%; z-index: -1;
+  background: conic-gradient(#ff4d6d, #ffd166, #06d6a0, #4cc9f0, #b388ff, #ff4d6d); animation: fxSpin .6s linear infinite; filter: blur(2px); }
+.dcard.fx-charge.transfer .face::after { background: conic-gradient(#4cc9f0, #b388ff, #4cc9f0, #06d6a0, #4cc9f0); }
+.dcard .face { position: relative; overflow: visible; isolation: isolate; }
+.dcard .face > .av, .dcard .face > img, .dcard .face > .ava { border-radius: 50%; overflow: hidden; width: 100%; height: 100%; display: grid; place-items: center; }
+.dcard.fx-flip { animation: fxFlipOut .3s ease-in forwards; }
+.dcard.fx-land { animation: fxFlipIn .55s cubic-bezier(.2,1.6,.4,1); }
+.dcard.fx-land .face { box-shadow: 0 0 0 6px #ffd166, 0 0 40px 14px rgba(255,209,102,.9); }
+.dcard.fx-land.transfer .face { box-shadow: 0 0 0 6px #4cc9f0, 0 0 36px 12px rgba(76,201,240,.85); }
+.dcard.fx-land .dname b { color: #e0a100; }
+.fx-banner { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); z-index: 3; white-space: nowrap; padding: 6px 16px; border-radius: 999px;
+  font-weight: 800; font-size: 18px; color: #fff; background: linear-gradient(90deg, #ff4d6d, #ffb703, #b388ff); box-shadow: 0 6px 20px rgba(0,0,0,.25);
+  animation: fxBanner .45s cubic-bezier(.2,1.6,.4,1); }
+.fx-banner.transfer { background: linear-gradient(90deg, #4cc9f0, #7b61ff); font-size: 16px; }
+#drawRoot.present .fx-banner { font-size: 28px; }
+@keyframes fxShake { 0%,100% { transform: translate(0,0) rotate(0); } 25% { transform: translate(-3px,2px) rotate(-3deg); } 75% { transform: translate(3px,-2px) rotate(3deg); } }
+@keyframes fxSpin { to { transform: rotate(360deg); } }
+@keyframes fxFlipOut { to { transform: rotateY(90deg) scale(.9); opacity: .4; } }
+@keyframes fxFlipIn { 0% { transform: rotateY(-90deg) scale(.7); } 100% { transform: none; } }
+@keyframes fxBanner { 0% { transform: translateX(-50%) scale(.3); opacity: 0; } 100% { transform: translateX(-50%) scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .dcard.fx-charge .face, .dcard.fx-charge .face::after { animation: none; } }
+.special.draw { border-color: #b9c6ff; background: #f1f4ff; }
+.special.wx { border-color: #ffd98a; background: #fffaeb; }
+[data-theme="dark"] .special.wx { background: #33301a; border-color: #7a6a2c; }
+/* 座位上的小太陽（左上）、小雨傘（右上）：在自己的座位格子裡，不會蓋到別人 */
+.seat .wx { position: absolute; top: 1px; z-index: 2; font-size: max(11px, calc(var(--u) * 30px)); line-height: 1; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); pointer-events: none; }
+.seat .wx-sun { left: 2px; animation: wxSun 6s linear infinite; }
+.seat .wx-rain { right: 2px; animation: wxRain 2.4s ease-in-out infinite; transform-origin: 50% 90%; }
+@keyframes wxSun { to { transform: rotate(360deg); } }
+@keyframes wxRain { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
+@media (prefers-reduced-motion: reduce) { .seat .wx { animation: none; } }
+[data-theme="dark"] .special.draw { background: #1d2340; border-color: #3d4a8a; }
 @keyframes reveal { from { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.08); } }
 .draw:fullscreen .dcard .face { width: 26vh; height: 26vh; }
 .draw:fullscreen .dname { font-size: 7vh; }

@@ -8,6 +8,56 @@
   const saveSt = () => store.set(LSK, st);
   let rolling = false;
   let last = [];
+  // 同學在商店買的抽籤卡：轉移卡（替身）、必中卡（指定第一位）
+  let fx = { transfers: [], sure: [] }, fxAt = 0;
+  async function loadFx(force) {
+    if (A.isStudent() || (!force && Date.now() - fxAt < 60e3)) return;
+    try { const r = await A.api('getDrawFx'); fx = { transfers: r.transfers || [], sure: r.sure || [] }; fxAt = Date.now(); } catch { /* 讀不到就照一般抽籤 */ }
+  }
+  /** 套用抽籤卡：先必中卡（第一位換成指定的人），再轉移卡（抽到的人換成替身）；回傳要播的動畫 */
+  function applyFx(result) {
+    const evs = [];
+    const ok = k => all().includes(k) && !st.absent.includes(k);
+    const sure = fx.sure.find(c => ok(c.target));
+    if (sure && result.length && result[0] !== sure.target) {
+      const from = result[0], j = result.indexOf(sure.target);
+      if (j > 0) result[j] = from;
+      result[0] = sure.target;
+      evs.push({ i: 0, kind: 'sure', from, to: sure.target });
+      fx.sure = fx.sure.filter(c => c !== sure);
+      A.api('drawUsed', { id: sure.id }).catch(() => {});
+    }
+    const now = Date.now();
+    result.forEach((k, i) => {
+      const tr = fx.transfers.filter(x => x.from === k && now - x.t < 10 * 86400e3).sort((a, b) => a.t - b.t).pop();
+      if (tr && ok(tr.to) && !result.includes(tr.to)) { result[i] = tr.to; evs.push({ i, kind: 'transfer', from: k, to: tr.to }); }
+    });
+    return evs;
+  }
+  // 華麗的切換動畫：光環旋轉、閃光、翻牌換人
+  async function playFx(ev, shown) {
+    const stage = $('#stage');
+    const el = stage?.children[ev.i];
+    if (!el) return;
+    const sure = ev.kind === 'sure';
+    const banner = document.createElement('div');
+    banner.className = 'fx-banner ' + ev.kind;
+    banner.innerHTML = sure ? '✨ 抽籤必中卡發動！✨' : `🔄 抽籤轉移卡：${esc(ev.from)} 的替身上場！`;
+    stage.append(banner);
+    el.classList.add('fx-charge', ev.kind);
+    await new Promise(r => setTimeout(r, sure ? 1300 : 900));
+    el.classList.add('fx-flip');
+    await new Promise(r => setTimeout(r, 300));
+    shown[ev.i] = ev.to;
+    const n = document.createElement('div');
+    n.innerHTML = card(ev.to);
+    const nc = n.firstElementChild;
+    nc.classList.add('fx-land', ev.kind);
+    el.replaceWith(nc);
+    await new Promise(r => setTimeout(r, sure ? 1500 : 1100));
+    banner.remove();
+    nc.classList.remove('fx-land');
+  }
 
   const all = () => A.students();
   const depts = () => [...new Set(all().map(k => A.parseKey(k).code.replace(/\d+$/, '')).filter(Boolean))];
@@ -59,7 +109,7 @@
     });
     h += `</div></details>`;
     if (st.history.length) {
-      h += `<h3>抽籤紀錄</h3><ol class="hist">${st.history.slice(0, 30).map(x => `<li><span class="muted small">${esc(x.t)}</span> ${x.k.map(esc).join('、')}</li>`).join('')}</ol>`;
+      h += `<h3>抽籤紀錄</h3><ol class="hist">${st.history.slice(0, 30).map(x => `<li><span class="muted small">${esc(x.t)}</span> ${x.k.map(esc).join('、')}${x.fx?.length ? ` <span class="muted small">（${x.fx.map(esc).join('、')}）</span>` : ''}</li>`).join('')}</ol>`;
     }
     root.innerHTML = h + `</div>`;
   }
@@ -69,7 +119,10 @@
     if (!p.length) return toast(st.noRepeat ? '大家都抽過了！按「全部重來」可以重新開始' : '沒有可以抽的同學');
     const n = Math.min(st.n, p.length);
     if (n < st.n) toast(`只剩 ${p.length} 人可以抽`);
+    await loadFx();
     const result = pickN(p, n);
+    const shown = [...result];              // 先顯示原本抽到的人，再播抽籤卡的動畫
+    const evs = applyFx(result);
     rolling = true;
     render();
     const stage = $('#stage');
@@ -80,14 +133,21 @@
       stage.innerHTML = pickN(p, n).map(k => card(k, 'spin')).join('');
       await new Promise(r => setTimeout(r, 40 + i * i * 1.4));
     }
+    if (evs.length) {
+      stage.innerHTML = shown.map(k => card(k)).join('');
+      stage.classList.add('reveal');
+      await new Promise(r => setTimeout(r, 700));
+      for (const ev of evs) await playFx(ev, shown);
+    }
     last = result;
     st.drawn.push(...result.filter(k => !st.drawn.includes(k)));
-    st.history.unshift({ t: A.fmtTime(new Date()), k: result });
+    st.history.unshift({ t: A.fmtTime(new Date()), k: result, fx: evs.map(e => (e.kind === 'sure' ? '🎯' : '🔄') + e.from + '→' + e.to) });
     st.history = st.history.slice(0, 50);
     saveSt();
     rolling = false;
     render();
-    $('#stage').classList.add('reveal');
+    if (!evs.length) $('#stage').classList.add('reveal');
+    loadFx(true);
   }
 
   $('#drawRoot').addEventListener('click', e => {
@@ -144,7 +204,7 @@
     if (e.key === ' ' || e.key === 'Enter' || e.key === 'PageDown') { e.preventDefault(); if (!rolling) go(); }
   });
 
-  A.tabHooks.draw = () => { render(); A.ensureFaces?.(); };
+  A.tabHooks.draw = () => { render(); A.ensureFaces?.(); loadFx(true); };
   const rerender = () => { if (A.currentTab() === 'draw' && !rolling) render(); };
   A.on('students', rerender);
   A.on('faces', rerender);
