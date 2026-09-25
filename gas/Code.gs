@@ -64,6 +64,9 @@ const SHEET_SEATS = '座位表';
 const HEAD_SEATS = ['座位', '排', '個', '同學'];
 const SHEET_DUTY = '值日生';           // 班長、副班長每天登記的值日生（兩位）
 const HEAD_DUTY = ['日期', '值日生1', '值日生2', '值日生3', '值日生4', '登記人', '登記時間'];
+const SHEET_MAIL = '飛鴿傳書';         // 站內信：3 天後在 App 上消失（紀錄留在試算表，導師看得到）
+const HEAD_MAIL = ['時間', '寄件人', '收件人', '內容', '編號'];
+const MAIL_DAYS = 3, MAIL_PER_DAY = 10;
 const SHEET_BOARD = '公布欄';          // 導師、幹部的留言（例如作業）；刪除只做標記，紀錄保留
 const HEAD_BOARD = ['時間', '內容', '發布人', '編號', '狀態', '修改紀錄'];
 const BOARD_DAYS = 14;
@@ -85,9 +88,9 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
 const GUEST_OK = { rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1 };
@@ -142,6 +145,8 @@ function doPost(e) {
       case 'buyFirework': return json(buyFirework(who, String(req.to || '')));
       case 'swapSeatCard': return json(swapSeatCard(who, String(req.to || '')));
       case 'createAcc': return json(createAcc(who, req.name, req.price, req.data));
+      case 'getMail': return json({ ok: true, mails: getMail(who) });
+      case 'sendMail': return json(sendMail(who, String(req.to || ''), req.text));
       case 'getBoard': return json({ ok: true, posts: getBoard() });
       case 'addPost': return json({ ok: true, posts: addPost(who, req.text) });
       case 'editPost': return json({ ok: true, posts: editPost(who, String(req.id || ''), req.text) });
@@ -978,6 +983,33 @@ function minusOf(key) {
   return m;
 }
 // ── 值日生：班長、副班長（或導師）每天登記兩位 ──
+// ── 飛鴿傳書：寄給同學（或導師）的站內信，3 天後在 App 上消失 ──
+const mailName = who => (who.teacher ? CONFIG.TEACHER_NAME : who.key);
+function mailRows() {
+  const sh = getSS().getSheetByName(SHEET_MAIL);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_MAIL.length).getValues()
+    .filter(r => r[0] instanceof Date)
+    .map(r => ({ t: r[0].getTime(), time: Utilities.formatDate(r[0], CONFIG.TIMEZONE, 'MM/dd HH:mm'), from: String(r[1]), to: String(r[2]), text: String(r[3]), id: String(r[4]) }));
+}
+function getMail(who) {
+  const me = mailName(who), since = Date.now() - MAIL_DAYS * 86400e3;
+  return mailRows().filter(m => m.to === me && m.t >= since).sort((a, b) => b.t - a.t);
+}
+function sendMail(who, to, text) {
+  text = String(text || '').trim().slice(0, 200);
+  if (!text) throw new Error('請寫下內容');
+  const me = mailName(who);
+  const ok = to === CONFIG.TEACHER_NAME || getStudents().students.indexOf(to) >= 0;
+  if (!ok || to === me) throw new Error('請選擇收件人');
+  withLock(() => {
+    const today = ymd(new Date());
+    if (!who.teacher && mailRows().filter(m => m.from === me && ymd(new Date(m.t)) === today).length >= MAIL_PER_DAY) throw new Error('今天已經寄了 ' + MAIL_PER_DAY + ' 封，明天再寄');
+    const sh = getSheet(SHEET_MAIL, HEAD_MAIL);
+    sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_MAIL.length).setValues([[new Date(), me, to, text, Utilities.getUuid().slice(0, 8)]]);
+  });
+  return { ok: true };
+}
 // ── 公布欄：導師、幹部留言；大家打開 App 會先看到 ──
 function getBoard() {
   const sh = getSS().getSheetByName(SHEET_BOARD);

@@ -97,6 +97,7 @@
       <button type="button" class="special wx" data-s="rain"${S.coins >= (S.weatherPrice || 5) ? '' : ' disabled'}><span class="sp-ico">☂️</span><b>小雨傘卡</b><span class="muted small">放在一位同學的座位上方，維持 ${S.weatherDays || 10} 個上課日</span><span class="sp-price">💰 ${S.weatherPrice || 5} 點</span></button>
       <button type="button" class="special drawc" data-s="transfer"${S.coins >= (S.transferPrice || 20) && !S.unlimited ? '' : S.unlimited ? '' : ' disabled'}><span class="sp-ico">🔄</span><b>抽籤轉移卡</b><span class="muted small">設定一位替身：${S.transferDays || 10} 天內抽籤抽到你，會立刻換成替身上場（次數不限）</span><span class="sp-price">💰 ${S.transferPrice || 20} 點</span></button>
       <button type="button" class="special drawc" data-s="sure"${S.coins >= (S.surePrice || 30) ? '' : ' disabled'}><span class="sp-ico">🎯</span><b>抽籤必中卡</b><span class="muted small">指定一位同學：下一次抽籤，第一位一定會變成他（只有一次）</span><span class="sp-price">💰 ${S.surePrice || 30} 點</span></button>
+      <button type="button" class="special mail" data-s="mail"><span class="sp-ico">🕊</span><b>信紙（飛鴿傳書）</b><span class="muted small">寫一封信給同學或導師，對方下次打開 App 就會看到，3 天後自動消失</span><span class="sp-price">免費</span></button>
       <button type="button" class="special create" data-s="create"><span class="sp-ico">🎨</span><b>創造卡</b><span class="muted small">上傳自己畫的 PNG 變成新商品；別人買了，點數算給你</span><span class="sp-price">免費建立</span></button>
     </div></div>`;
     h += specialsHtml;
@@ -146,6 +147,8 @@
       openSwap();
     } else if (act === 'create') {
       openCreate();
+    } else if (act === 'mail') {
+      A.openMailCompose?.();
     } else if (act === 'sun' || act === 'rain') {
       openWeather(act);
     } else if (act === 'transfer' || act === 'sure') {

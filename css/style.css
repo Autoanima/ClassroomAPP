@@ -1052,3 +1052,19 @@ body.locked.test-mode .test-banner { position: fixed; left: 0; right: 0; }
 .admin td.items { white-space: nowrap; }
 .it-chip { display: inline-block; margin-right: 4px; font-size: 13px; }
 .admin tfoot td { border-top: 2px solid var(--line); }
+
+/* 飛鴿傳書 */
+.mail-btn { padding: 2px 8px; margin-left: 0; }
+.duty-row .mail-btn + .board-btn { margin-left: 4px; }
+.duty-row .mail-btn { margin-left: auto; }
+.mail-btn .bb-c { margin-left: 3px; font-size: 11px; color: var(--muted); }
+.mail-btn.new { border-color: #e8590c; color: #e8590c; animation: pulse-chip 1.6s infinite; }
+.mail-btn.new .bb-n { background: #e8590c; }
+.mail-card { background: var(--bg); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; border-left: 4px solid var(--line); }
+.mail-card.new { border-left-color: #e8590c; }
+.mail-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.mail-text { white-space: pre-wrap; font-size: 16px; line-height: 1.5; }
+.mail-foot { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.mail-foot .link-btn { margin-left: auto; }
+.special.mail { border-color: #9fd8e8; background: #eef9fc; }
+[data-theme="dark"] .special.mail { background: #17303a; border-color: #2c5f6a; }
