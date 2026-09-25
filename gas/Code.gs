@@ -19,14 +19,25 @@
 const CONFIG = {
   TOKEN: '請改成你的密碼',              // 導師的登入密碼（只改你 Apps Script 裡的這份，不要改 GitHub 上的）
   SHEET_ID: '',                        // 留空 = 使用這份試算表（綁定在試算表上的腳本）
-  FOLDER_NAME: '內掃檢查',              // 雲端硬碟資料夾：名單、排名、大頭照、檢查照片
+  FOLDER_NAME: '商一甲 APP 專用',        // 雲端硬碟資料夾：排名、大頭照、檢查照片（改名沒關係，程式記得資料夾代號）
+  CLASS_NAME: '商一甲',
+  ROSTER_SHEET: '幹部名單',            // 這份試算表裡的全班名單＋幹部職位（科別、座號、姓名、職位…、身分證字號）
+  FACE_FOLDER_ID: '',                  // 大頭照資料夾代號（也可以在網頁「座位 → 交換位置 → 大頭照資料夾」貼連結設定）
   FACE_FOLDER: '大頭照',
+  PHOTO_FOLDER: '內掃檢查',            // 掃地檢查照片（每天的都放在一起）
   SHARE_PHOTOS: true,                  // 掃地檢查照片設為「知道連結的人可檢視」（大頭照不會公開分享）
   TIMEZONE: 'Asia/Taipei',
   SESSION_HOURS: 6,                    // 學生、幹部登入後幾小時內有效（最多 6）
   TEACHER_NAME: '導師',
   OUTDOOR_SHEET_ID: '',                // 外掃區 App 的試算表 ID（也可以在網頁「工作分配 → 外掃區」貼連結設定）
   BUTTON_IMAGE: 'https://autoanima.github.io/outdoor-cleaning-map/assets/sum-button.png',
+  SITE_URL: 'https://autoanima.github.io/indoor-cleaning-map/',   // 網站網址（讀取內建配件清單 assets/acc/catalog.json）
+  ACC_FOLDER: '配件',                 // 「內掃檢查」資料夾裡放配件 PNG 的子資料夾；檔名「名稱_價格.png」
+  ACC_DEFAULT_PRICE: 3,               // 檔名沒寫價格時的價格
+  ACC_DAYS: 10,                       // 配件有效天數（只算週一到週五）
+  STEAL_PRICE: 10,                    // 竊盜卡：奪取別人的配件
+  FIREWORK_PRICE: 1,                  // 煙火：放在某位同學的座位上，大家下次打開 App 時會看到
+  FIREWORK_DAYS: 3,                   // 煙火幾天內還會放給還沒看過的人
 };
 
 const SHEET_RECORDS = '檢查紀錄';
@@ -41,13 +52,20 @@ const HEAD_SEATS = ['座位', '排', '個', '同學'];
 const SHEET_SELLOG = '選位紀錄';
 const HEAD_SELLOG = ['套用時間', '順序', '名次', '同學', '座位', '方式', '排名來源'];
 
+const SHEET_INV = '配件';
+const HEAD_INV = ['編號', '擁有者', '配件', '名稱', '價格', '購買人', '購買時間', '到期日', '備註'];
+const SHEET_SPEND = '點數使用';
+const HEAD_SPEND = ['時間', '同學', '點數', '用途', '對象', '說明', '編號'];
+const SHEET_DECO = '大頭照裝飾';
+const HEAD_DECO = ['同學', '裝飾', '更新時間'];
 const SHEET_POINTS = '加扣分紀錄';
 const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記人', '登記時間', '編號'];
 
 // 學生（身分證字號登入）可以用的動作
-const STUDENT_OK = { getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 };
+const SHOP_OK = { shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1 };
+const STUDENT_OK = Object.assign({ getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = { ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 };
+const CADRE_OK = Object.assign({ ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1 };
 
 function doGet() {
@@ -87,6 +105,13 @@ function doPost(e) {
       case 'addPoints': return json(addPoints(req.rows || [], who));
       case 'getPoints': return json({ ok: true, rows: getPoints(req.days, who) });
       case 'delPoints': return json(delPoints(req.id, who));
+      case 'shopState': return json(shopState(who));
+      case 'accImages': return json(accImages(req.have || {}));
+      case 'buyAcc': return json(buyAcc(who, String(req.acc || '')));
+      case 'giftAcc': return json(giftAcc(who, String(req.inv || ''), String(req.to || '')));
+      case 'saveDeco': return json(saveDeco(who, req.layers || []));
+      case 'stealAcc': return json(stealAcc(who, String(req.inv || '')));
+      case 'buyFirework': return json(buyFirework(who, String(req.to || '')));
       case 'getSeats': return json({ ok: true, seats: getSeats() });
       case 'saveSeats': return json({ ok: true, seats: saveSeats(req.seats || {}) });
       case 'getFaces': return json(getFaces(req.have || {}));
@@ -114,6 +139,11 @@ function setup() {
   getSheet(SHEET_SEATS, HEAD_SEATS);
   getSheet(SHEET_SELLOG, HEAD_SELLOG);
   getSheet(SHEET_POINTS, HEAD_POINTS);
+  getSheet(SHEET_INV, HEAD_INV);
+  getSheet(SHEET_DECO, HEAD_DECO);
+  getSheet(SHEET_SPEND, HEAD_SPEND);
+  accFolder();
+  photoFolder();
   ensureScoreSheet(true);
   computeScores();
   const folder = getRootFolder();
@@ -226,6 +256,9 @@ function saveOutdoor(o) {
 function rosterWithOutdoor() {
   const r = getRoster();
   r.outdoor = getOutdoor();
+  // 幹部名單工作表：網頁依職位自動排入幹部欄位（不用在網頁上再填）
+  if (getSS().getSheetByName(CONFIG.ROSTER_SHEET)) { r.cadres = cadreMap(); r.cadreSource = CONFIG.ROSTER_SHEET; }
+  if (!r.jobs.CLASS || !r.jobs.CLASS[0]) r.jobs.CLASS = [CONFIG.CLASS_NAME];
   return r;
 }
 function setOutdoorSheet(url) {
@@ -261,22 +294,46 @@ function rankFile() {
 
 /** 讀取試算表第一個工作表：找到含「姓名」或「名次」的標題列 */
 function readTable(file) {
-  const values = SpreadsheetApp.openById(file.getId()).getSheets()[0].getDataRange().getDisplayValues();
+  return tableOf(SpreadsheetApp.openById(file.getId()).getSheets()[0].getDataRange().getDisplayValues(), file.getName());
+}
+function tableOf(values, name) {
   const h = values.findIndex(r => r.some(c => /^(姓名|名次|班排名|排名|座號)$/.test(String(c).trim())));
-  if (h < 0) throw new Error('「' + file.getName() + '」裡找不到標題列（姓名／座號／名次）');
+  if (h < 0) throw new Error('「' + name + '」裡找不到標題列（姓名／座號／名次）');
   const head = values[h].map(c => String(c).trim());
   const col = re => head.findIndex(c => re.test(c));
+  const cId = col(/身[分份]證/);
+  // 職位：從「職位」那一欄開始往右（合併儲存格的標題只在第一欄），不含身分證字號
+  const c0 = col(/職位|幹部/);
+  const cRoles = [];
+  if (c0 >= 0) for (let i = c0; i < head.length; i++) if (i !== cId && (i === c0 || !head[i] || /職位|幹部/.test(head[i]))) cRoles.push(i);
   return {
-    rows: values.slice(h + 1),
+    rows: values.slice(h + 1), name: name,
     cDept: col(/^科別$/), cNo: col(/^座號$/), cName: col(/^姓名$/),
-    cRank: col(/^(班排名|名次|排名|班級名次)$/), cId: col(/身[分份]證/),
+    cRank: col(/^(班排名|名次|排名|班級名次)$/), cId: cId, cRoles: cRoles,
   };
+}
+/** 全班名單：這份試算表的「幹部名單」工作表；沒有的話用資料夾裡的名單試算表 */
+function rosterTable() {
+  const sh = getSS().getSheetByName(CONFIG.ROSTER_SHEET);
+  if (sh) return tableOf(sh.getDataRange().getDisplayValues(), CONFIG.ROSTER_SHEET);
+  return readTable(rosterFile());
+}
+/** 幹部：同學 → 職位（同一人可以兼好幾個） */
+function cadreMap() {
+  const t = rosterTable(), out = {};
+  t.rows.forEach(r => {
+    const p = personOf(t, r);
+    const roles = t.cRoles.map(i => String(r[i] || '').trim()).filter(Boolean);
+    if (p.name && roles.length) out[p.key] = roles;
+  });
+  return out;
 }
 function personOf(t, r) {
   const name = t.cName >= 0 ? String(r[t.cName] || '').trim() : '';
   const dept = t.cDept >= 0 ? String(r[t.cDept] || '').trim() : '';
   let no = t.cNo >= 0 ? String(r[t.cNo] || '').trim() : '';
   if (/^\d$/.test(no)) no = '0' + no;
+  if (/^\d{3,}$/.test(no)) no = String(Number(no)).padStart(2, '0');
   const id = t.cId >= 0 ? normId(r[t.cId]) : '';
   const rank = t.cRank >= 0 ? parseInt(String(r[t.cRank]).replace(/[^\d]/g, ''), 10) : NaN;
   return { key: dept + no + name, dept: dept, no: no, name: name, id: id, rank: rank };
@@ -284,17 +341,16 @@ function personOf(t, r) {
 
 /** 從名單試算表讀取學生（需有「姓名」欄，可有「科別」「座號」） */
 function getStudents() {
-  const file = rosterFile();
-  const t = readTable(file);
-  if (t.cName < 0) throw new Error('名單「' + file.getName() + '」裡找不到「姓名」欄');
+  const t = rosterTable();
+  if (t.cName < 0) throw new Error('名單「' + t.name + '」裡找不到「姓名」欄');
   const students = t.rows.map(r => personOf(t, r)).filter(p => p.name).map(p => p.key);
-  return { ok: true, source: file.getName(), className: file.getName().replace(/名單.*$/, '').trim(), students: students };
+  return { ok: true, source: t.name, className: CONFIG.CLASS_NAME || t.name.replace(/名單.*$/, '').trim(), students: students };
 }
 
 /** 名單＋排名合併：每位同學的名次與身分證字號 */
 function readPeople() {
-  const rf = rosterFile();
-  const rt = readTable(rf);
+  const rt = rosterTable();
+  const rf = { getName: () => rt.name };
   const people = rt.rows.map(r => personOf(rt, r)).filter(p => p.name);
   const kf = rankFile();
   let source = '';
@@ -369,6 +425,7 @@ function stuLogin(idno) {
 
 /** 幹部名單（工作分配工作表中 I、C 開頭的列）：同學 → 職位 */
 function cadreRoles(key) {
+  if (getSS().getSheetByName(CONFIG.ROSTER_SHEET)) return cadreMap()[key] || [];
   const sh = getSS().getSheetByName(SHEET_ROSTER);
   if (!sh || sh.getLastRow() < 2) return [];
   return sh.getRange(2, 1, sh.getLastRow() - 1, 3).getDisplayValues()
@@ -385,7 +442,8 @@ function outdoorRoles(key) {
 /** 可以做掃地檢查：環保股長（內掃）或外掃監督 */
 function isInspector(key) {
   const r = getRoster().inspectors;
-  return Object.keys(r).some(id => /^I\d+$/.test(id) && r[id] === key) || outdoorRoles(key).length > 0;
+  return Object.keys(r).some(id => /^I\d+$/.test(id) && r[id] === key)
+    || cadreRoles(key).some(x => /衛生|環保/.test(x)) || outdoorRoles(key).length > 0;
 }
 
 /** 老師／幹部登入：導師用統一密碼；幹部用自己的身分證字號（首字母大小寫都可以） */
@@ -454,6 +512,218 @@ function delPoints(id, who) {
   return { ok: true, rows: getPoints(14, who) };
 }
 
+// ── 商店：用加分的點數買大頭照配件（可以自己用或送人），配件有效 10 個上課日 ──
+function accFolder() {
+  const root = getRootFolder();
+  const it = root.getFoldersByName(CONFIG.ACC_FOLDER);
+  return it.hasNext() ? it.next() : root.createFolder(CONFIG.ACC_FOLDER);
+}
+/** 內建配件（網站上的 assets/acc/catalog.json）＋雲端硬碟「配件」資料夾裡的圖片 */
+function catalog() {
+  const cache = CacheService.getScriptCache();
+  const c = cache.get('ACC_CATALOG');
+  if (c) return JSON.parse(c);
+  let list = [];
+  try {
+    list = JSON.parse(UrlFetchApp.fetch(CONFIG.SITE_URL + 'assets/acc/catalog.json', { muteHttpExceptions: true }).getContentText())
+      .map(a => ({ id: String(a.id), name: String(a.name), price: Math.max(0, Number(a.price) || 0), src: String(a.src) }));
+  } catch (e) { /* 讀不到網站就只用雲端硬碟的 */ }
+  const it = accFolder().getFiles();
+  while (it.hasNext()) {
+    const f = it.next();
+    if (!/^image\//.test(f.getMimeType())) continue;
+    const base = f.getName().replace(/\.[^.]+$/, '');
+    const m = base.normalize('NFKC').match(/^(.*?)[_\s-]+(\d+)$/);
+    list.push({ id: 'd:' + f.getId(), name: (m ? m[1] : base).trim(), price: m ? Number(m[2]) : CONFIG.ACC_DEFAULT_PRICE, t: f.getLastUpdated().getTime() });
+  }
+  cache.put('ACC_CATALOG', JSON.stringify(list), 600);
+  return list;
+}
+/** 雲端硬碟配件的圖片（透明 PNG 原檔，太大的略過）；have＝手機上已有的版本 */
+function accImages(have) {
+  const out = {}, ids = [];
+  catalog().filter(a => a.id.indexOf('d:') === 0).forEach(a => {
+    ids.push(a.id);
+    if (have[a.id] === a.t) return;
+    try {
+      const b = DriveApp.getFileById(a.id.slice(2)).getBlob();
+      if (b.getBytes().length > 400000) return;
+      out[a.id] = { t: a.t, d: 'data:' + b.getContentType() + ';base64,' + Utilities.base64Encode(b.getBytes()) };
+    } catch (e) { /* 檔案被刪了 */ }
+  });
+  return { ok: true, images: out, ids: ids };
+}
+const ymd = d => Utilities.formatDate(d, CONFIG.TIMEZONE, 'yyyy/MM/dd');
+/** 從今天起算第 n 個上課日（週一到週五；今天是上課日就算第 1 天） */
+function schoolDaysLater(n) {
+  const d = new Date(Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyy-MM-dd'T'12:00:00"));
+  let count = 0;
+  for (let i = 0; i < 40; i++) {
+    const wd = Number(Utilities.formatDate(d, CONFIG.TIMEZONE, 'u')); // 1＝週一 … 7＝週日
+    if (wd <= 5 && ++count >= n) break;
+    d.setDate(d.getDate() + 1);
+  }
+  return ymd(d);
+}
+function invRows() {
+  const sh = getSheet(SHEET_INV, HEAD_INV);
+  const n = sh.getLastRow() - 1;
+  return n > 0 ? sh.getRange(2, 1, n, HEAD_INV.length).getDisplayValues().map((r, i) => ({
+    row: i + 2, id: r[0], owner: r[1], acc: r[2], name: r[3], price: Number(r[4]) || 0, buyer: r[5], time: r[6], exp: r[7], note: r[8],
+  })) : [];
+}
+function coinsOf(key, inv) {
+  const psh = pointsSheet();
+  let earned = 0;
+  if (psh.getLastRow() > 1) psh.getRange(2, 2, psh.getLastRow() - 1, 2).getValues().forEach(r => { if (String(r[0]).trim() === key && Number(r[1]) > 0) earned += Number(r[1]); });
+  const spent = (inv || invRows()).filter(x => x.buyer === key).reduce((t, x) => t + x.price, 0)
+    + spendRows().filter(x => x.who === key).reduce((t, x) => t + x.points, 0);
+  return { earned: earned, spent: spent, coins: earned - spent };
+}
+function decoRows() {
+  const sh = getSheet(SHEET_DECO, HEAD_DECO);
+  const n = sh.getLastRow() - 1;
+  const out = {};
+  if (n > 0) sh.getRange(2, 1, n, 2).getValues().forEach((r, i) => {
+    try { out[String(r[0]).trim()] = { row: i + 2, layers: JSON.parse(String(r[1]) || '[]') }; } catch (e) { /* 格式錯誤就略過 */ }
+  });
+  return out;
+}
+/** 大家的大頭照裝飾（只留仍然擁有、沒有過期的配件），依座號 */
+function decoMap() {
+  const today = ymd(new Date());
+  const inv = {};
+  invRows().forEach(x => { inv[x.id] = x; });
+  const out = {}, rows = decoRows();
+  Object.keys(rows).forEach(key => {
+    const ok = rows[key].layers.filter(l => inv[l.inv] && inv[l.inv].owner === key && inv[l.inv].exp >= today)
+      .map(l => ({ acc: inv[l.inv].acc, x: l.x, y: l.y, s: l.s, r: l.r }));
+    if (ok.length) out[faceCode(key)] = ok;
+  });
+  return out;
+}
+function shopState(who) {
+  const today = ymd(new Date());
+  const inv = invRows();
+  const cat = catalog().map(a => ({ id: a.id, name: a.name, price: a.price, src: a.src || '', t: a.t || 0 }));
+  if (who.teacher) {
+    // 導師：全班點數一覽
+    let students = [];
+    try { students = getStudents().students; } catch (e) { /* 沒有名單 */ }
+    return { ok: true, admin: students.map(k => {
+      const c = coinsOf(k, inv);
+      return { key: k, earned: c.earned, spent: c.spent, coins: c.coins, active: inv.filter(x => x.owner === k && x.exp >= today).length };
+    }), catalog: cat, today: today };
+  }
+  const key = who.key, c = coinsOf(key, inv);
+  const psh = pointsSheet();
+  const plus = psh.getLastRow() > 1 ? psh.getRange(2, 1, psh.getLastRow() - 1, 5).getValues()
+    .filter(r => String(r[1]).trim() === key && Number(r[2]) > 0).slice(-20).reverse()
+    .map(r => ({ date: r[0] instanceof Date ? ymd(r[0]) : String(r[0]), points: Number(r[2]), reason: String(r[4]) })) : [];
+  let classmates = [];
+  try { classmates = getStudents().students.filter(k => k !== key); } catch (e) { /* 沒有名單 */ }
+  // 可以偷的：別人身上還有效的配件；被偷紀錄：最近 14 天
+  const others = {};
+  inv.filter(x => x.owner !== key && x.exp >= today).forEach(x => { (others[x.owner] = others[x.owner] || []).push({ id: x.id, acc: x.acc, name: x.name, exp: x.exp }); });
+  const since = Date.now() - 14 * 86400e3;
+  const stolen = spendRows().filter(x => x.use === '竊盜卡' && x.target === key && x.t >= since).map(x => ({ time: x.time, thief: x.who, name: x.note }));
+  return {
+    ok: true, me: key, today: today, coins: c.coins, earned: c.earned, spent: c.spent, catalog: cat, plus: plus, classmates: classmates,
+    stealPrice: CONFIG.STEAL_PRICE, fireworkPrice: CONFIG.FIREWORK_PRICE, others: others, stolen: stolen,
+    inv: inv.filter(x => x.owner === key).map(x => ({ id: x.id, acc: x.acc, name: x.name, exp: x.exp, expired: x.exp < today, note: x.note })),
+    deco: (decoRows()[key] || { layers: [] }).layers,
+  };
+}
+function buyAcc(who, acc) {
+  if (who.teacher) throw new Error('導師不用買配件');
+  const a = catalog().find(x => x.id === acc);
+  if (!a) throw new Error('沒有這個配件');
+  withLock(() => {
+    const c = coinsOf(who.key);
+    if (c.coins < a.price) throw new Error('點數不夠（需要 ' + a.price + ' 點，你有 ' + c.coins + ' 點）');
+    const sh = getSheet(SHEET_INV, HEAD_INV);
+    sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_INV.length).setNumberFormat('@')
+      .setValues([[Utilities.getUuid().slice(0, 8), who.key, a.id, a.name, String(a.price), who.key, Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'yyyy/MM/dd HH:mm'), schoolDaysLater(CONFIG.ACC_DAYS), '']]);
+  });
+  return shopState(who);
+}
+function giftAcc(who, invId, to) {
+  if (who.teacher) throw new Error('導師不能送配件');
+  const students = getStudents().students;
+  if (students.indexOf(to) < 0 || to === who.key) throw new Error('請選擇要送的同學');
+  withLock(() => {
+    const x = invRows().find(r => r.id === invId);
+    if (!x || x.owner !== who.key) throw new Error('這個配件不是你的');
+    if (x.exp < ymd(new Date())) throw new Error('這個配件已經過期了');
+    const sh = getSheet(SHEET_INV, HEAD_INV);
+    sh.getRange(x.row, 2).setValue(to);
+    sh.getRange(x.row, 9).setValue('由 ' + who.key + ' 贈送');
+  });
+  return shopState(who);
+}
+function spendRows() {
+  const sh = getSheet(SHEET_SPEND, HEAD_SPEND);
+  const n = sh.getLastRow() - 1;
+  return n > 0 ? sh.getRange(2, 1, n, HEAD_SPEND.length).getValues().map(r => ({
+    t: r[0] instanceof Date ? r[0].getTime() : 0, time: r[0] instanceof Date ? Utilities.formatDate(r[0], CONFIG.TIMEZONE, 'MM/dd HH:mm') : String(r[0]),
+    who: String(r[1]), points: Number(r[2]) || 0, use: String(r[3]), target: String(r[4]), note: String(r[5]), id: String(r[6]),
+  })) : [];
+}
+function addSpend(who, points, use, target, note) {
+  const sh = getSheet(SHEET_SPEND, HEAD_SPEND);
+  sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_SPEND.length).setValues([[new Date(), who, points, use, target, note, Utilities.getUuid().slice(0, 8)]]);
+}
+/** 竊盜卡：花 10 點，把別人的配件變成自己的（到期日不變） */
+function stealAcc(who, invId) {
+  if (who.teacher) throw new Error('導師不能用竊盜卡');
+  withLock(() => {
+    const x = invRows().find(r => r.id === invId);
+    if (!x || x.owner === who.key) throw new Error('找不到這個配件');
+    if (x.exp < ymd(new Date())) throw new Error('這個配件已經過期了');
+    const c = coinsOf(who.key);
+    if (c.coins < CONFIG.STEAL_PRICE) throw new Error('點數不夠（竊盜卡要 ' + CONFIG.STEAL_PRICE + ' 點，你有 ' + c.coins + ' 點）');
+    const sh = getSheet(SHEET_INV, HEAD_INV);
+    sh.getRange(x.row, 2).setValue(who.key);
+    sh.getRange(x.row, 9).setValue('用竊盜卡從 ' + x.owner + ' 奪來');
+    addSpend(who.key, CONFIG.STEAL_PRICE, '竊盜卡', x.owner, x.name);
+  });
+  return shopState(who);
+}
+/** 煙火：花 1 點，放在某位同學的座位上 */
+function buyFirework(who, to) {
+  if (who.teacher) throw new Error('導師不用買煙火');
+  if (getStudents().students.indexOf(to) < 0) throw new Error('請選擇同學');
+  withLock(() => {
+    const c = coinsOf(who.key);
+    if (c.coins < CONFIG.FIREWORK_PRICE) throw new Error('點數不夠');
+    addSpend(who.key, CONFIG.FIREWORK_PRICE, '煙火', to, '');
+  });
+  return shopState(who);
+}
+/** 最近幾天的煙火（每支手機自己記得哪些已經看過） */
+function fireworksList() {
+  const since = Date.now() - CONFIG.FIREWORK_DAYS * 86400e3;
+  return spendRows().filter(x => x.use === '煙火' && x.t >= since).map(x => ({ id: x.id, by: x.who, to: x.target, time: x.time }));
+}
+function saveDeco(who, layers) {
+  if (who.teacher) throw new Error('導師沒有大頭照裝飾');
+  const today = ymd(new Date());
+  const mine = {};
+  invRows().forEach(x => { if (x.owner === who.key && x.exp >= today) mine[x.id] = x; });
+  const num = (v, lo, hi, d) => { const n = Number(v); return isNaN(n) ? d : Math.max(lo, Math.min(hi, n)); };
+  const clean = layers.filter(l => mine[l.inv]).slice(0, 8).map(l => ({
+    inv: String(l.inv), x: num(l.x, -0.5, 1.5, 0.5), y: num(l.y, -0.5, 1.5, 0.5), s: num(l.s, 0.05, 2, 0.5), r: num(l.r, -180, 180, 0),
+  }));
+  withLock(() => {
+    const sh = getSheet(SHEET_DECO, HEAD_DECO);
+    const cur = decoRows()[who.key];
+    const vals = [[who.key, JSON.stringify(clean), new Date()]];
+    if (cur) sh.getRange(cur.row, 1, 1, 3).setValues(vals);
+    else sh.getRange(sh.getLastRow() + 1, 1, 1, 3).setValues(vals);
+  });
+  return shopState(who);
+}
+
 // ── 座位表 ──
 function getSeats() {
   const sh = getSS().getSheetByName(SHEET_SEATS);
@@ -484,7 +754,7 @@ function faceCode(name) {
 }
 /** 老師在網頁貼上的大頭照資料夾：只讀取，不會改動裡面的檔案 */
 function linkedFaceFolder() {
-  const id = PropertiesService.getScriptProperties().getProperty('FACE_LINK_ID');
+  const id = PropertiesService.getScriptProperties().getProperty('FACE_LINK_ID') || CONFIG.FACE_FOLDER_ID;
   if (!id) return null;
   try { return DriveApp.getFolderById(id); } catch (e) { return null; }
 }
@@ -496,19 +766,31 @@ function setFaceFolder(url) {
   try { folder = DriveApp.getFolderById(m[1]); } catch (e) { throw new Error('打不開這個資料夾，請確認你的 Google 帳號可以存取'); }
   let count = 0;
   const it = folder.getFiles();
-  while (it.hasNext()) { const f = it.next(); if (/^image\//.test(f.getMimeType()) && faceCode(f.getName())) count++; }
+  const byName = faceNameMap();
+  while (it.hasNext()) { const f = it.next(); if (/^image\//.test(f.getMimeType()) && fileCode(f.getName(), byName)) count++; }
   PropertiesService.getScriptProperties().setProperty('FACE_LINK_ID', m[1]);
   return { ok: true, name: folder.getName(), count: count };
 }
+/** 姓名 → 座號（大頭照檔名只寫姓名時用） */
+function faceNameMap() {
+  const out = {};
+  try { getStudents().students.forEach(k => { const m = k.match(/^(\D*?)(\d+)(.*)$/); if (m) out[m[3]] = m[1] + m[2]; }); } catch (e) { /* 沒有名單 */ }
+  return out;
+}
+/** 檔名 → 座號：「料05.jpg」「料 24 王小明.jpg」「王小明.png」都可以 */
+function fileCode(fileName, byName) {
+  const base = String(fileName).normalize('NFKC').replace(/\.[^.]+$/, '').trim();
+  return faceCode(base) || byName[base.replace(/\s+/g, '')] || '';
+}
 function getFaces(have) {
-  const latest = {};
+  const latest = {}, byName = faceNameMap();
   // 連結的資料夾＋網頁上傳的「大頭照」資料夾；同一位同學有好幾張時用最新的
   [linkedFaceFolder(), getFaceFolder()].filter(Boolean).forEach(folder => {
     const it = folder.getFiles();
     while (it.hasNext()) {
       const f = it.next();
       if (!/^image\//.test(f.getMimeType())) continue;
-      const code = faceCode(f.getName());
+      const code = fileCode(f.getName(), byName);
       if (!code) continue;
       if (!latest[code] || f.getLastUpdated() > latest[code].getLastUpdated()) latest[code] = f;
     }
@@ -522,7 +804,7 @@ function getFaces(have) {
     if (blob.getBytes().length > 1500000) return;
     faces[code] = { t: t, d: 'data:' + (blob.getContentType() || 'image/jpeg') + ';base64,' + Utilities.base64Encode(blob.getBytes()) };
   });
-  return { ok: true, faces: faces, codes: Object.keys(latest) };
+  return { ok: true, faces: faces, codes: Object.keys(latest), deco: decoMap(), fireworks: fireworksList() };
 }
 function uploadFace(code, data) {
   code = String(code || '');
@@ -691,7 +973,7 @@ function photoLinks(urls) {
 
 function uploadPhoto(req) {
   if (!req.data) throw new Error('沒有照片資料');
-  const folder = getDayFolder(req.date);
+  const folder = photoFolder();
   const blob = Utilities.newBlob(Utilities.base64Decode(req.data), req.mimeType || 'image/jpeg', req.filename || 'photo.jpg');
   const file = folder.createFile(blob);
   if (req.description) file.setDescription(req.description);
@@ -872,11 +1154,11 @@ function getFaceFolder() {
   return it.hasNext() ? it.next() : root.createFolder(CONFIG.FACE_FOLDER);
 }
 
-function getDayFolder(dateStr) {
+/** 掃地檢查的照片：全部放在「內掃檢查」資料夾（不分日期，檔名開頭就是日期時間） */
+function photoFolder() {
   const root = getRootFolder();
-  const name = String(dateStr || Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'yyyy/MM/dd')).replace(/\//g, '-');
-  const it = root.getFoldersByName(name);
-  return it.hasNext() ? it.next() : root.createFolder(name);
+  const it = root.getFoldersByName(CONFIG.PHOTO_FOLDER);
+  return it.hasNext() ? it.next() : root.createFolder(CONFIG.PHOTO_FOLDER);
 }
 
 function json(obj) {

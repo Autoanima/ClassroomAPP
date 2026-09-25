@@ -1,0 +1,74 @@
+[
+ {
+  "id": "b:sunglasses",
+  "name": "墨鏡",
+  "price": 3,
+  "src": "assets/acc/sunglasses.svg"
+ },
+ {
+  "id": "b:heartglasses",
+  "name": "愛心眼鏡",
+  "price": 4,
+  "src": "assets/acc/heartglasses.svg"
+ },
+ {
+  "id": "b:crown",
+  "name": "皇冠",
+  "price": 5,
+  "src": "assets/acc/crown.svg"
+ },
+ {
+  "id": "b:halo",
+  "name": "光環",
+  "price": 4,
+  "src": "assets/acc/halo.svg"
+ },
+ {
+  "id": "b:partyhat",
+  "name": "派對帽",
+  "price": 3,
+  "src": "assets/acc/partyhat.svg"
+ },
+ {
+  "id": "b:gradcap",
+  "name": "學士帽",
+  "price": 4,
+  "src": "assets/acc/gradcap.svg"
+ },
+ {
+  "id": "b:catears",
+  "name": "貓耳",
+  "price": 3,
+  "src": "assets/acc/catears.svg"
+ },
+ {
+  "id": "b:headphones",
+  "name": "耳機",
+  "price": 3,
+  "src": "assets/acc/headphones.svg"
+ },
+ {
+  "id": "b:bow",
+  "name": "蝴蝶結",
+  "price": 2,
+  "src": "assets/acc/bow.svg"
+ },
+ {
+  "id": "b:flower",
+  "name": "小花",
+  "price": 2,
+  "src": "assets/acc/flower.svg"
+ },
+ {
+  "id": "b:star",
+  "name": "星星貼紙",
+  "price": 2,
+  "src": "assets/acc/star.svg"
+ },
+ {
+  "id": "b:mustache",
+  "name": "八字鬍",
+  "price": 2,
+  "src": "assets/acc/mustache.svg"
+ }
+]

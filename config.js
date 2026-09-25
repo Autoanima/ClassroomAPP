@@ -9,6 +9,6 @@
  * ⚠ 密碼不要寫在這裡，因為 GitHub 上的檔案所有人都看得到。
  */
 window.APP_CONFIG = {
-  gasUrl: '',
+  gasUrl: 'https://script.google.com/macros/s/AKfycbxx3fbtNORxbXP7M0pywVkVNcDi9vKiqggLWVckq6xJlbVOTx9-btsNRDXFgmj749VLFQ/exec',
   resetHours: 20,
 };

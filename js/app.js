@@ -94,7 +94,8 @@
   function save() {
     if (!store.set(LS.state, state)) toast('手機儲存空間不足，請先同步後清空紀錄');
   }
-  const rec = id => state.records[id] ||= { status: {}, issue: false, note: '', photos: [], updatedAt: 0 };
+  // parts：分組的單位裡，哪些地方有狀況（{ 物件代號: true }）
+  const rec = id => state.records[id] ||= { status: {}, issue: false, parts: {}, note: '', photos: [], updatedAt: 0 };
   function ensureSession() {
     if (state.startedAt) return;
     const now = new Date();
@@ -130,6 +131,26 @@
   }));
   OUT_ITEMS.forEach(it => { itemById[it.id] = it; });
   const ALL_ITEMS = [...D.items, ...OUT_ITEMS];
+  // ── 檢查單位：同一個工作分成好幾個地方（花圃 1～5、玻璃 A～H…）時合成一組，一次記錄 ──
+  // 清潔程度整組只記一次（扣分也只算一次），各個地方可以分別勾「有狀況」。外掃依南區／北區分開。
+  const UNITS = [], unitOf = {};
+  (() => {
+    const groups = {};
+    ALL_ITEMS.forEach(it => { (groups[`${it.area}:${it.job}:${it.zone || ''}`] ||= []).push(it); });
+    Object.entries(groups).forEach(([k, its]) => {
+      if (its.length === 1) { const it = its[0]; it.items = its; UNITS.push(it); unitOf[it.id] = it; return; }
+      const a = its[0];
+      const u = {
+        id: 'G:' + k, group: true, items: its, area: a.area, job: a.job, zone: a.zone, where: a.where,
+        get owners() { return a.owners; },
+        get title() { return a.area === 'in' ? jobById[a.job].title : its.map(i => i.title).join('、'); },
+        get full() { return (a.area === 'out' ? '外掃 ' : '') + this.title; },
+      };
+      UNITS.push(u);
+      itemById[u.id] = u;
+      its.forEach(i => { unitOf[i.id] = u; });
+    });
+  })();
   D.seats = [];
   D.seatCols.forEach((c, ci) => {
     for (let r = 0; r < c.n; r++) D.seats.push({ id: `${ci + 1}-${r + 1}`, col: ci + 1, row: r + 1, x: c.x, y: D.seatRows[r], w: D.seatW, h: D.seatH });
@@ -174,9 +195,9 @@
   const canCheckIn = () => isTeacher() || (isCadre() && D.inspectorSlots.some(s => inspectorName(s.id) === settings.me));
   const canCheckOut = () => !!roster?.outdoor && outZone() != null;
   const isChecker = () => canCheckIn() || canCheckOut();
-  const canPoints = () => isTeacher() || (isCadre() && ALL_SLOTS.some(s => inspectorName(s.id) === settings.me));
+  const canPoints = () => isTeacher() || (isCadre() && (ALL_SLOTS.some(s => inspectorName(s.id) === settings.me) || !!roster?.cadres?.[settings.me]));
   const checkable = it => (it.area === 'in' ? canCheckIn() : canCheckOut() && (!outZone() || it.zone === outZone()));
-  const scopeItems = () => ALL_ITEMS.filter(checkable);
+  const scopeUnits = () => UNITS.filter(u => checkable(u.items[0]));
   // 某位同學的掃地工作與幹部職位
   function jobsOf(k) {
     const O = roster?.outdoor;
@@ -186,15 +207,29 @@
         ...(O ? D.outdoor.jobs.filter(j => (O.jobs[j.id] || []).includes(k)).map(j => '外掃：' + outdoorTitle(j.id)) : []),
         ...(O ? D.outdoor.inspectors.filter(s => O.inspectors[s.id] === k).map(s => '外掃：' + s.label) : []),
       ],
-      roles: ALL_SLOTS.filter(s => inspectorName(s.id) === k).map(s => s.short || s.label),
+      roles: roster?.cadres ? roster.cadres[k] || [] : ALL_SLOTS.filter(s => inspectorName(s.id) === k).map(s => s.short || s.label),
     };
   }
   // 外掃工作的名稱以外掃試算表裡的為準
   const outdoorTitle = id => roster?.outdoor?.labels?.[id] || D.outdoor.jobs.find(j => j.id === id)?.title || id;
 
+  // 試算表「幹部名單」：同學 → 職位；依職位名稱排入幹部欄位（風紀、學藝各兩位；衛生＝環保股長）
+  function slotsFromCadres(cadres) {
+    const out = {}, used = {};
+    ALL_SLOTS.forEach(s => {
+      const label = s.short || s.label;
+      const match = role => (label === '環保' ? /衛生|環保/.test(role) : role === label || role === label + '股長');
+      const u = used[label] ||= new Set();
+      const hit = Object.entries(cadres).find(([k, roles]) => !u.has(k) && roles.some(match));
+      if (hit) { out[s.id] = hit[0]; u.add(hit[0]); }
+    });
+    return out;
+  }
+  const cadresFromSheet = () => !!roster?.cadres;
   function applyRoster(r) {
     // outdoor：外掃區的工作分配（沒連結時 null）
     const next = { jobs: r?.jobs || {}, inspectors: r?.inspectors || {}, outdoor: r && 'outdoor' in r ? r.outdoor : roster?.outdoor ?? null };
+    if (r?.cadres) { next.cadres = r.cadres; next.inspectors = { ...next.inspectors, ...slotsFromCadres(r.cadres) }; }
     const changed = JSON.stringify(next) !== JSON.stringify(roster);
     roster = next;
     store.set(LS.roster, roster);
@@ -203,19 +238,30 @@
     return changed;
   }
 
-  function summary(item) {
-    const r = state.records[item.id];
+  // 單位的狀態（整組一起）
+  function unitSummary(u) {
+    const r = state.records[u.id];
     if (!r) return { st: 'none', issue: false, photos: [] };
-    const vals = item.owners.map(o => r.status[o]).filter(Boolean);
+    const vals = u.owners.map(o => r.status[o]).filter(Boolean);
     let st = 'none';
     if (vals.length) {
       if (vals.includes('不好')) st = 'bad';
       else if (vals.includes('未出席')) st = 'absent';
-      else if (vals.length === item.owners.length) st = 'good';
+      else if (vals.length === u.owners.length) st = 'good';
       else st = 'partial';
     }
-    return { st, issue: !!r.issue, photos: r.photos || [] };
+    const issue = u.group ? Object.values(r.parts || {}).some(Boolean) : !!r.issue;
+    return { st, issue, photos: r.photos || [] };
   }
+  // 地圖上單一物件的狀態：清潔程度跟著整組；有狀況、照片看這個地方自己的
+  function summary(item) {
+    const u = unitOf[item.id] || item;
+    const s = unitSummary(u);
+    if (!u.group) return s;
+    const r = state.records[u.id];
+    return { st: s.st, issue: !!r?.parts?.[item.id], photos: s.photos.filter(p => p.part === item.id) };
+  }
+  const issueParts = u => (u.group ? u.items.filter(i => state.records[u.id]?.parts?.[i.id]) : []);
 
   // ── 地圖繪製 ──
   // 老師視角＝整張圖轉 180 度：位置對調，但文字保持正向
@@ -270,19 +316,33 @@
     };
     const items = D.items.map(move);
     // float 物件如果和同一高度的其他 float 重疊，就往右推開
-    const floats = items.filter(s => s.float).sort((a, b) => a.x - b.x);
+    // float 物件：同一高度的排成一列，彼此不重疊、不超過右邊的障礙物（黑板、牆）
     const sameRow = (p, s) => p.y < s.y + s.h && s.y < p.y + p.h;
-    floats.forEach((s, i) => floats.slice(0, i).forEach(p => {
-      if (sameRow(p, s) && s.x < p.x + p.w + 6) s.x = p.x + p.w + 6;
-    }));
-    // 推到教室右牆外面的，整排往左收回來
     const wallR = X(1430);
-    [...floats].reverse().forEach((s, i, arr) => {
-      const right = arr.slice(0, i).filter(p => sameRow(p, s)).reduce((m, p) => Math.min(m, p.x - 6), wallR);
-      if (s.x + s.w > right) s.x = right - s.w;
+    const floats = items.filter(s => s.float).sort((a, b) => a.x - b.x);
+    const rows = [];
+    floats.forEach(s => { const r = rows.find(g => g.some(p => sameRow(p, s))); if (r) r.push(s); else rows.push([s]); });
+    rows.forEach(g => {
+      g.sort((a, b) => a.x - b.x);
+      const L = g[0].x;
+      const R = items.filter(o => !o.float && !o.floor && g.some(s => sameRow(o, s)) && o.x > L).reduce((m, o) => Math.min(m, o.x - 6), wallR);
+      const sum = g.reduce((t, s) => t + s.w, 0), need = sum + 6 * (g.length - 1);
+      if (need > R - L) {
+        // 真的放不下才等比例縮小（垃圾桶維持圓形）
+        const f = Math.max(0.5, (R - L - 6 * (g.length - 1)) / sum);
+        let x = L;
+        g.forEach(s => { s.y += (s.h - s.h * f) / 2; s.w *= f; s.h *= f; s.x = x; x += s.w + 6; });
+        return;
+      }
+      g.forEach((s, i) => { if (i && s.x < g[i - 1].x + g[i - 1].w + 6) s.x = g[i - 1].x + g[i - 1].w + 6; });
+      // 超出右邊界就整排往左收
+      let right = R;
+      [...g].reverse().forEach(s => { if (s.x + s.w > right) s.x = right - s.w; right = s.x - 6; });
     });
+    // 座位放大、間距收窄：左右空隙 GAP→4、前後空隙 24→8（只有緊縮排列時）
+    const seats = D.seats.map(move).map(s => ({ ...s, x: s.x - (GAP - 4) / 2, w: s.w + GAP - 4, y: s.y - 8, h: s.h + 16 }));
     compactCache = {
-      deco: D.deco.map(move), items, seats: D.seats.map(move),
+      deco: D.deco.map(move), items, seats, colLabelY: D.colLabelY - 10,
       cols: D.seatCols.map(c => ({ ...c, x: X(c.x) })),
       box: { ...D.box, x1: nx1 }, seatBox: { ...D.seatBox, x0: X(D.seatBox.x0), x1: Math.min(nx1, X(D.seatBox.x1)) },
     };
@@ -312,12 +372,13 @@
     const L = layout();
     const live = mode !== 'seats';
     let h = '';
-    L.deco.forEach(s => { if (inBox(s, box)) h += `<div class="d d--${s.cls}" style="${rectStyle(s, box)}"></div>`; });
+    // 座位圖只畫教室牆壁和黑板溝，不畫掃地用的東西
+    L.deco.forEach(s => { if (inBox(s, box) && (live || ['room', 'ledge'].includes(s.cls))) h += `<div class="d d--${s.cls}" style="${rectStyle(s, box)}"></div>`; });
     L.items.forEach(it => {
       if (!inBox(it, box)) return;
-      if (!live && !it.floor && !inBox({ x: it.x + it.w / 2, y: it.y + it.h / 2, w: 0, h: 0 }, box)) return;
-      const cls = `it it--${it.cls}${it.floor ? ' floor' : ''}${it.bin ? (it.square ? ' bin sq' : ' bin') : ''}`;
-      const label = it.short || (it.no && !it.bin ? it.name + it.no : it.name);
+      if (!live && !it.seatShow) return; // 座位圖：只留黑板、講桌、前後門
+      const cls = `it it--${it.cls}${it.floor ? ' floor' : ''}${it.bin ? (it.square ? ' bin sq' : ' bin') : ''}${!live ? ' clear' : ''}`;
+      const label = (!live && it.seatLabel) || it.short || (it.no && !it.bin ? it.name + it.no : it.name);
       let inner;
       if (it.floor) {
         inner = `<span class="floor-chip" style="${atStyle(it, it.labelAt)}">${live ? '🧹 ' : ''}${esc(label)}${live ? '<span class="badge"></span>' : ''}</span>`;
@@ -339,7 +400,7 @@
       }
     });
     L.cols.forEach((c, i) => {
-      h += `<div class="collbl" style="${rectStyle({ x: c.x - 10, y: D.colLabelY, w: D.seatW + 20, h: 28 }, box)}">第${i + 1}排</div>`;
+      h += `<div class="collbl" style="${rectStyle({ x: c.x - 10, y: L.colLabelY ?? D.colLabelY, w: D.seatW + 20, h: 28 }, box)}">第${i + 1}排</div>`;
     });
     L.seats.forEach(s => {
       if (mode === 'seats') {
@@ -440,9 +501,9 @@
   paintCompact();
 
   // ── 分頁 ──
-  const TABS = ['clean', 'points', 'jobs', 'seats', 'draw'];
+  const TABS = ['clean', 'points', 'jobs', 'seats', 'draw', 'shop', 'line'];
   const tabHooks = {};
-  const allowedTabs = () => (isStudent() ? ['seats', 'jobs']
+  const allowedTabs = () => (isStudent() ? ['seats', 'jobs', 'shop', 'line']
     : TABS.filter(t => (t === 'clean' ? isChecker() : t === 'points' ? canPoints() : true)));
   function showTab(name) {
     if (!allowedTabs().includes(name)) name = allowedTabs()[0];
@@ -463,11 +524,12 @@
   function refresh() {
     const root = $('#tab-clean');
     if (!maps.clean?.el) return;
-    let checked = 0, issues = 0;
-    const mine = ALL_ITEMS.filter(it => it.area === ui.area && checkable(it));
+    // 進度以「檢查單位」計算（花圃 1～5 算一項）；有狀況以地方計算
+    const mine = scopeUnits().filter(u => u.area === ui.area);
+    const checked = mine.filter(u => ['good', 'bad', 'absent'].includes(unitSummary(u).st)).length;
+    let issues = 0;
     ALL_ITEMS.forEach(it => {
       const s = summary(it);
-      if (mine.includes(it) && (s.st === 'good' || s.st === 'bad' || s.st === 'absent')) checked++;
       if (checkable(it) && s.issue) issues++;
       const el = root.querySelector(`[data-id="${it.id}"]`);
       if (!el) return;
@@ -480,7 +542,7 @@
       const mk = el.querySelector('.mk');
       if (mk) {
         mk.innerHTML = (s.issue ? '<span class="flag">!</span>' : '')
-          + (s.photos.length ? `<span class="phc" data-lb="${it.id}" role="button" aria-label="查看照片">📷${s.photos.length > 1 ? s.photos.length : ''}</span>` : '');
+          + (s.photos.length ? `<span class="phc" data-lb="${(unitOf[it.id] || it).id}" data-i="${(state.records[(unitOf[it.id] || it).id]?.photos || []).indexOf(s.photos[0])}" role="button" aria-label="查看照片">📷${s.photos.length > 1 ? s.photos.length : ''}</span>` : '');
       }
     });
     const zoneName = ui.area === 'out' && outZone() ? D.outdoor.zones[outZone()] : '';
@@ -502,26 +564,12 @@
 
   function onCleanClick(e) {
     const t = e.target.closest('[data-lb]');
-    if (t) { e.stopPropagation(); openLightbox(t.dataset.lb, 0); return; }
-    const card = e.target.closest('[data-ojob]');
-    if (card) return openJobItems(card.dataset.ojob);
+    if (t) { e.stopPropagation(); openLightbox(t.dataset.lb, Math.max(0, +t.dataset.i || 0)); return; }
     const o = e.target.closest('[data-id]');
     if (!o) return;
     const it = itemById[o.dataset.id];
     if (!checkable(it)) return toast(it.area === 'out' && outZone() ? `這裡不在你的檢查範圍（你負責外掃${D.outdoor.zones[outZone()]}）` : '這裡不在你的檢查範圍');
     openItem(it.id);
-  }
-  // 外掃名牌：點名牌＝檢查這個工作的物件（只有一個就直接打開）
-  function openJobItems(job) {
-    const list = OUT_ITEMS.filter(it => it.job === job && checkable(it));
-    if (!list.length) return toast('這裡不在你的檢查範圍');
-    if (list.length === 1) return openItem(list[0].id);
-    let h = sheetHead(esc(outdoorTitle(job)), '外掃區・選擇要檢查的地方');
-    h += `<div class="actions">${list.map(it => {
-      const st = summary(it).st;
-      return `<button type="button" class="btn wide" data-act="pickItem" data-id="${it.id}">${esc(it.title)}${BADGE[st] ? `　<span class="tag ${st}">${BADGE[st]}</span>` : ''}</button>`;
-    }).join('')}</div>`;
-    openSheet({ kind: 'pickitem' }, h);
   }
 
   // ── 內掃區／外掃區切換 ──
@@ -540,7 +588,7 @@
   function renderOutClean() {
     const O = roster?.outdoor;
     $('#outMap').innerHTML = O
-      ? `<p class="muted small center">點物件或名牌就能記錄${outZone() ? `（你負責${D.outdoor.zones[outZone()]}）` : ''}</p>${outdoorDiagram(O, 'check')}`
+      ? `<p class="muted small center">上下滑動看整條走廊，點物件就能記錄（點了才會顯示負責的同學）${outZone() ? `｜你負責${D.outdoor.zones[outZone()]}` : ''}</p>${outdoorDiagram(O, 'check')}`
       : `<div class="panel"><p>還沒有連結外掃區。${isTeacher() ? '請到「👥 工作分配 → 🌳 外掃區工作分配」貼上外掃試算表的網址。' : '請導師先連結外掃區。'}</p></div>`;
   }
   $('#areaSw').addEventListener('click', e => {
@@ -553,12 +601,14 @@
   let issueCursor = -1;
   $('#issueChip').addEventListener('click', () => {
     showTab('clean');
-    const list = scopeItems().filter(it => summary(it).issue);
+    const list = ALL_ITEMS.filter(it => checkable(it) && summary(it).issue);
     if (!list.length) return;
     issueCursor = (issueCursor + 1) % list.length;
     flashItems([list[issueCursor].id], 'clean');
   });
   function flashItems(ids, mapName) {
+    // 分組單位 → 展開成有狀況的地方（沒有就全部）
+    ids = ids.flatMap(id => { const u = itemById[id]; return u?.group ? (issueParts(u).length ? issueParts(u) : u.items).map(i => i.id) : [id]; });
     if (mapName === 'clean') {
       const a = itemById[ids[0]]?.area;
       if (a && a !== ui.area) { ui.area = a; saveUi(); renderArea(); }
@@ -576,7 +626,6 @@
   let sheetMode = null;
   const sheetHandlers = {};   // kind → (act, button, event)
   const changeHandlers = {};  // kind → (event)
-  sheetHandlers.pickitem = (act, b) => { if (act === 'pickItem') openItem(b.dataset.id); };
 
   function openSheet(mode, html) {
     if (sheetMode?.kind === 'item') commitNote();
@@ -589,11 +638,24 @@
   function closeSheet() {
     if (sheetMode?.kind === 'item') commitNote();
     const k = sheetMode?.kind;
+    if (k === 'item') markSelected([]);
     sheet.hidden = true; backdrop.hidden = true; sheetMode = null;
     document.body.style.overflow = '';
     if (k) sheetHandlers[k + ':close']?.();
   }
   backdrop.addEventListener('click', closeSheet);
+  // 視窗透明度：調低就看得到底下的地圖（記住在這台裝置）
+  function applyAlpha() {
+    const a = Math.max(25, Math.min(100, +ui.sheetAlpha || 100));
+    sheet.style.setProperty('--sheet-a', a / 100);
+    backdrop.style.opacity = a < 100 ? Math.max(0, (a - 25) / 75) * 0.6 : '';
+    $('#sheetAlpha').value = a;
+    $('#sheetAlphaVal').textContent = a < 100 ? `${100 - a}% 透明` : '不透明';
+    sheet.classList.toggle('see-through', a < 100);
+  }
+  $('#sheetAlpha').addEventListener('input', e => { ui.sheetAlpha = +e.target.value; applyAlpha(); });
+  $('#sheetAlpha').addEventListener('change', saveUi);
+  applyAlpha();
   const closeBtn = `<button type="button" class="close-btn" data-act="close" aria-label="關閉">✕</button>`;
   const sheetHead = (title, eyebrow = '') => `<div class="sheet-head"><div>${eyebrow ? `<div class="eyebrow">${eyebrow}</div>` : ''}<h2 id="sheetTitle">${title}</h2></div>${closeBtn}</div>`;
 
@@ -610,9 +672,10 @@
   });
 
   // ── 物件檢查面板 ──
-  function itemHtml(item) {
-    const r = state.records[item.id] || { status: {}, issue: false, note: '', photos: [] };
-    let h = sheetHead(esc(item.title), esc(item.where));
+  function itemHtml(item, focus) {
+    const r = state.records[item.id] || { status: {}, issue: false, parts: {}, note: '', photos: [] };
+    const fItem = focus && itemById[focus];
+    let h = sheetHead(esc(item.title), esc(item.group ? `${item.area === 'in' ? '' : item.where + '・'}共 ${item.items.length} 個地方，整組一起記錄` : item.where));
     h += `<h3>清潔程度</h3><div class="owners">`;
     if (!item.owners.length) h += `<p class="empty">尚未指定負責同學。請導師到「工作分配」分頁設定。</p>`;
     item.owners.forEach(o => {
@@ -623,20 +686,32 @@
       h += `</div></div>`;
     });
     h += `</div>`;
-    h += `<div class="issue-box${r.issue ? ' on' : ''}" id="issueBox">
-      <label class="switch-row"><span class="switch"><input type="checkbox" id="issueToggle"${r.issue ? ' checked' : ''}><span></span></span>這裡有狀況</label>
-      <textarea id="noteInput" placeholder="說明狀況，例如：玻璃破裂、垃圾桶沒倒、桌椅沒排整齊…">${esc(r.note)}</textarea>
-    </div>`;
-    h += `<div class="photos-head"><h3>照片</h3><button type="button" class="btn btn--primary" data-act="photo">📷 拍照／上傳</button></div>`;
-    if (r.photos.length) {
+    if (item.group) {
+      // 分成好幾個地方：直接勾哪些地方有狀況
+      const anyIssue = item.items.some(i => r.parts?.[i.id]);
+      h += `<div class="issue-box${anyIssue ? ' on' : ''}" id="issueBox"><div class="switch-row">哪些地方有狀況？</div><div class="parts">`;
+      item.items.forEach(i => {
+        h += `<label class="part${i.id === focus ? ' focus' : ''}"><input type="checkbox" data-part="${i.id}"${r.parts?.[i.id] ? ' checked' : ''}><span>${esc(i.short ? i.name : i.title)}</span></label>`;
+      });
+      h += `</div><textarea id="noteInput" placeholder="說明狀況（勾選的地方共用），例如：花圃有垃圾、玻璃有手印…">${esc(r.note)}</textarea></div>`;
+    } else {
+      h += `<div class="issue-box${r.issue ? ' on' : ''}" id="issueBox">
+        <label class="switch-row"><span class="switch"><input type="checkbox" id="issueToggle"${r.issue ? ' checked' : ''}><span></span></span>這裡有狀況</label>
+        <textarea id="noteInput" placeholder="說明狀況，例如：玻璃破裂、垃圾桶沒倒、桌椅沒排整齊…">${esc(r.note)}</textarea>
+      </div>`;
+    }
+    const photos = r.photos.map((p, i) => ({ p, i }));
+    h += `<div class="photos-head"><h3>照片${item.group && fItem ? `<span class="muted small">（新照片會標在「${esc(fItem.short ? fItem.name : fItem.title)}」）</span>` : ''}</h3><button type="button" class="btn btn--primary" data-act="photo">📷 拍照／上傳</button></div>`;
+    if (photos.length) {
       h += `<div class="photo-grid">`;
-      r.photos.forEach((p, i) => {
+      photos.forEach(({ p, i }) => {
         let st = '';
         if (p.st === 'uploading') st = `<span class="st">上傳中…</span>`;
         else if (p.st === 'error') st = `<button type="button" class="st err" data-act="retry" data-pid="${p.id}">重試上傳</button>`;
         else if (p.st === 'local') st = `<span class="st">僅存手機</span>`;
         else if (p.st === 'test') st = `<span class="st">測試・未上傳</span>`;
-        h += `<div class="photo-cell"><button type="button" class="open" data-act="view" data-i="${i}" aria-label="放大照片"><img src="${p.thumb}" alt=""></button>${st}<button type="button" class="del" data-act="delphoto" data-pid="${p.id}" aria-label="移除照片">✕</button></div>`;
+        const tag = item.group && p.part && itemById[p.part] ? `<span class="ptag">${esc(itemById[p.part].short || itemById[p.part].title)}</span>` : '';
+        h += `<div class="photo-cell"><button type="button" class="open" data-act="view" data-i="${i}" aria-label="放大照片"><img src="${p.thumb}" alt=""></button>${tag}${st}<button type="button" class="del" data-act="delphoto" data-pid="${p.id}" aria-label="移除照片">✕</button></div>`;
       });
       h += `</div>`;
     } else {
@@ -644,15 +719,25 @@
     }
     return h;
   }
+  // id 可以是地圖上的物件或整組單位；focus＝使用者點的那個地方（地圖上會標出來）
   function openItem(id) {
-    const item = itemById[id];
-    if (item) openSheet({ kind: 'item', id }, itemHtml(item));
+    const it = itemById[id];
+    if (!it) return;
+    const u = unitOf[id] || it;
+    const focus = it.group ? it.items[0].id : id;
+    openSheet({ kind: 'item', id: u.id, focus }, itemHtml(u, focus));
+    markSelected(u.group ? u.items.map(i => i.id) : [u.id], focus);
+  }
+  // 面板打開時，在地圖上標出這一組的位置
+  function markSelected(ids, focus) {
+    document.querySelectorAll('#tab-clean .sel, #tab-clean .sel-focus').forEach(n => n.classList.remove('sel', 'sel-focus'));
+    ids.forEach(id => $('#tab-clean')?.querySelector(`[data-id="${id}"]`)?.classList.add(id === focus ? 'sel-focus' : 'sel'));
   }
   function rerenderItem(id) {
     if (sheetMode?.kind !== 'item' || sheetMode.id !== id) return;
     const scroll = sheetBody.scrollTop;
     const note = $('#noteInput')?.value;
-    sheetBody.innerHTML = itemHtml(itemById[id]);
+    sheetBody.innerHTML = itemHtml(itemById[id], sheetMode.focus);
     if (note != null) $('#noteInput').value = note;
     sheetBody.scrollTop = scroll;
   }
@@ -677,13 +762,20 @@
     if (e.target.id === 'noteInput') { clearTimeout(noteTimer); noteTimer = setTimeout(commitNote, 800); }
   });
   changeHandlers.item = e => {
-    if (e.target.id !== 'issueToggle') return;
     const item = itemById[sheetMode.id];
+    const part = e.target.dataset?.part;
+    if (e.target.id !== 'issueToggle' && !part) return;
     ensureSession();
     const r = rec(item.id);
-    r.issue = e.target.checked;
+    if (part) {
+      (r.parts ||= {})[part] = e.target.checked;
+      r.issue = item.items.some(i => r.parts[i.id]);
+      sheetMode.focus = part;
+      markSelected(item.items.map(i => i.id), part);
+    } else {
+      r.issue = e.target.checked;
+    }
     $('#issueBox').classList.toggle('on', r.issue);
-    if (r.issue) setTimeout(() => $('#noteInput')?.focus(), 50);
     commitNote();
     touch(item);
   };
@@ -699,7 +791,7 @@
       // 只有一位負責人且標「好」時自動關閉；「不好」通常還要拍照，所以不關
       if (item.owners.length === 1 && r.status[o] === '好' && !r.issue) setTimeout(() => { if (sheetMode?.id === item.id) closeSheet(); }, 350);
     } else if (act === 'photo') {
-      fileTarget = item.id;
+      fileTarget = { id: item.id, part: item.group ? sheetMode.focus : '' };
       $('#fileInput').click();
     } else if (act === 'view') {
       openLightbox(item.id, +b.dataset.i);
@@ -721,8 +813,8 @@
     const files = [...e.target.files];
     e.target.value = '';
     if (!files.length || !fileTarget) return;
-    const id = fileTarget;
-    for (const f of files) await addPhoto(id, f);
+    const { id, part } = fileTarget;
+    for (const f of files) await addPhoto(id, f, part);
   });
 
   async function loadImage(file) {
@@ -751,7 +843,7 @@
     fr.readAsDataURL(b);
   });
 
-  async function addPhoto(itemId, file) {
+  async function addPhoto(itemId, file, part = '') {
     const item = itemById[itemId];
     try {
       toast('照片壓縮中…');
@@ -762,7 +854,7 @@
       const pid = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
       try { await idb.put(pid, full); } catch { /* 無 IndexedDB 時只保留小圖 */ }
       ensureSession();
-      rec(itemId).photos.push({ id: pid, thumb, st: TEST ? 'test' : settings.gasUrl ? 'uploading' : 'local' });
+      rec(itemId).photos.push({ id: pid, thumb, part, st: TEST ? 'test' : settings.gasUrl ? 'uploading' : 'local' });
       touch(item);
       rerenderItem(itemId);
       toast(`已壓縮為 ${Math.round(full.size / 1024)} KB`);
@@ -804,8 +896,8 @@
   }
   function retryPhotos() {
     if (TEST || !isStaff() || !settings.gasUrl || !navigator.onLine) return;
-    ALL_ITEMS.forEach(it => (state.records[it.id]?.photos || []).forEach(p => {
-      if (p.st !== 'done') uploadPhoto(it.id, p.id);
+    UNITS.forEach(u => (state.records[u.id]?.photos || []).forEach(p => {
+      if (p.st !== 'done') uploadPhoto(u.id, p.id);
     }));
   }
 
@@ -920,7 +1012,8 @@
       owner,
       status: r.status[owner] || '',
       issue: !!r.issue,
-      note: r.note || '',
+      // 分組：把有狀況的地方寫在說明前面，例如【花圃 2、花圃 4】
+      note: (item.group && issueParts(item).length ? `【${issueParts(item).map(i => i.short ? i.name : i.title).join('、')}】` : '') + (r.note || ''),
       photos,
       inspector: settings.inspector || '',
       updatedAt: r.updatedAt,
@@ -998,7 +1091,7 @@
     const cnt = { '好': 0, '不好': 0, '未出席': 0 };
     const problems = new Map();
     const issues = [];
-    const items = scopeItems();
+    const items = scopeUnits();
     items.forEach(it => {
       const r = state.records[it.id];
       it.owners.forEach(o => {
@@ -1010,14 +1103,17 @@
           problems.get(o).push({ item: it, st });
         }
       });
-      if (r?.issue) issues.push({ item: it, note: r.note, photos: (r.photos || []).filter(p => p.url).map(p => p.url) });
+      if (unitSummary(it).issue) {
+        const where = it.group ? issueParts(it).map(i => i.short ? i.name : i.title).join('、') : '';
+        issues.push({ item: it, where, note: r.note, photos: (r.photos || []).filter(p => p.url).map(p => p.url) });
+      }
     });
-    const checked = items.filter(it => ['good', 'bad', 'absent'].includes(summary(it).st)).length;
+    const checked = items.filter(it => ['good', 'bad', 'absent'].includes(unitSummary(it).st)).length;
     const d = state.startedAt ? new Date(state.startedAt) : new Date();
     const L = [];
     const areas = [...new Set(items.map(it => it.area))].map(a => (a === 'in' ? '內掃區' : '外掃區' + (outZone() ? D.outdoor.zones[outZone()] : ''))).join('＋');
     L.push(`【${areas || '掃地'}檢查】${fmtDateW(d)}`);
-    L.push(`檢查 ${checked}/${items.length} 處｜好 ${cnt['好']}・不好 ${cnt['不好']}・未出席 ${cnt['未出席']}`);
+    L.push(`檢查 ${checked}/${items.length} 項｜好 ${cnt['好']}・不好 ${cnt['不好']}・未出席 ${cnt['未出席']}`);
     if (problems.size) {
       L.push('', '❌ 需要改進的同學：');
       problems.forEach((arr, o) => L.push(`・${o}：${arr.map(x => `${x.item.full}（${x.st}）`).join('、')}`));
@@ -1027,7 +1123,7 @@
     if (issues.length) {
       L.push('', `⚠ 有狀況 ${issues.length} 處：`);
       issues.forEach(x => {
-        L.push(`・${x.item.full}（${x.item.owners.join('、')}）${x.note ? '：' + x.note.replace(/\s+/g, ' ') : ''}`);
+        L.push(`・${x.item.full}${x.where ? `【${x.where}】` : ''}（${x.item.owners.join('、')}）${x.note ? '：' + x.note.replace(/\s+/g, ' ') : ''}`);
         x.photos.forEach(u => L.push(`  照片 ${u}`));
       });
     }
@@ -1103,7 +1199,7 @@
     if (!settings.gasUrl) { say('尚未設定雲端，沒有寫入試算表。'); return; }
     say('寫入 Google 試算表中…');
     try {
-      ALL_ITEMS.forEach(it => { if (state.records[it.id]) enqueue(rowsFor(it)); });
+      UNITS.forEach(it => { if (state.records[it.id]) enqueue(rowsFor(it)); });
       clearTimeout(flushTimer);
       for (let n = 0; n < 20 && queue.length; n++) {
         if (flushing) { await new Promise(r => setTimeout(r, 300)); continue; }
@@ -1156,10 +1252,22 @@
       h += `<details class="jobs-fold"${ui.cadreOpen ? ' open' : ''} data-fold="cadre"><summary>🎖 幹部名單</summary>
         <p class="muted small">幹部用自己的身分證字號登入（「老師／幹部」），可以對全班同學登記加扣分。</p>
         <div class="cadre-grid">`;
-      ALL_SLOTS.forEach(s => {
-        h += `<div class="cadre-row"><span class="jt">${esc(s.short || s.label)}</span><span class="jn">${nameChips([inspectorName(s.id)])}</span></div>`;
-      });
-      h += `</div>${isTeacher() ? `<div class="actions"><button type="button" class="btn btn--primary wide" id="editCadres">✏️ 修改幹部名單</button></div>` : ''}</details>`;
+      if (roster?.cadres) {
+        // 依職位分組：先照幹部順序（班長、副班長、風紀…），其他（小老師等）排在後面
+        const byRole = {};
+        Object.entries(roster.cadres).forEach(([k, roles]) => roles.forEach(r => { (byRole[r] ||= []).push(k); }));
+        const order = ALL_SLOTS.map(s => (s.short === '環保' ? '衛生' : s.short || s.label));
+        const rank = r => { const i = order.indexOf(r); return i < 0 ? 100 : i; };
+        Object.keys(byRole).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)).forEach(r => {
+          h += `<div class="cadre-row"><span class="jt">${esc(r)}</span><span class="jn">${nameChips(byRole[r])}</span></div>`;
+        });
+      } else {
+        ALL_SLOTS.forEach(s => {
+          h += `<div class="cadre-row"><span class="jt">${esc(s.short || s.label)}</span><span class="jn">${nameChips([inspectorName(s.id)])}</span></div>`;
+        });
+      }
+      h += `</div>${roster?.cadres ? `<p class="muted small">名單來自試算表「${esc(roster.cadreSource || '幹部名單')}」工作表，要修改請直接改試算表（約 2 分鐘內同步）。</p>`
+        : isTeacher() ? `<div class="actions"><button type="button" class="btn btn--primary wide" id="editCadres">✏️ 修改幹部名單</button></div>` : ''}</details>`;
     }
     root.innerHTML = h;
     $('#editRoster')?.addEventListener('click', openRosterEditor);
@@ -1181,52 +1289,92 @@
     });
   }
 
-  // ── 外掃區圖表：走廊＋物件＋箭頭（SVG），名牌是可以點的按鈕 ──
-  // mode：'jobs'＝工作分配（導師點名字換人）／'check'＝掃地檢查（點物件或名牌記錄）
+  // ── 外掃區圖表（直式）：原圖順時針轉 90 度 ──
+  // 上＝南、下＝北、右＝西側（警衛室）、左＝東側（司令台）。沿走廊方向 1:1，走廊寬度放大 OV.k 倍方便手指點。
+  // mode：'jobs'＝工作分配（名牌在走廊兩側，導師點名字換人）／'check'＝掃地檢查（只有走廊，點了才看負責人）
+  const OV = { k: 2.1, wallE: 185, wallY: 375, dy: 40, H: 1230, W: 575, cardW: 130, rightX: 445, gapY: 10 };
+  const ovRect = ([x, y, w, h]) => [OV.wallE + (OV.wallY - (y + h)) * OV.k, x - OV.dy, h * OV.k, w];
+  const ovMid = r => [r[0] + r[2] / 2, r[1] + r[3] / 2];
+  // 名牌：放在工作物件那一側（原圖上方＝西側＝右邊），高度對齊物件，重疊就往下推
+  function outdoorCards() {
+    const cards = [];
+    D.outdoor.jobs.forEach(j => {
+      const its = OUT_ITEMS.filter(it => it.job === j.id);
+      const main = its.filter(it => !it.floor && !it.strip);
+      const h = j.slots > 1 ? 92 : 58;
+      const side = main.length ? (main[0].hit[1] + main[0].hit[3] / 2 < 330 ? 'W' : 'E') : 'E';
+      const cy = main.length ? main.reduce((t, it) => t + ovMid(ovRect(it.hit))[1], 0) / main.length : (its[0].zone === 'S' ? 520 : 1100);
+      cards.push({ job: j, its, side, y: cy - h / 2, h });
+    });
+    D.outdoor.inspectors.forEach(p => cards.push({ insp: p, its: [], side: p.zone === 'S' ? 'E' : 'W', y: p.zone === 'S' ? 20 : 590, h: 58 }));
+    ['E', 'W'].forEach(sd => {
+      let bottom = -Infinity;
+      cards.filter(c => c.side === sd).sort((a, b) => a.y - b.y).forEach(c => { if (c.y < bottom + OV.gapY) c.y = bottom + OV.gapY; bottom = c.y + c.h; });
+    });
+    cards.forEach(c => { c.x = c.side === 'E' ? 0 : OV.rightX; c.w = OV.cardW; });
+    return cards;
+  }
   function outdoorDiagram(O, mode = 'jobs') {
-    const G = D.outdoor, W = G.w, H = G.h;
-    const check = mode === 'check';
+    const G = D.outdoor, check = mode === 'check';
+    // 檢查時只看走廊（畫面比較大）；工作分配時連兩側名牌一起
+    const vx = check ? 95 : 0, vw = check ? 375 : OV.W, H = OV.H;
     const pct = (v, t) => (v / t * 100).toFixed(3) + '%';
-    let s = `<svg class="od-svg" viewBox="0 0 ${W} ${H}" aria-hidden="true">
+    const R = (r, attrs) => { const [x, y, w, h] = ovRect(r); return `<rect x="${x.toFixed(1)}" y="${y}" width="${w.toFixed(1)}" height="${h}" ${attrs}/>`; };
+    let s = `<svg class="od-svg" viewBox="${vx} 0 ${vw} ${H}" preserveAspectRatio="none" aria-hidden="true">
       <defs><marker id="odArrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M1 1 L8 5 L1 9" fill="none" stroke="#aab4bd" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
-      <rect x="74" y="287" width="574" height="85" fill="#f7dcdc" stroke="#333" stroke-width="1"/>
-      <rect x="648" y="287" width="575" height="85" fill="#daefe1" stroke="#333" stroke-width="1"/>
-      <rect x="74" y="280" width="1151" height="7" fill="#8b5cf6"/><rect x="74" y="369" width="1151" height="6" fill="#8b5cf6"/>
-      <text x="1196" y="276" class="od-lm" text-anchor="middle">警衛室</text><text x="650" y="390" class="od-lm" text-anchor="middle">司令台</text>`;
+      ${R([74, 287, 574, 85], 'fill="#f7dcdc" stroke="#333" stroke-width="1"')}${R([648, 287, 575, 85], 'fill="#daefe1" stroke="#333" stroke-width="1"')}
+      ${R([74, 280, 1151, 7], 'fill="#8b5cf6"')}${R([74, 369, 1151, 6], 'fill="#8b5cf6"')}
+      <text x="285" y="22" class="od-dir" text-anchor="middle">▲ 南</text><text x="285" y="1222" class="od-dir" text-anchor="middle">▼ 北</text>
+      <text x="${check ? 440 : 480}" y="1165" class="od-lm" text-anchor="middle">警衛室</text><text x="140" y="614" class="od-lm" text-anchor="middle">司令台</text>
+      <text x="${check ? 110 : 150}" y="60" class="od-side" text-anchor="middle">東側</text><text x="${check ? 455 : 420}" y="60" class="od-side" text-anchor="middle">西側</text>`;
     G.shapes.forEach(x => {
+      const [rx, ry, rw, rh] = ovRect([x.x, x.y, x.w, x.h]);
       if (x.t === 'glass' || x.t === 'glass2') {
-        s += `<rect x="${x.x}" y="${x.y}" width="${x.w}" height="${x.h}" fill="#bdbcc2" stroke="#6b6a72" stroke-width="1"/>`;
-        for (let gx = x.x + 14.5; gx < x.x + x.w - 2; gx += 14.5) s += `<line x1="${gx}" y1="${x.y}" x2="${gx}" y2="${x.y + x.h}" stroke="#6b6a72" stroke-width="1"/>`;
-        if (x.t === 'glass2') s += `<line x1="${x.x}" y1="${x.y + x.h / 2}" x2="${x.x + x.w}" y2="${x.y + x.h / 2}" stroke="#6b6a72" stroke-width="1"/>`;
+        s += `<rect x="${rx}" y="${ry}" width="${rw}" height="${rh}" fill="#bdbcc2" stroke="#6b6a72" stroke-width="1"/>`;
+        for (let gy = ry + 14.5; gy < ry + rh - 2; gy += 14.5) s += `<line x1="${rx}" y1="${gy}" x2="${rx + rw}" y2="${gy}" stroke="#6b6a72" stroke-width="1"/>`;
+        if (x.t === 'glass2') s += `<line x1="${rx + rw / 2}" y1="${ry}" x2="${rx + rw / 2}" y2="${ry + rh}" stroke="#6b6a72" stroke-width="1"/>`;
       } else if (x.t === 'fountain') {
-        s += `<rect x="${x.x}" y="${x.y}" width="${x.w}" height="${x.h}" fill="#6ec3e0" stroke="#333" stroke-width="1"/><line x1="${x.x + x.w / 2}" y1="${x.y}" x2="${x.x + x.w / 2}" y2="${x.y + x.h}" stroke="#333" stroke-width="1"/>`;
+        s += `<rect x="${rx}" y="${ry}" width="${rw}" height="${rh}" fill="#6ec3e0" stroke="#333" stroke-width="1"/><line x1="${rx}" y1="${ry + rh / 2}" x2="${rx + rw}" y2="${ry + rh / 2}" stroke="#333" stroke-width="1"/>`;
       } else if (x.t === 'sink') {
-        s += `<rect x="${x.x}" y="${x.y}" width="${x.w}" height="${x.h}" fill="#2aa05a" stroke="#333" stroke-width="1"/>`;
+        s += `<rect x="${rx}" y="${ry}" width="${rw}" height="${rh}" fill="#2aa05a" stroke="#333" stroke-width="1"/>`;
       }
     });
-    G.jobs.forEach(j => (j.arrows || []).forEach(a => {
-      s += `<polyline points="${a.map(p => p.join(',')).join(' ')}" fill="none" stroke="#aab4bd" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#odArrow)"/>`;
+    s += `<line x1="${OV.wallE}" y1="608" x2="${OV.wallE + 95 * OV.k}" y2="608" stroke="rgba(0,0,0,.3)" stroke-width="2" stroke-dasharray="8 6"/>`;
+    const cards = check ? [] : outdoorCards();
+    // 箭頭：名牌 → 物件（地板、水泥平台直接水平指過去）
+    cards.forEach(c => c.its.forEach(it => {
+      const r = ovRect(it.hit), E = c.side === 'E';
+      const ex = E ? c.x + c.w : c.x, cy = c.y + c.h / 2;
+      const tx = E ? r[0] : r[0] + r[2];
+      const pts = (it.floor || it.strip) ? [[ex, cy], [tx, cy]]
+        : [[ex, cy], [ex + (E ? 16 : -16), cy], [ex + (E ? 16 : -16), ovMid(r)[1]], [tx, ovMid(r)[1]]];
+      s += `<polyline points="${pts.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="#aab4bd" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#odArrow)"/>`;
     }));
     s += `</svg>`;
     const edit = !check && isTeacher();
     const nameBtn = (key, name, sub) => `<button type="button" class="od-nm${name ? '' : ' empty'}${name && name === settings.me ? ' me' : ''}"${edit ? ` data-od="${key}"` : ' tabindex="-1"'}><b>${esc(name || '未設定')}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</button>`;
+    const box = ([x, y, w, h]) => `left:${pct(x - vx, vw)};top:${pct(y, H)};width:${pct(w, vw)};height:${pct(h, H)}`;
     let c = '';
-    const box = ([x, y, w, hh]) => `left:${pct(x, W)};top:${pct(y, H)};width:${pct(w, W)};height:${pct(hh, H)}`;
     if (check) {
       OUT_ITEMS.forEach(it => {
-        c += `<button type="button" class="it oit${it.floor ? ' ofloor' : ''}${it.strip ? ' ostrip' : ''}" data-id="${it.id}" aria-label="${esc(it.full)}" style="${box(it.hit)}"><span class="badge"></span><span class="mk"></span></button>`;
+        const r = ovRect(it.hit);
+        const lbl = it.floor ? `🧹 ${it.title}` : it.strip ? `${it.name}${it.no}` : `${it.name.replace('公佈欄', '')}${it.no}`;
+        c += `<button type="button" class="it oit${it.floor ? ' ofloor' : ''}${it.strip ? ' ostrip' : ''}" data-id="${it.id}" aria-label="${esc(it.full)}" style="${box(r)}">`
+          + `<span class="olbl${r[3] > r[2] * 1.2 ? ' v' : ''}">${esc(lbl)}</span><span class="badge"></span><span class="mk"></span></button>`;
       });
     }
-    G.jobs.forEach(j => {
-      const names = O.jobs[j.id] || [];
-      c += `<div class="od-card zone-${j.zone}${check ? ' tap' : ''}" style="${box(j.card)}" title="${esc(outdoorTitle(j.id))}"${check ? ` data-ojob="${j.id}" role="button"` : ''}>`;
-      for (let i = 0; i < j.slots; i++) c += nameBtn(`${j.id}:${i}`, names[i], j.short);
+    cards.forEach(cd => {
+      const r = [cd.x, cd.y, cd.w, cd.h];
+      if (cd.insp) {
+        c += `<div class="od-card zone-${cd.insp.zone} sup" style="${box(r)}"><span class="od-role">${esc(cd.insp.label)}</span>${nameBtn(cd.insp.id, O.inspectors[cd.insp.id], '')}</div>`;
+        return;
+      }
+      const j = cd.job, names = O.jobs[j.id] || [];
+      c += `<div class="od-card zone-${j.zone}${j.slots > 1 ? ' two' : ''}" style="${box(r)}" title="${esc(outdoorTitle(j.id))}">`;
+      for (let i = 0; i < j.slots; i++) c += nameBtn(`${j.id}:${i}`, names[i], i === j.slots - 1 ? j.short : '');
       c += `</div>`;
     });
-    G.inspectors.forEach(p => {
-      c += `<div class="od-card zone-${p.zone} sup" style="${box(p.card)}">${nameBtn(p.id, O.inspectors[p.id], '')}<span class="od-role">${esc(p.label)}</span></div>`;
-    });
-    return `<div class="od-wrap"><div class="od${edit ? ' editable' : ''}${check ? ' checking' : ''}">${s}${c}</div></div>`;
+    return `<div class="od-wrap"><div class="od${edit ? ' editable' : ''}${check ? ' checking' : ''}" style="aspect-ratio:${vw}/${H}">${s}${c}</div></div>`;
   }
   $('#jobsList').addEventListener('click', e => {
     const b = e.target.closest('[data-od]');
@@ -1398,7 +1546,7 @@
     } else if (act === 'lock') {
       logout();
     } else if (act === 'reset') {
-      const pendingPhotos = ALL_ITEMS.reduce((n, it) => n + (state.records[it.id]?.photos || []).filter(p => p.st !== 'done').length, 0);
+      const pendingPhotos = UNITS.reduce((n, it) => n + (state.records[it.id]?.photos || []).filter(p => p.st !== 'done').length, 0);
       const warn = pendingPhotos ? `\n\n⚠ 還有 ${pendingPhotos} 張照片沒有上傳到雲端，清空後會遺失。` : '';
       if (await ask('確定要清空本次所有紀錄嗎？（已寫入試算表的資料不受影響）' + warn, '清空', true)) resetSession(false);
     }
@@ -1479,8 +1627,8 @@
     const sel = (key, val, grp = 'job') => `<select data-rs="${key}" data-grp="${grp}" data-val="${esc(val || '')}" aria-label="選擇同學"></select>`;
     let h = rosterHead(`名單來源：${esc(studentList.source)}（${students().length} 人）`);
     h += `<p class="muted small" style="margin:0">每選一位同學，他就會從其他選單中移除。</p>`;
-    h += `<h3>環保股長</h3>`;
-    D.inspectorSlots.forEach(s => {
+    if (!cadresFromSheet()) h += `<h3>環保股長</h3>`;
+    if (!cadresFromSheet()) D.inspectorSlots.forEach(s => {
       h += `<div class="rs-row"><div class="rs-label">${esc(s.label)}</div><div class="rs-selects">${sel(s.id, inspectorName(s.id))}</div></div>`;
     });
     D.jobGroups.forEach(g => {
@@ -1497,7 +1645,7 @@
         }
       });
     });
-    if (D.cadreSlots?.length) {
+    if (D.cadreSlots?.length && !cadresFromSheet()) {
       h += `<h3>幹部（可以登入登記加扣分）</h3><div class="rs-selects two">`;
       // 同一人可以兼任（例如學藝兼節能），所以幹部選單不互相移除
       D.cadreSlots.forEach(s => { h += `<label class="rs-cadre"><span class="rs-label">${esc(s.label)}</span>${sel(s.id, inspectorName(s.id), 'c-' + s.id)}</label>`; });
@@ -1559,7 +1707,7 @@
   };
 
   // ── 自動更新：切回 App 或每 10 分鐘檢查 GitHub 上的檔案有沒有變 ──
-  const WATCH = ['index.html', 'sw.js','config.js', 'js/map-data.js', 'js/sel-engine.js', 'js/app.js', 'js/seats.js', 'js/points.js', 'js/draw.js', 'css/style.css'];
+  const WATCH = ['index.html', 'sw.js','config.js', 'js/map-data.js', 'js/sel-engine.js', 'js/app.js', 'js/seats.js', 'js/points.js', 'js/draw.js', 'js/shop.js', 'js/line.js', 'css/style.css'];
   async function fingerprint() {
     try {
       const tags = await Promise.all(WATCH.map(async u => {

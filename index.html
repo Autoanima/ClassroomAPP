@@ -70,6 +70,8 @@
       <button type="button" role="tab" data-tab="jobs">👥 工作分配</button>
       <button type="button" role="tab" data-tab="seats">🪑 座位</button>
       <button type="button" role="tab" data-tab="draw">🎲 抽籤</button>
+      <button type="button" role="tab" data-tab="shop">🛍 商店</button>
+      <button type="button" role="tab" data-tab="line">💬 LINE 圖</button>
     </nav>
   </header>
 
@@ -112,6 +114,14 @@
     <section id="tab-draw" class="tab" hidden>
       <div id="drawRoot"></div>
     </section>
+
+    <section id="tab-shop" class="tab" hidden>
+      <div id="shopRoot"></div>
+    </section>
+
+    <section id="tab-line" class="tab" hidden>
+      <div id="lineRoot"></div>
+    </section>
   </main>
 
   <button id="compassBtn" class="compass clean-only" type="button" aria-label="彙整報表">
@@ -122,6 +132,9 @@
   <div id="backdrop" class="backdrop" hidden></div>
   <section id="sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
     <div class="sheet-grip" aria-hidden="true"></div>
+    <label class="sheet-alpha" title="把視窗調透明，可以看到底下的地圖">
+      <span aria-hidden="true">👁</span><input id="sheetAlpha" type="range" min="25" max="100" step="5" aria-label="視窗透明度"><span id="sheetAlphaVal" class="muted small"></span>
+    </label>
     <div id="sheetBody" class="sheet-body"></div>
   </section>
 
@@ -137,6 +150,8 @@
   </div>
 
   <div id="swapBar" class="swapbar" hidden></div>
+  <div id="faceZoom" class="face-zoom" role="dialog" aria-label="放大的大頭照" hidden></div>
+  <canvas id="fxCanvas" class="fx-canvas" hidden></canvas>
 
   <div id="ask" class="ask" role="alertdialog" aria-modal="true" aria-labelledby="askMsg" hidden>
     <div class="ask-card">
@@ -150,7 +165,7 @@
   <input id="faceInput" type="file" accept="image/*" hidden>
 
   <script>
-    ['config.js', 'js/map-data.js', 'js/sel-engine.js', 'js/app.js', 'js/seats.js', 'js/points.js', 'js/draw.js'].forEach(function (s) {
+    ['config.js', 'js/map-data.js', 'js/sel-engine.js', 'js/app.js', 'js/seats.js', 'js/points.js', 'js/draw.js', 'js/shop.js', 'js/line.js'].forEach(function (s) {
       document.write('<script src="' + s + '?v=' + __V + '"><\/script>');
     });
     document.write('<script>App.boot();<\/script>');

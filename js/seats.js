@@ -7,6 +7,7 @@
     chart: 'indoor.chart.v1' + A.SFX, faces: 'indoor.faces.v1' + A.SFX, sub: 'indoor.seatsub.v1',
     testSel: 'indoor.testsel.v1.test', testChart: 'indoor.testchart.v1.test', bots: 'indoor.bots.v1.test',
     live: 'indoor.live.v1' + A.SFX, backup: 'indoor.chartbak.v1' + A.SFX, defaulted: 'indoor.defaulted.v1' + A.SFX,
+    decos: 'indoor.decos.v1' + A.SFX, acc: 'indoor.accimg.v1' + A.SFX,
   };
   const HOW = { wish: '志願', self: '自選', teacher: '老師指定', auto: '系統分配' };
   const STATUS = { idle: '沒有進行選位', ready: '準備中（可預選志願）', open: '選位中', paused: '暫停中', done: '選位結束' };
@@ -33,12 +34,52 @@
     return m ? { code: m[1] + A.pad2(+m[2]), name: m[3] } : { code: '', name: String(k || '') };
   }
   const hue = s => [...String(s)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
-  function faceHtml(k) {
+  // 大頭照底圖（雲端硬碟）；沒有照片時顯示姓氏
+  function faceBase(k) {
     const { code, name } = parseKey(k);
     const f = faces[code];
     if (f?.d) return `<img src="${f.d}" alt="">`;
     return `<span class="ava" style="background:hsl(${hue(k)} 40% 58%)">${esc((name || code).slice(0, 1))}</span>`;
   }
+  // 大頭照＝底圖＋同學買的配件（位置、大小、角度都是相對於大頭照的比例）
+  let decos = store.get(K.decos, {});   // 座號 → [{ acc, x, y, s, r }]
+  let accImg = store.get(K.acc, {});    // 雲端硬碟配件 id → { t, d }
+  let builtin = {};                     // 內建配件 id → 圖片網址
+  const accUrl = id => (id?.startsWith('d:') ? accImg[id]?.d : builtin[id]) || '';
+  const layerHtml = (l, i) => {
+    const u = accUrl(l.acc);
+    return u ? `<span class="acc" data-l="${i ?? ''}" style="left:${(l.x * 100).toFixed(2)}%;top:${(l.y * 100).toFixed(2)}%;width:${(l.s * 100).toFixed(2)}%;transform:translate(-50%,-50%) rotate(${l.r}deg);background-image:url('${u}')"></span>` : '';
+  };
+  function faceHtml(k) {
+    const layers = decos[parseKey(k).code] || [];
+    return `<span class="av">${faceBase(k)}${layers.map(l => layerHtml(l)).join('')}</span>`;
+  }
+  A.faceBase = faceBase;
+  // 給 LINE 圖片製作用：底圖（data URL，沒有照片時為空）、裝飾、底色
+  A.faceSrc = k => faces[parseKey(k).code]?.d || '';
+  A.decoOf = k => decos[parseKey(k).code] || [];
+  A.faceHue = k => hue(k);
+  A.layerHtml = layerHtml;
+  A.accUrl = accUrl;
+  A.setDeco = (k, layers) => { decos[parseKey(k).code] = layers; store.set(K.decos, decos); A.emit('faces'); };
+  // 內建配件清單（網站上的 assets/acc/catalog.json）
+  const catalogP = fetch('assets/acc/catalog.json').then(r => r.json()).then(list => {
+    list.forEach(a => { builtin[a.id] = a.src; });
+    return list;
+  }).catch(() => []);
+  A.builtinCatalog = () => catalogP;
+  catalogP.then(() => { if (Object.keys(decos).length) A.emit('faces'); });
+  A.on('faces', () => renderAll());
+  // 雲端硬碟配件圖片（有更新才下載）
+  A.loadAccImages = async () => {
+    const have = Object.fromEntries(Object.entries(accImg).map(([id, x]) => [id, x.t]));
+    const r = await A.api('accImages', { have });
+    let changed = false;
+    Object.entries(r.images || {}).forEach(([id, x]) => { accImg[id] = x; changed = true; });
+    Object.keys(accImg).forEach(id => { if (r.ids && !r.ids.includes(id)) { delete accImg[id]; changed = true; } });
+    if (changed) store.set(K.acc, accImg);
+    return changed;
+  };
   A.parseKey = parseKey;
   A.faceHtml = faceHtml;
   A.seatOf = seatOf;
@@ -75,7 +116,7 @@
       k = chart[s.id];
       if (liveRunning() && !k) c.push('free');
     }
-    if (!inSel() && picked?.seat === s.id) c.push('picked');
+    if (sub === 'swap' && picked?.seat === s.id) c.push('picked');
     if (k) c.push('has');
     if (k && k === A.me()) c.push('me');
     if (k && highlight.has(k)) c.push('hl');
@@ -100,13 +141,15 @@
     const root = $('#seatTop');
     let h = '';
     if (!A.isStudent()) {
-      if (sub === 'live' && !A.isTeacher()) sub = 'chart';
+      if ((sub === 'live' || sub === 'swap') && !A.isTeacher()) sub = 'chart';
       h += `<div class="subsw" role="tablist">
         <button type="button" data-sub="chart" aria-selected="${sub === 'chart'}">📋 座位表</button>
         ${A.isTeacher() ? `<button type="button" data-sub="live" aria-selected="${sub === 'live'}">🎯 現場選位${live?.started && live.idx < live.order.length ? '<span class="live-dot"></span>' : ''}</button>` : ''}
         <button type="button" data-sub="sel" aria-selected="${sub === 'sel'}">🗳 線上選位${selLive() ? '<span class="live-dot" title="選位進行中"></span>' : ''}</button>
+        ${A.isTeacher() ? `<button type="button" data-sub="swap" aria-selected="${sub === 'swap'}">🔁 交換位置</button>` : ''}
       </div>`;
-      if (sub === 'chart' && A.isTeacher()) h += `<p class="muted small tip">💡 點一個座位、再點另一個座位，兩人就互換；點空位就是搬過去。</p>`;
+      if (sub === 'swap') h += `<p class="muted small tip">💡 點一個座位、再點另一個座位，兩人就互換；點空位就是搬過去。</p>`;
+      if (sub === 'chart') h += `<p class="muted small tip">點同學的大頭照可以放大，再點一次關閉。</p>`;
       if (sub === 'sel' && sel && sel.status !== 'idle') h += teacherBanner();
     } else {
       h += studentBanner();
@@ -177,7 +220,8 @@
   function renderPanel() {
     const root = $('#seatPanel');
     if (A.isStudent()) { root.innerHTML = legendHtml(); return; }
-    if (sub === 'chart') { root.innerHTML = chartPanel(); return; }
+    if (sub === 'chart') { root.innerHTML = chartViewPanel(); return; }
+    if (sub === 'swap') { root.innerHTML = chartPanel(); return; }
     if (sub === 'live') { root.innerHTML = livePanel(); return; }
     root.innerHTML = selPanel();
   }
@@ -188,6 +232,15 @@
       <li><span class="sw sw-me"></span>我的座位</li><li><span class="sw sw-wish">1</span>我的志願</li><li><span class="sw sw-blk"></span>不開放</li></ul>`;
   }
 
+  // 座位表（只看）：人數與還沒有座位的同學
+  function chartViewPanel() {
+    const list = A.students();
+    const seated = new Set(Object.values(chart));
+    const none = list.filter(n => !seated.has(n));
+    return `<div class="panel"><div class="panel-row"><b>${seated.size} 人</b>${list.length ? `／全班 ${list.length} 人` : ''}${A.isTeacher() ? '　<span class="muted small">要換位置請到「🔁 交換位置」</span>' : ''}</div>
+      ${none.length && A.isTeacher() ? `<div class="panel-row small">還沒有座位：${none.map(esc).join('、')}</div>` : ''}</div>`;
+  }
+  // 交換位置（導師）：點兩下互換、恢復預設、清空、大頭照資料夾
   function chartPanel() {
     const list = A.students();
     const seated = new Set(Object.values(chart));
@@ -217,7 +270,7 @@
   function renderBar() {
     const bar = $('#swapBar');
     let h = '';
-    if (A.isTeacher() && sub === 'chart' && picked) {
+    if (A.isTeacher() && sub === 'swap' && picked) {
       const k = picked.key || chart[picked.seat];
       const what = picked.key ? `${esc(k)}（還沒有座位）` : `${picked.seat}　${k ? esc(k) : '空位'}`;
       const job = k ? A.jobsOf(k).jobs.join('、') : '';
@@ -573,7 +626,8 @@
     if (A.isStudent()) return studentSeat(id);
     if (sub === 'live' && A.isTeacher()) return liveSeat(id);
     if (inSel()) return A.isTeacher() ? teacherSelSeat(id) : showSeatInfo(id);
-    return A.isTeacher() ? chartTap(id) : showSeatInfo(id);
+    if (sub === 'swap' && A.isTeacher()) return chartTap(id);
+    return zoomFace(id);
   }
 
   function showSeatInfo(id) {
@@ -814,11 +868,18 @@
     Object.entries(r.faces || {}).forEach(([c, f]) => { faces[c] = f; changed = true; });
     if (r.codes) Object.keys(faces).forEach(c => { if (!r.codes.includes(c)) { delete faces[c]; changed = true; } });
     if (changed) saveFaces();
+    // 裝飾：用到雲端硬碟的配件就一起下載圖片
+    if (r.deco && JSON.stringify(r.deco) !== JSON.stringify(decos)) {
+      decos = r.deco; store.set(K.decos, decos); changed = true;
+      if (Object.values(decos).flat().some(l => l.acc.startsWith('d:') && !accImg[l.acc])) await A.loadAccImages().catch(() => {});
+    }
+    if (r.fireworks?.length) A.emit('fireworks', r.fireworks);
+    await catalogP;
     return changed;
   }
   let facesLoaded = 0;
-  A.ensureFaces = () => {
-    if (Date.now() - facesLoaded < 10 * 60e3) return;
+  A.ensureFaces = force => {
+    if (!force && Date.now() - facesLoaded < 10 * 60e3) return;
     facesLoaded = Date.now();
     Promise.all([loadFaces(), loadChart()]).then(c => { if (c.some(Boolean)) A.emit('faces'); }).catch(() => { facesLoaded = 0; });
   };
@@ -868,7 +929,20 @@
     if (A.isStudent() || A.isTeacher() || A.isStaff()) renderAll();
     refreshData();
   };
-  A.on('students', () => { if (A.currentTab() === 'seats' && sub === 'chart') renderPanel(); });
+  A.on('students', () => { if (A.currentTab() === 'seats' && (sub === 'chart' || sub === 'swap')) renderPanel(); });
+
+  // ── 點大頭照放大，再點一次（或點任何地方）關閉 ──
+  function zoomFace(id) {
+    const z = $('#faceZoom');
+    const k = inSel() ? takenOf()[id] : chart[id];
+    if (!z.hidden && z.dataset.seat === id) { z.hidden = true; return; }
+    if (!k) { z.hidden = true; return toast(`${seatName(id)}：空位`); }
+    const { code, name } = parseKey(k);
+    z.dataset.seat = id;
+    z.innerHTML = `<div class="fz-card"><span class="fz-face">${faceHtml(k)}</span><div class="fz-name"><b>${esc(code.replace(/(\d+)$/, ' $1'))}</b> ${esc(name)}</div><div class="muted small">${seatName(id)}</div></div>`;
+    z.hidden = false;
+  }
+  $('#faceZoom').addEventListener('click', () => { $('#faceZoom').hidden = true; });
 
   // 抽籤後在座位表上標示
   let hlTimer;

@@ -20,13 +20,14 @@
  *   labelAt   名稱標示的位置
  *   short     地圖上顯示的簡稱（位置太小時用，例如玻璃只寫 A）
  *   stretch   緊縮排列時跟著縮窄（大面積的東西，例如黑板）；地板也會縮窄
+ *   seatShow  座位圖上要顯示（只有黑板、講桌、前後門）；seatLabel 座位圖上的簡稱
  *   float     緊縮排列時寬度不變、位置跟著移動，但不擋住空隙的壓縮（例如講桌、下方垃圾桶）
  *             其他物件（座位、玻璃、花圃…）寬度不變，只把它們之間的空隙縮小
  */
 window.MAP_DATA = {
   title: '內掃區檢查',
   box: { x0: 5, y0: 15, x1: 1450, y1: 1372 },        // 掃地地圖的範圍
-  seatBox: { x0: 330, y0: 112, x1: 1448, y1: 1262 },  // 座位圖的範圍（只看教室）
+  seatBox: { x0: 368, y0: 112, x1: 1448, y1: 1262 },  // 座位圖的範圍（只看教室）
 
   // 裝飾（不能點）
   deco: [
@@ -45,7 +46,7 @@ window.MAP_DATA = {
     { id: 'floorB', name: '教室5～8排，掃拖', cls: 'fb', job: 'J08', floor: true, x: 915, y: 130, w: 513, h: 1115, labelAt: [1190, 1138] },
 
     // ── 黑板與講台 ──
-    { id: 'board', name: '黑板、黑板溝、板擦機、講台', cls: 'tan', job: 'J01', stretch: true, x: 626, y: 133, w: 580, h: 118, labelAt: [916, 205] },
+    { id: 'board', name: '黑板、黑板溝、板擦機、講台', cls: 'tan', job: 'J01', stretch: true, seatShow: true, x: 626, y: 133, w: 580, h: 118, labelAt: [916, 205] },
     { id: 'eraser', name: '板擦機', cls: 'tan', job: 'J01', x: 1380, y: 133, w: 46, h: 78 },
 
     // ── 窗戶與門 ──
@@ -58,11 +59,11 @@ window.MAP_DATA = {
     { id: 'glassF', name: '玻璃F', short: 'F', cls: 'glass', job: 'J06', x: 371, y: 749, w: 30, h: 63 },
     { id: 'glassG', name: '玻璃G', short: 'G', cls: 'glass', job: 'J06', x: 371, y: 815, w: 30, h: 63 },
     { id: 'glassH', name: '玻璃H', short: 'H', cls: 'glass', job: 'J06', x: 371, y: 882, w: 30, h: 63 },
-    { id: 'frontDoor', name: '前門玻璃、門框', cls: 'door1', job: 'J04', x: 372, y: 205, w: 42, h: 128 },
-    { id: 'backDoor', name: '後門玻璃、門框', cls: 'door2', job: 'J05', x: 372, y: 966, w: 42, h: 132 },
+    { id: 'frontDoor', name: '前門玻璃、門框', cls: 'door1', job: 'J04', seatShow: true, seatLabel: '前門', x: 372, y: 205, w: 42, h: 128 },
+    { id: 'backDoor', name: '後門玻璃、門框', cls: 'door2', job: 'J05', seatShow: true, seatLabel: '後門', x: 372, y: 966, w: 42, h: 132 },
 
     // ── 紫色：各線材、飲水機、拖把區、抹布區、掃具區、講桌整理 ──
-    { id: 'desk', name: '講桌', cls: 'purple', job: 'J15', float: true, x: 853, y: 253, w: 125, h: 50 },
+    { id: 'desk', name: '講桌', cls: 'purple', job: 'J15', float: true, seatShow: true, x: 853, y: 253, w: 125, h: 50 },
     { id: 'cables', name: '各線材', cls: 'purple', job: 'J15', x: 1210, y: 133, w: 46, h: 78 },
     { id: 'rags', name: '抹布區', cls: 'purple', job: 'J15', float: true, x: 1208, y: 78, w: 168, h: 38 },
     { id: 'mops', name: '拖把區', cls: 'purple', job: 'J15', x: 40, y: 376, w: 107, h: 152,
@@ -81,10 +82,10 @@ window.MAP_DATA = {
     { id: 'flower5', name: '花圃', cls: 'flower', job: 'J14', x: 120, y: 1028, w: 43, h: 192 },
 
     // ── 垃圾桶 ──
-    { id: 'binPaper', name: '紙類', cls: 'b-paper', job: 'J13', bin: true, x: 422, y: 130, w: 44, h: 44 },
-    { id: 'binGen1', name: '一般垃圾', cls: 'b-gen', job: 'J10', bin: true, x: 475, y: 130, w: 44, h: 44 },
-    { id: 'binPlastic', name: '塑膠容器', cls: 'b-plastic', job: 'DUTY', bin: true, x: 528, y: 130, w: 44, h: 44 },
-    { id: 'binPC', name: '紙容器', cls: 'b-pc', job: 'DUTY', bin: true, square: true, x: 583, y: 132, w: 42, h: 42 },
+    { id: 'binPaper', name: '紙類', cls: 'b-paper', job: 'J13', bin: true, float: true, x: 422, y: 130, w: 44, h: 44 },
+    { id: 'binGen1', name: '一般垃圾', cls: 'b-gen', job: 'J10', bin: true, float: true, x: 475, y: 130, w: 44, h: 44 },
+    { id: 'binPlastic', name: '塑膠容器', cls: 'b-plastic', job: 'DUTY', bin: true, float: true, x: 528, y: 130, w: 44, h: 44 },
+    { id: 'binPC', name: '紙容器', cls: 'b-pc', job: 'DUTY', bin: true, float: true, square: true, x: 583, y: 132, w: 42, h: 42 },
     { id: 'binGen2', name: '一般垃圾', cls: 'b-gen', job: 'J10', bin: true, float: true, x: 1130, y: 1196, w: 44, h: 44 },
     { id: 'binPet', name: '寶特瓶', cls: 'b-pet', job: 'J12', bin: true, float: true, x: 1192, y: 1196, w: 44, h: 44 },
     { id: 'binAlu', name: '鋁箔包', cls: 'b-alu', job: 'J11', bin: true, float: true, x: 1255, y: 1196, w: 44, h: 44 },
@@ -161,35 +162,29 @@ window.MAP_DATA = {
   ],
   // 外掃區（和「外掃區檢查」App 共用同一份「工作分配」工作表，兩邊會同步）
   // 代號要和外掃 App 的 js/map-data.js 一致；工作名稱以外掃試算表裡的為準，這裡只是備用
-  // 畫成外掃區圖表（座標＝老師提供的圖，寬 1280、高 830）：card＝名牌位置，arrows＝箭頭（由名牌指向物件）
+  // 外掃區：畫成直式走廊（原圖順時針轉 90 度，上＝南、下＝北、右＝西側／警衛室、左＝東側／司令台）
+  // 名牌位置由程式依物件位置自動排列
   outdoor: {
     label: '外掃區',
-    w: 1280, h: 830,
     inspectors: [
-      { id: 'I1', label: '外掃監督A', zone: 'S', card: [244, 747, 233, 62] },
-      { id: 'I2', label: '外掃監督B', zone: 'N', card: [878, 747, 233, 62] },
+      { id: 'I1', label: '外掃監督A', zone: 'S' },
+      { id: 'I2', label: '外掃監督B', zone: 'N' },
     ],
     jobs: [
-      { id: 'J01', title: '公佈欄玻璃 1、公佈欄玻璃 2', short: '公佈欄玻璃', slots: 1, zone: 'S', card: [267, 32, 138, 57],
-        arrows: [[[336, 89], [336, 150], [245, 170], [245, 280]], [[336, 89], [336, 150], [413, 170], [413, 280]]] },
-      { id: 'J02', title: '水泥平台 1、飲水機 1、水泥平台 3', short: '飲水機、水泥平台', slots: 1, zone: 'S', card: [262, 193, 123, 57],
-        arrows: [[[323, 250], [323, 296]], [[323, 258], [360, 258], [360, 366]]] },
-      { id: 'J03', title: '公佈欄玻璃 3、公佈欄玻璃 4', short: '公佈欄玻璃', slots: 1, zone: 'S', card: [498, 77, 117, 57],
-        arrows: [[[556, 134], [556, 362]], [[556, 150], [516, 172], [516, 287]]] },
-      { id: 'J04', title: '洗手槽 1', short: '洗手槽', slots: 1, zone: 'S', card: [167, 478, 138, 57], arrows: [[[236, 478], [236, 378]]] },
-      { id: 'J05', title: '洗手槽 2', short: '洗手槽', slots: 1, zone: 'S', card: [355, 475, 138, 57], arrows: [[[424, 475], [424, 377]]] },
-      { id: 'J06', title: '牆壁地板掃拖 1', short: '地板掃拖', slots: 2, zone: 'S', card: [292, 601, 243, 57], arrows: [[[326, 601], [326, 350]]] },
-      { id: 'J07', title: '公佈欄玻璃 6、公佈欄玻璃 7', short: '公佈欄玻璃', slots: 1, zone: 'N', card: [717, 20, 117, 57],
-        arrows: [[[777, 77], [777, 290]], [[777, 90], [790, 106], [1080, 106], [1095, 125], [1095, 290]]] },
-      { id: 'J08', title: '水泥平台 2、飲水機 2、水泥平台 4', short: '飲水機、水泥平台', slots: 1, zone: 'N', card: [885, 159, 117, 57],
-        arrows: [[[943, 216], [943, 300]], [[943, 240], [950, 248], [985, 248], [993, 278]]] },
-      { id: 'J09', title: '公佈欄玻璃 5', short: '公佈欄玻璃', slots: 1, zone: 'N', card: [716, 556, 118, 57], arrows: [[[775, 556], [775, 365]]] },
-      { id: 'J10', title: '洗手槽 3', short: '洗手槽', slots: 1, zone: 'N', card: [801, 459, 122, 57], arrows: [[[861, 459], [861, 376]]] },
-      { id: 'J11', title: '洗手槽 4', short: '洗手槽', slots: 1, zone: 'N', card: [1015, 459, 122, 57],
-        arrows: [[[1076, 459], [1076, 440], [1066, 428], [1024, 428], [1014, 415], [1014, 376]]] },
-      { id: 'J12', title: '牆壁地板掃拖 2', short: '地板掃拖', slots: 2, zone: 'N', card: [934, 601, 244, 57], arrows: [[[968, 601], [968, 350]]] },
+      { id: 'J01', title: '公佈欄玻璃 1、公佈欄玻璃 2', short: '公佈欄玻璃', slots: 1, zone: 'S' },
+      { id: 'J02', title: '水泥平台 1、飲水機 1、水泥平台 3', short: '飲水機、水泥平台', slots: 1, zone: 'S' },
+      { id: 'J03', title: '公佈欄玻璃 3、公佈欄玻璃 4', short: '公佈欄玻璃', slots: 1, zone: 'S' },
+      { id: 'J04', title: '洗手槽 1', short: '洗手槽', slots: 1, zone: 'S' },
+      { id: 'J05', title: '洗手槽 2', short: '洗手槽', slots: 1, zone: 'S' },
+      { id: 'J06', title: '牆壁地板掃拖 1', short: '地板掃拖', slots: 2, zone: 'S' },
+      { id: 'J07', title: '公佈欄玻璃 6、公佈欄玻璃 7', short: '公佈欄玻璃', slots: 1, zone: 'N' },
+      { id: 'J08', title: '水泥平台 2、飲水機 2、水泥平台 4', short: '飲水機、水泥平台', slots: 1, zone: 'N' },
+      { id: 'J09', title: '公佈欄玻璃 5', short: '公佈欄玻璃', slots: 1, zone: 'N' },
+      { id: 'J10', title: '洗手槽 3', short: '洗手槽', slots: 1, zone: 'N' },
+      { id: 'J11', title: '洗手槽 4', short: '洗手槽', slots: 1, zone: 'N' },
+      { id: 'J12', title: '牆壁地板掃拖 2', short: '地板掃拖', slots: 2, zone: 'N' },
     ],
-    // 外掃檢查可以點的物件：代號、名稱和外掃 App 相同；hit＝點選範圍（比畫出來的物件大一點，方便手指點）
+    // 外掃檢查可以點的物件：代號、名稱和外掃 App 相同；hit＝點選範圍（原圖橫式座標，比物件大一點，方便手指點）
     // zone：S 南區（外掃監督A）、N 北區（外掃監督B）
     items: [
       { id: 'S-glass-w1', name: '公佈欄玻璃', no: 1, zone: 'S', job: 'J01', hit: [196, 274, 87, 30] },
@@ -213,7 +208,7 @@ window.MAP_DATA = {
       { id: 'N-floor', name: '牆壁地板掃拖', no: 2, zone: 'N', job: 'J12', hit: [650, 298, 571, 46], floor: true },
     ],
     zones: { S: '南區', N: '北區' },
-    // 走廊上的物件（只是示意）
+    // 走廊上的物件（只是示意，原圖橫式座標）
     shapes: [
       { t: 'glass', x: 196, y: 288, w: 87, h: 7 }, { t: 'glass', x: 365, y: 288, w: 86, h: 7 }, { t: 'glass', x: 480, y: 288, w: 87, h: 7 },
       { t: 'glass', x: 733, y: 288, w: 86, h: 7 }, { t: 'glass', x: 1051, y: 288, w: 75, h: 7 },
