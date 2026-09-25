@@ -986,7 +986,7 @@
     if (!j.ok) {
       const err = new Error(/未知的動作/.test(j.error) ? '雲端程式還是舊版，請重新部署 Code.gs' : j.error || '雲端處理失敗');
       err.code = j.code;
-      if (j.code === 'session' && usesSid()) relogin('登入已過期（6 小時），請重新輸入身分證字號');
+      if (j.code === 'session' && usesSid()) relogin('登入已過期，請重新輸入身分證字號');
       if (j.code === 'token' && isTeacher() && action !== 'staffLogin') relogin('密碼已變更，請重新登入');
       throw err;
     }
@@ -1516,7 +1516,7 @@
         : '尚未開始。第一次標記時開始計時。'}<br>等待寫入試算表：${queue.length} 筆</p>`;
       h += `<div class="actions"><button type="button" class="btn btn--danger wide" data-act="reset">立即清空本次紀錄</button></div>`;
     }
-    h += `<h3>登入</h3><p class="muted small" style="margin:0">${usesSid() ? '借別人的手機登入時，用完請一定要登出。登入 6 小時後需要重新輸入身分證字號。' : '這支手機已記住密碼。借別人用或換手機時可以登出。'}</p>`;
+    h += `<h3>登入</h3><p class="muted small" style="margin:0">${usesSid() ? '借別人的手機登入時，用完請一定要登出。登入後 30 天內不用再輸入身分證字號。' : '這支手機已記住密碼。借別人用或換手機時可以登出。'}</p>`;
     h += `<div class="actions"><button type="button" class="btn wide" data-act="lock">🔒 登出</button></div>`;
     if (isStaff()) {
       h += `<details class="field"><summary class="muted small">進階：雲端網址</summary>

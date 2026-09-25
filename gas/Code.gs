@@ -27,7 +27,7 @@ const CONFIG = {
   PHOTO_FOLDER: '內掃檢查',            // 掃地檢查照片（每天的都放在一起）
   SHARE_PHOTOS: true,                  // 掃地檢查照片設為「知道連結的人可檢視」（大頭照不會公開分享）
   TIMEZONE: 'Asia/Taipei',
-  SESSION_HOURS: 6,                    // 學生、幹部登入後幾小時內有效（最多 6）
+  SESSION_DAYS: 30,                    // 學生、幹部登入後幾天內有效（試算表選單「內掃檢查 → 讓所有人重新登入」可以提早全部失效）
   TEACHER_NAME: '導師',
   OUTDOOR_SHEET_ID: '',                // 外掃區 App 的試算表 ID（也可以在網頁「工作分配 → 外掃區」貼連結設定）
   BUTTON_IMAGE: 'https://autoanima.github.io/outdoor-cleaning-map/assets/sum-button.png',
@@ -82,7 +82,7 @@ function doPost(e) {
     // who：{ teacher } 或 { key, role: 'S'學生 / 'C'幹部 }
     let who;
     if (req.sid) {
-      const v = CacheService.getScriptCache().get('sid:' + req.sid);
+      const v = readSession(String(req.sid));
       if (!v) return json({ ok: false, error: '登入已過期，請重新登入', code: 'session' });
       const m = v.match(/^([SC])\|(.*)$/);
       who = m ? { role: m[1], key: m[2] } : { role: 'S', key: v };
@@ -156,6 +156,7 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu('內掃檢查')
     .addItem('計算扣分', 'computeScores')
     .addItem('檢查名單與排名（身分證字號）', 'checkPeople')
+    .addItem('讓所有人重新登入', 'resetSessions')
     .addToUi();
 }
 
@@ -407,10 +408,39 @@ function keyOfId(idno) {
   const h = hashId(id);
   return idMap(false)[h] || idMap(true)[h] || '';
 }
+// 登入代碼＝「身分｜同學｜到期時間」＋用只有這個 Apps Script 知道的密鑰算出的簽章。
+// 不用存在任何地方；密鑰換掉（讓所有人重新登入）後，舊的代碼全部失效。
+function sessionSecret() {
+  const props = PropertiesService.getScriptProperties();
+  let k = props.getProperty('SESSION_SECRET');
+  if (!k) { k = Utilities.getUuid() + Utilities.getUuid(); props.setProperty('SESSION_SECRET', k); }
+  return k;
+}
+function signSession(payload) {
+  return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(payload, sessionSecret(), Utilities.Charset.UTF_8)).replace(/=+$/, '');
+}
 function newSession(role, key) {
-  const sid = Utilities.getUuid();
-  CacheService.getScriptCache().put('sid:' + sid, role + '|' + key, Math.min(6, CONFIG.SESSION_HOURS) * 3600);
-  return sid;
+  const payload = role + '|' + key + '|' + (Date.now() + CONFIG.SESSION_DAYS * 86400e3);
+  return Utilities.base64EncodeWebSafe(payload, Utilities.Charset.UTF_8).replace(/=+$/, '') + '.' + signSession(payload);
+}
+/** 驗證登入代碼：正確且沒過期就回傳「身分|同學」，否則回傳空字串 */
+function readSession(sid) {
+  const i = sid.indexOf('.');
+  if (i < 0) return CacheService.getScriptCache().get('sid:' + sid) || ''; // 舊版（6 小時）的代碼
+  let payload;
+  try {
+    const b = sid.slice(0, i);
+    payload = Utilities.newBlob(Utilities.base64DecodeWebSafe(b + '==='.slice((b.length + 3) % 4))).getDataAsString('UTF-8');
+  } catch (e) { return ''; }
+  if (signSession(payload) !== sid.slice(i + 1)) return '';
+  const m = payload.match(/^([SC])\|(.*)\|(\d+)$/);
+  if (!m || Date.now() > Number(m[3])) return '';
+  return m[1] + '|' + m[2];
+}
+/** 試算表選單：讓所有學生、幹部重新登入（例如有人手機遺失） */
+function resetSessions() {
+  PropertiesService.getScriptProperties().deleteProperty('SESSION_SECRET');
+  try { SpreadsheetApp.getUi().alert('完成：所有學生、幹部下次打開 App 都要重新輸入身分證字號。'); } catch (e) { /* 從編輯器執行時沒有畫面 */ }
 }
 function stuLogin(idno) {
   if (!/^[A-Z][A-Z0-9]\d{8}$/.test(normId(idno))) return { ok: false, error: '身分證字號格式不正確' };
