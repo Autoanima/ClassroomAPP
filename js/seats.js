@@ -1114,8 +1114,8 @@
     switch (action) {
       case 'stuLogin': return { ok: true, sid: 'test', me: TEST_ME, className: '商一甲' };
       case 'getSeats': return { ok: true, seats: store.get(K.testChart, {}), defaults: store.get('indoor.testdef.v1.test', {}) };
-      case 'getDuty': { const d = store.get('indoor.testduty.v1.test', null); return { ok: true, duty: d && d.date === A.fmtDate(new Date()) ? d : { date: A.fmtDate(new Date()), a: '', b: '' } }; }
-      case 'setDuty': { const d = { date: A.fmtDate(new Date()), a: p.a, b: p.b, by: A.isTeacher() ? '導師' : A.me() }; store.set('indoor.testduty.v1.test', d); return { ok: true, duty: d }; }
+      case 'getDuty': { const d = store.get('indoor.testduty.v1.test', null); return { ok: true, duty: d && d.date === A.fmtDate(new Date()) && d.list ? d : { date: A.fmtDate(new Date()), list: [] } }; }
+      case 'setDuty': { const d = { date: A.fmtDate(new Date()), list: p.list, by: A.isTeacher() ? '導師' : A.me() }; store.set('indoor.testduty.v1.test', d); return { ok: true, duty: d }; }
       case 'saveDefaultSeats': store.set('indoor.testdef.v1.test', p.seats); return { ok: true, defaults: p.seats };
       case 'saveSeats': store.set(K.testChart, p.seats); return { ok: true, seats: p.seats };
       case 'getFaces': return { ok: true, faces: {}, codes: Object.keys(faces) };

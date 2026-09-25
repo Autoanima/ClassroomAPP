@@ -79,6 +79,8 @@
     form.reason = reason; saveForm();
     if (!chosen.size) return toast('請先點選同學');
     if (!reason) { $('#ptReason')?.focus(); return toast('請寫理由'); }
+    // 「熱心服務：」這種只有前面的字、冒號後面沒寫內容
+    if (/[：:]$/.test(reason)) { const i = $('#ptReason'); i?.focus(); i?.setSelectionRange(i.value.length, i.value.length); return toast(`請在「${reason}」後面寫下具體內容`); }
     const pts = form.sign * form.pts;
     const names = [...chosen];
     const ok = await A.ask(`${form.sign < 0 ? '扣' : '加'} ${form.pts} 分（${form.cat}）\n理由：${reason}\n登記人：${A.isTeacher() ? D.teacherLabel : A.me()}（會留下紀錄）\n\n${names.join('、')}`, '送出', form.sign < 0);
@@ -109,7 +111,11 @@
     if (d.reason) {
       const i = $('#ptReason'); i.value = d.reason; form.reason = d.reason; saveForm();
       // 「未繳交：」這種要接著打內容的，游標直接放到最後
-      if (/[：:]$/.test(d.reason)) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
+      if (/[：:]$/.test(d.reason)) {
+        i.focus(); i.setSelectionRange(i.value.length, i.value.length);
+        i.placeholder = '請在「：」後面寫下具體內容';
+        toast(`請在「${d.reason}」後面寫下具體內容`);
+      }
       return;
     }
     if (d.p === 'clear') { chosen.clear(); return keepReason(render); }

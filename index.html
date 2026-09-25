@@ -53,7 +53,6 @@
     <div class="topbar-row">
       <div class="title">
         <div class="t1"><h1>商一甲</h1><button id="userChip" class="chip chip--user" type="button" aria-label="切換使用人"></button><span id="dateLabel" class="muted"></span></div>
-        <span class="t2"><button id="dutyChip" class="duty-chip" type="button" hidden></button></span>
       </div>
       <button id="viewBtn" class="view-toggle" type="button" aria-pressed="false">
         <span class="vt-one">切換視角</span>
@@ -67,6 +66,7 @@
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.7 7.7 0 0 0 0-2l2-1.6a.5.5 0 0 0 .1-.6l-1.9-3.3a.5.5 0 0 0-.6-.2l-2.4 1a7.3 7.3 0 0 0-1.7-1l-.4-2.6a.5.5 0 0 0-.5-.4h-3.8a.5.5 0 0 0-.5.4l-.4 2.6a7.3 7.3 0 0 0-1.7 1l-2.4-1a.5.5 0 0 0-.6.2L2.5 8.8a.5.5 0 0 0 .1.6l2 1.6a7.7 7.7 0 0 0 0 2l-2 1.6a.5.5 0 0 0-.1.6l1.9 3.3c.1.2.4.3.6.2l2.4-1c.5.4 1.1.7 1.7 1l.4 2.6c0 .2.2.4.5.4h3.8c.3 0 .5-.2.5-.4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.4 1c.2.1.5 0 .6-.2l1.9-3.3a.5.5 0 0 0-.1-.6zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>
       </button>
     </div>
+    <div class="topbar-row duty-row" hidden><button id="dutyChip" class="duty-chip" type="button"></button></div>
     <div class="topbar-row stats">
       <span id="progress" class="progress clean-only"></span>
       <button id="issueChip" class="chip chip--issue clean-only" type="button" hidden></button>
@@ -86,14 +86,14 @@
   <main>
     <section id="tab-clean" class="tab" hidden>
       <div class="area-bar"><div id="areaSw" class="subsw" role="tablist">
-        <button type="button" data-area="in">🏫 內掃區</button><button type="button" data-area="out">🌳 外掃區</button>
-      </div></div>
+        <button type="button" data-area="in">🏫 內掃<span class="w">區</span></button><button type="button" data-area="out">🌳 外掃<span class="w">區</span></button>
+      </div>
       <ul class="legend" aria-label="圖例">
         <li><span class="lg lg--good">✓</span>好</li>
         <li><span class="lg lg--bad">✕</span>不好</li>
         <li><span class="lg lg--absent">缺</span>未出席</li>
         <li><span class="lg lg--issue">!</span>有狀況</li>
-      </ul>
+      </ul></div>
       <div id="cleanIn">
         <div class="map-tools"><span class="orient"></span><button type="button" class="compact-btn" data-compact aria-pressed="false" title="去掉物件之間多餘的空隙，讓整間教室塞進畫面">↔ 緊縮排列</button><span class="zoom"><button type="button" data-zoom="-1" aria-label="縮小">－</button><span class="zoom-val"></span><button type="button" data-zoom="1" aria-label="放大">＋</button></span></div>
         <div class="map-wrap" data-map="clean"><div class="map" aria-label="內掃區地圖"></div></div>
@@ -114,7 +114,7 @@
 
     <section id="tab-seats" class="tab" hidden>
       <div id="seatTop" class="seat-top"></div>
-      <div class="map-tools"><span class="orient"></span><button type="button" class="compact-btn" data-compact aria-pressed="false" title="去掉物件之間多餘的空隙，讓整間教室塞進畫面">↔ 緊縮排列</button><span class="zoom"><button type="button" data-zoom="-1" aria-label="縮小">－</button><span class="zoom-val"></span><button type="button" data-zoom="1" aria-label="放大">＋</button></span></div>
+      <div class="map-tools"><span class="orient"></span><span class="zoom"><button type="button" data-zoom="-1" aria-label="縮小">－</button><span class="zoom-val"></span><button type="button" data-zoom="1" aria-label="放大">＋</button></span></div>
       <div class="map-wrap" data-map="seats"><div class="map seats-map" aria-label="座位圖"></div></div>
       <div id="seatPanel"></div>
     </section>

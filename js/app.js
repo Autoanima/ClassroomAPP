@@ -351,8 +351,10 @@
     };
     return compactCache;
   }
-  const layout = () => (ui.compact ? compactLayout() : ORIGINAL);
-  const boxOf = mode => (mode === 'seats' ? layout().seatBox : layout().box);
+  // 座位圖一律緊縮排列（沒有開關）；其他地圖依「緊縮」按鈕
+  const isCompact = mode => mode === 'seats' || !!ui.compact;
+  const layout = mode => (isCompact(mode) ? compactLayout() : ORIGINAL);
+  const boxOf = mode => (mode === 'seats' ? layout(mode).seatBox : layout(mode).box);
   const pc = f => (f * 100).toFixed(3) + '%';
   function rectStyle(s, box) {
     const W = box.x1 - box.x0, H = box.y1 - box.y0;
@@ -372,7 +374,7 @@
 
   function mapHtml(mode, opts = {}) {
     const box = boxOf(mode);
-    const L = layout();
+    const L = layout(mode);
     const live = mode !== 'seats';
     let h = '';
     // 座位圖只畫教室牆壁和黑板溝，不畫掃地用的東西
@@ -432,7 +434,7 @@
     const m = maps[name];
     if (!m) return;
     m.el.innerHTML = mapHtml(m.mode, m.opts);
-    m.el.classList.toggle('compact', !!ui.compact);
+    m.el.classList.toggle('compact', isCompact(m.mode));
     sizeMap(name);
     if (name === 'clean') { if (ui.area === 'out') renderOutClean(); refresh(); }
     m.opts.after?.();
@@ -448,7 +450,7 @@
     const box = boxOf(m.mode), W = box.x1 - box.x0, H = box.y1 - box.y0;
     const { fit } = levels(m);
     // 緊縮排列時預設「剛好塞進畫面寬度」
-    const want = ui.zoom[name] ?? (ui.compact ? fit : Math.max(fit, MIN_U[name] || fit));
+    const want = ui.zoom[name] ?? (isCompact(m.mode) ? fit : Math.max(fit, MIN_U[name] || fit));
     const u = Math.max(fit, want);
     m.u = u;
     m.el.style.width = Math.floor(W * u) + 'px';
@@ -475,7 +477,7 @@
     const t = flipOn();
     $('#viewBtn').setAttribute('aria-pressed', t);
     $('#viewBtn').setAttribute('aria-label', t ? '目前是老師視角，按一下切換為學生視角' : '目前是學生視角，按一下切換為老師視角');
-    document.querySelectorAll('.orient').forEach(el => { el.textContent = t ? '⬇ 黑板在下方（從講台往學生看）' : '⬆ 黑板在上方（學生面向黑板）'; });
+    document.querySelectorAll('.orient').forEach(el => { el.textContent = t ? '⬇ 黑板在下' : '⬆ 黑板在上'; el.title = t ? '老師視角：從講台往學生看' : '學生視角：學生面向黑板'; });
   }
   $('#viewBtn').addEventListener('click', () => {
     ui.view = flipOn() ? 'student' : 'teacher';
@@ -522,7 +524,7 @@
   function paintCompact() {
     document.querySelectorAll('[data-compact]').forEach(b => {
       b.setAttribute('aria-pressed', !!ui.compact);
-      b.textContent = ui.compact ? '↔ 緊縮排列：開' : '↔ 緊縮排列';
+      b.textContent = ui.compact ? '↔ 緊縮：開' : '↔ 緊縮';
     });
   }
   document.querySelectorAll('[data-compact]').forEach(b => b.addEventListener('click', () => {
@@ -1128,11 +1130,23 @@
   const canDuty = () => isTeacher() || jobsOf(settings.me || '').roles.some(r => /^副?班長$/.test(r));
   const shortName = k => parseKeyLite(k).name || k;
   function parseKeyLite(k) { const m = String(k || '').match(/^(\D*?)(\d+)(.*)$/); return m ? { name: m[3] } : { name: String(k || '') }; }
+  // 科別：多→多媒科、料→資料科（其他就用名單上的字）
+  const DEPT_NAME = { 多: '多媒', 料: '資料' };
+  const deptOf = k => (String(k).match(/^\D*/) || [''])[0];
+  const dutyDepts = () => {
+    const ds = [...new Set(students().map(deptOf).filter(Boolean))];
+    return ds.sort((a, b) => (a === '料' ? -1 : b === '料' ? 1 : a.localeCompare(b))); // 資料科在前
+  };
+  const hasDuty = () => duty && duty.date === fmtDate(new Date()) && duty.list?.length;
   function paintDuty() {
     const b = $('#dutyChip');
-    const has = duty && duty.date === fmtDate(new Date()) && duty.a;
-    b.hidden = !has && !canDuty();
-    b.textContent = has ? `🧹 值日：${shortName(duty.a)}、${shortName(duty.b)}` : '＋ 登記今日值日生';
+    const has = hasDuty();
+    $('.duty-row').hidden = !has && !canDuty();
+    if (has) {
+      const by = {};
+      duty.list.forEach(k => { (by[deptOf(k)] ||= []).push(shortName(k)); });
+      b.textContent = '🧹 今日值日生｜' + Object.keys(by).sort((x, y) => (x === '料' ? -1 : y === '料' ? 1 : 0)).map(d => `${DEPT_NAME[d] || d}：${by[d].join('、')}`).join('　');
+    } else b.textContent = '＋ 登記今日值日生';
     b.classList.toggle('empty', !has);
   }
   async function loadDuty() {
@@ -1141,25 +1155,33 @@
     paintDuty();
   }
   $('#dutyChip').addEventListener('click', () => {
-    const has = duty && duty.a && duty.date === fmtDate(new Date());
-    if (!canDuty()) return toast(has ? `今日值日生：${duty.a}、${duty.b}` : '今天還沒有登記值日生');
-    const list = students();
-    if (!list.length) { loadStudents().catch(() => {}); return toast('讀取名單中，請再按一次'); }
-    const opt = sel => `<option value="">— 請選擇 —</option>${list.map(k => `<option value="${esc(k)}"${k === sel ? ' selected' : ''}>${esc(k)}</option>`).join('')}`;
-    let h = sheetHead('🧹 今日值日生', `${fmtDateW(new Date())}｜班長、副班長登記`);
-    h += `<div class="field"><label for="dutyA">值日生 1</label><select id="dutyA">${opt(has ? duty.a : '')}</select></div>
-      <div class="field"><label for="dutyB">值日生 2</label><select id="dutyB">${opt(has ? duty.b : '')}</select></div>
-      ${has && duty.by ? `<p class="muted small">目前由 ${esc(duty.by)} 登記</p>` : ''}
+    const has = hasDuty();
+    if (!canDuty()) return toast(has ? `今日值日生：${duty.list.join('、')}` : '今天還沒有登記值日生');
+    if (!students().length) { loadStudents().catch(() => {}); return toast('讀取名單中，請再按一次'); }
+    const cur = has ? duty.list : [];
+    let h = sheetHead('🧹 今日值日生', `${fmtDateW(new Date())}｜每科 2 位，班長、副班長登記`);
+    dutyDepts().forEach(d => {
+      const mine = students().filter(k => deptOf(k) === d);
+      const picked = cur.filter(k => deptOf(k) === d);
+      h += `<h3>${esc(DEPT_NAME[d] || d)}科</h3><div class="duty-pick">`;
+      [0, 1].forEach(i => {
+        h += `<select data-duty="${esc(d)}" aria-label="${esc(DEPT_NAME[d] || d)}科值日生 ${i + 1}"><option value="">— 值日生 ${i + 1} —</option>${mine.map(k => `<option value="${esc(k)}"${k === picked[i] ? ' selected' : ''}>${esc(k)}</option>`).join('')}</select>`;
+      });
+      h += `</div>`;
+    });
+    h += `${has && duty.by ? `<p class="muted small">目前由 ${esc(duty.by)} 登記</p>` : ''}
       <div class="actions"><button type="button" class="btn btn--primary wide" data-act="dutyOk">儲存</button></div>`;
     openSheet({ kind: 'duty' }, h);
   });
   sheetHandlers.duty = async (act, b) => {
     if (act !== 'dutyOk') return;
-    const a = $('#dutyA').value, c = $('#dutyB').value;
-    if (!a || !c) return toast('請選擇兩位值日生');
-    if (a === c) return toast('兩位值日生不能是同一個人');
+    const list = [...document.querySelectorAll('[data-duty]')].map(s => s.value).filter(Boolean);
+    if (!list.length) return toast('請選擇值日生');
+    if (new Set(list).size !== list.length) return toast('同一個人不能選兩次');
+    const missing = dutyDepts().filter(d => !list.some(k => deptOf(k) === d)).map(d => DEPT_NAME[d] || d);
+    if (missing.length && !await ask(`${missing.join('、')}科還沒有選值日生，確定要儲存嗎？`, '儲存')) return;
     b.disabled = true;
-    try { const r = await api('setDuty', { a, b: c }); duty = r.duty; closeSheet(); toast('✓ 今日值日生已更新'); } catch (err) { toast(err.message); b.disabled = false; }
+    try { const r = await api('setDuty', { list }); duty = r.duty; closeSheet(); toast('✓ 今日值日生已更新'); } catch (err) { toast(err.message); b.disabled = false; }
     paintDuty();
   };
   document.addEventListener('visibilitychange', () => { if (!document.hidden) loadDuty(); });
@@ -1351,8 +1373,8 @@
           h += `<div class="cadre-row"><span class="jt">${esc(s.short || s.label)}</span><span class="jn">${nameChips([inspectorName(s.id)])}</span></div>`;
         });
       }
-      h += `</div>${roster?.cadres ? `<p class="muted small">名單來自試算表「${esc(roster.cadreSource || '幹部名單')}」工作表，要修改請直接改試算表（約 2 分鐘內同步）。</p>`
-        : canRoster() ? `<div class="actions"><button type="button" class="btn btn--primary wide" id="editCadres">✏️ 修改幹部名單</button></div>` : ''}</details>`;
+      h += `</div>${roster?.cadres ? `<p class="muted small">名單存在試算表「${esc(roster.cadreSource || '幹部名單')}」工作表。</p>` : ''}
+        ${isTeacher() ? `<div class="actions"><button type="button" class="btn btn--primary wide" id="editCadres">✏️ 修改幹部名單</button></div>` : '<p class="muted small">只有導師可以修改幹部名單。</p>'}</details>`;
     }
     root.innerHTML = h;
     $('#editRoster')?.addEventListener('click', openRosterEditor);
@@ -1524,9 +1546,43 @@
     } catch (e) { toast('儲存失敗：' + e.message); b.disabled = false; b.textContent = '儲存（外掃 App 也會同步）'; }
   };
 
+  // ── 幹部名單（試算表模式）：一列一個「職位＋同學」，存回「學生/幹部名單」的職位欄 ──
+  const CADRE_ORDER = ['班長', '副班長', '風紀', '衛生', '學藝', '總務', '資訊', '節能', '體育'];
+  async function openSheetCadreEditor() {
+    if (!students().length) { try { await loadStudents(); } catch (e) { return toast('無法讀取名單：' + e.message); } }
+    const pairs = [];
+    Object.entries(roster.cadres || {}).forEach(([k, roles]) => roles.forEach(r => pairs.push([r, k])));
+    const rank = r => { const i = CADRE_ORDER.findIndex(x => r.startsWith(x)); return i < 0 ? 100 : i; };
+    pairs.sort((a, b) => rank(a[0]) - rank(b[0]) || a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]));
+    const roleList = [...new Set([...CADRE_ORDER, ...pairs.map(p => p[0])])];
+    let h = sheetHead('🎖 修改幹部名單', '一列一個職位；同一人可以兼好幾個職位');
+    h += `<datalist id="cadreRoles">${roleList.map(r => `<option value="${esc(r)}">`).join('')}</datalist><div id="cadreRows">${pairs.map(p => cadreRowHtml(p[0], p[1])).join('')}</div>
+      <div class="actions"><button type="button" class="btn wide" data-act="cadreAdd">＋ 新增一列</button></div>
+      <p class="muted small">儲存後會寫回試算表「${esc(roster.cadreSource || '學生/幹部名單')}」的職位欄（身分證字號等其他欄位不會動）。</p>
+      <div class="save-bar"><button type="button" class="btn btn--primary" data-act="cadreSave">儲存</button></div>`;
+    openSheet({ kind: 'sheetCadres' }, h);
+  }
+  const cadreRowHtml = (role = '', k = '') => `<div class="cadre-edit"><input type="text" list="cadreRoles" value="${esc(role)}" placeholder="職位" maxlength="12" aria-label="職位">
+    <select aria-label="同學"><option value="">— 同學 —</option>${students().map(s => `<option value="${esc(s)}"${s === k ? ' selected' : ''}>${esc(s)}</option>`).join('')}</select>
+    <button type="button" class="btn" data-act="cadreDel" aria-label="刪除這一列">✕</button></div>`;
+  sheetHandlers.sheetCadres = async (act, b) => {
+    if (act === 'cadreAdd') { $('#cadreRows').insertAdjacentHTML('beforeend', cadreRowHtml()); $('#cadreRows').lastElementChild.querySelector('input').focus(); return; }
+    if (act === 'cadreDel') { b.closest('.cadre-edit').remove(); return; }
+    if (act !== 'cadreSave') return;
+    const pairs = [...document.querySelectorAll('#cadreRows .cadre-edit')].map(r => [r.querySelector('select').value, r.querySelector('input').value.trim()]).filter(p => p[0] && p[1]);
+    if (!await ask(`儲存幹部名單（共 ${pairs.length} 個職位）？\n會寫回試算表。`, '儲存')) return;
+    b.disabled = true; b.textContent = '儲存中…';
+    try {
+      const r = await api('saveCadres', { pairs });
+      applyRoster(r.roster); renderJobs(); closeSheet();
+      toast('✓ 幹部名單已更新');
+    } catch (err) { toast('儲存失敗：' + err.message); b.disabled = false; b.textContent = '儲存'; }
+  };
+
   // ── 幹部名單編輯（同一人可以兼任）──
   async function openCadreEditor() {
-    if (!canRoster()) return;
+    if (!isTeacher()) return;
+    if (cadresFromSheet()) return openSheetCadreEditor();
     if (!students().length) {
       openSheet({ kind: 'cadres' }, sheetHead('修改幹部名單') + '<p class="muted">讀取學生名單中…</p>');
       try { await loadStudents(); } catch (e) { sheetBody.innerHTML = sheetHead('修改幹部名單') + `<p class="lock-msg">無法讀取名單：${esc(e.message)}</p>`; return; }
@@ -1712,8 +1768,8 @@
     const sel = (key, val, grp = 'job') => `<select data-rs="${key}" data-grp="${grp}" data-val="${esc(val || '')}" aria-label="選擇同學"></select>`;
     let h = rosterHead(`名單來源：${esc(studentList.source)}（${students().length} 人）`);
     h += `<p class="muted small" style="margin:0">每選一位同學，他就會從其他選單中移除。</p>`;
-    if (!cadresFromSheet()) h += `<h3>環保股長</h3>`;
-    if (!cadresFromSheet()) D.inspectorSlots.forEach(s => {
+    if (!cadresFromSheet() && isTeacher()) h += `<h3>環保股長</h3>`;
+    if (!cadresFromSheet() && isTeacher()) D.inspectorSlots.forEach(s => {
       h += `<div class="rs-row"><div class="rs-label">${esc(s.label)}</div><div class="rs-selects">${sel(s.id, inspectorName(s.id))}</div></div>`;
     });
     D.jobGroups.forEach(g => {
@@ -1730,7 +1786,7 @@
         }
       });
     });
-    if (D.cadreSlots?.length && !cadresFromSheet()) {
+    if (D.cadreSlots?.length && !cadresFromSheet() && isTeacher()) {
       h += `<h3>幹部（可以登入登記加扣分）</h3><div class="rs-selects two">`;
       // 同一人可以兼任（例如學藝兼節能），所以幹部選單不互相移除
       D.cadreSlots.forEach(s => { h += `<label class="rs-cadre"><span class="rs-label">${esc(s.label)}</span>${sel(s.id, inspectorName(s.id), 'c-' + s.id)}</label>`; });

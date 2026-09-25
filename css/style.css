@@ -105,7 +105,12 @@ body.locked > :not(.lock):not(script):not(.test-banner) { display: none !importa
   .view-toggle .vt-one { padding: 4px 7px; }
   .view-toggle { font-size: 12px; }
 }
-.title .t2:not(:has(.duty-chip:not([hidden]))) { display: none; }
+.duty-row { margin-top: 2px; }
+.duty-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px; }
+.cadre-edit { display: grid; grid-template-columns: 7em 1fr auto; gap: 6px; margin-bottom: 6px; align-items: center; }
+.cadre-edit input, .cadre-edit select { min-width: 0; }
+.duty-row[hidden] { display: none; }
+.duty-row .duty-chip { white-space: normal; line-height: 1.35; }
 .title .t2 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; row-gap: 2px; min-width: 0; }
 .duty-chip { border: 0; background: none; padding: 0; font: inherit; font-size: 12px; font-weight: 700; color: var(--accent); cursor: pointer; white-space: nowrap; text-align: left; }
 .duty-chip.empty { color: var(--muted); font-weight: 600; text-decoration: underline dotted; }
@@ -228,13 +233,13 @@ button.it:active { transform: scale(.97); }
 .it--fb { background: var(--m-fb); }
 .it--tan { background: var(--m-tan); }
 .it--purple { background: var(--m-purple); color: #fff; }
-.it--win { background: var(--m-win); color: #fff; border-color: transparent; }
+.it--win { background: var(--m-win); border-color: transparent; }
 .it--glass { background: var(--m-glass); z-index: 4; }
 .it--door1 { background: var(--m-door1); }
 .it--door2 { background: var(--m-door2); }
 .it--flower { background: var(--m-flower); border-color: #9cc590; }
-.it--sink { background: var(--m-sink); color: #fff; }
-.it--hot { background: var(--m-hot); color: #fff; }
+.it--sink { background: var(--m-sink); }
+.it--hot { background: var(--m-hot); }
 .it--b-paper { background: #a8dc8d; }
 .it--b-gen { background: #b8323f; }
 .it--b-plastic { background: #f6a623; }
@@ -256,7 +261,11 @@ button.it:active { transform: scale(.97); }
 .lbl.v { writing-mode: vertical-rl; text-orientation: upright; letter-spacing: .06em; }
 .lbl.at { position: absolute; transform: translate(-50%, -50%); }
 .it--glass .lbl { font-size: max(8px, calc(var(--u) * 24px)); }
-.it--purple .lbl, .it--sink .lbl, .it--hot .lbl, .it--win .lbl { color: #fff; }
+/* 地圖上的字一律用深色（夜間模式也是，因為地圖底色都是淺的）；只有紫色底用白字 */
+.it, .it .lbl, .binlbl, .collbl { color: #1f2328; }
+/* 垃圾桶名稱可能在教室牆外（夜間模式是深色底）：加白色描邊，兩種底色都看得清楚 */
+.binlbl { text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff; }
+.it--purple, .it--purple .lbl { color: #fff; }
 .it--win .lbl, .it--door1 .lbl, .it--door2 .lbl { font-size: max(8px, calc(var(--u) * 20px)); }
 .it--flower .lbl { color: #3c6b34; }
 .binlbl { display: flex; justify-content: center; pointer-events: none; z-index: 3; }
@@ -620,8 +629,17 @@ body:not([data-tab="seats"]) .swapbar { display: none; }
 .oit.ostrip { background: rgba(139,92,246,.15); }
 
 /* 內掃／外掃切換與外掃檢查 */
-.area-bar { display: flex; justify-content: center; margin: 4px 16px 2px; }
-.area-bar .subsw button { padding: 7px 18px; font-size: 15px; }
+.area-bar { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px 12px; margin: 4px 16px 0; }
+.area-bar .subsw button { padding: 5px 12px; font-size: 14px; }
+/* 省垂直空間：區域切換和圖例放同一行；工具列一行；底下留位置給「匯出報表」按鈕 */
+.area-bar .legend { margin: 0; gap: 8px; font-size: 12px; }
+.area-bar .lg { width: 16px; height: 16px; font-size: 10px; }
+#tab-clean .map-tools { margin: 4px 16px 2px; flex-wrap: nowrap; }
+#tab-clean .zoom button { width: 28px; height: 28px; font-size: 15px; }
+#tab-clean .zoom-val { min-width: 38px; font-size: 12px; }
+#tab-clean .compact-btn { padding: 3px 9px; font-size: 12px; }
+#tab-clean .foot-hint { margin: 6px 16px 0; padding-bottom: 96px; }
+@media (max-width: 420px) { .area-bar .legend li { gap: 2px; } .area-bar .legend { gap: 6px; font-size: 11px; } .area-bar .subsw button { padding: 5px 9px; font-size: 13px; } .area-bar .w { display: none; } }
 .out-map { margin: 4px 16px 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 6px 8px; }
 .oit { position: absolute; padding: 0; border: 0 !important; background: transparent; border-radius: 6px; z-index: 3; cursor: pointer; }
 .oit.ofloor { z-index: 1; }

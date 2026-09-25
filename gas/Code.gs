@@ -62,7 +62,7 @@ const SHEET_OUT = '外掃工作分配';     // 外掃區的工作分配（以這
 const SHEET_SEATS = '座位表';
 const HEAD_SEATS = ['座位', '排', '個', '同學'];
 const SHEET_DUTY = '值日生';           // 班長、副班長每天登記的值日生（兩位）
-const HEAD_DUTY = ['日期', '值日生1', '值日生2', '登記人', '登記時間'];
+const HEAD_DUTY = ['日期', '值日生1', '值日生2', '值日生3', '值日生4', '登記人', '登記時間'];
 const SHEET_CARDS = '道具卡';          // 免費道具卡的發放紀錄（段考前五名）
 const HEAD_CARDS = ['時間', '同學', '卡片', '張數', '來源'];
 const SHEET_DEFSEAT = '預設座位';    // 導師按「把目前座位存成預設」存的（只存座號）
@@ -120,6 +120,7 @@ function doPost(e) {
       case 'getRoster': return json({ ok: true, roster: rosterWithOutdoor() });
       case 'saveRoster':
         if (!who.teacher && !canEditRoster(who.key)) throw new Error('只有導師、班長、副班長、環保股長可以修改工作分配');
+        if (!who.teacher && req.roster) req.roster.inspectors = getRoster().inspectors; // 幹部名單只有導師能改
         return json(saveRoster(req.roster || {}));
       case 'setOutdoorSheet': return json(setOutdoorSheet(req.url));
       case 'getStudents': return json(getStudents());
@@ -138,7 +139,8 @@ function doPost(e) {
       case 'swapSeatCard': return json(swapSeatCard(who, String(req.to || '')));
       case 'createAcc': return json(createAcc(who, req.name, req.price, req.data));
       case 'getDuty': return json({ ok: true, duty: getDuty() });
-      case 'setDuty': return json({ ok: true, duty: setDuty(who, req.a, req.b) });
+      case 'setDuty': return json({ ok: true, duty: setDuty(who, req.list || []) });
+      case 'saveCadres': return json(saveCadres(req.pairs || []));
       case 'buyWeather': return json(buyWeather(who, String(req.kind || ''), String(req.to || '')));
       case 'buyDrawCard': return json(buyDrawCard(who, String(req.kind || ''), String(req.to || '')));
       case 'getDrawFx': return json(Object.assign({ ok: true }, drawFx()));
@@ -402,7 +404,7 @@ function tableOf(values, name) {
   const cRoles = [];
   if (c0 >= 0) for (let i = c0; i < head.length; i++) if (i !== cId && (i === c0 || !head[i] || /職位|幹部/.test(head[i]))) cRoles.push(i);
   return {
-    rows: values.slice(h + 1), name: name,
+    rows: values.slice(h + 1), name: name, headRow: h + 1, head: head,
     cDept: col(/^科別$/), cNo: col(/^座號$/), cName: col(/^姓名$/),
     cRank: col(/^(班排名|名次|排名|班級名次)$/), cId: cId, cRoles: cRoles,
   };
@@ -410,6 +412,34 @@ function tableOf(values, name) {
 /** 班長、副班長、環保股長（衛生股長）可以修改工作分配 */
 function canEditRoster(key) {
   return cadreRoles(key).some(r => /^(副?班長|環保|衛生)/.test(String(r).trim()));
+}
+/** 導師在 App 裡修改幹部名單：pairs＝[[同學, 職位], …]，寫回「學生/幹部名單」的職位欄（身分證字號等其他欄位不動） */
+function saveCadres(pairs) {
+  const sh = rosterSheet();
+  if (!sh) throw new Error('找不到「' + CONFIG.ROSTER_SHEET + '」工作表');
+  return withLock(() => {
+    const t = tableOf(sh.getDataRange().getDisplayValues(), sh.getName());
+    const roles = {};
+    pairs.forEach(p => { const k = String(p[0] || '').trim(), r = String(p[1] || '').trim(); if (k && r) (roles[k] = roles[k] || []).push(r); });
+    let cols = t.cRoles.slice();
+    if (!cols.length) { // 還沒有職位欄：在最右邊加一欄
+      const c = sh.getLastColumn() + 1;
+      sh.getRange(t.headRow, c).setValue('職位').setFontWeight('bold');
+      cols = [c - 1];
+    }
+    const n = t.rows.length;
+    if (!n) return { ok: true, roster: rosterWithOutdoor() };
+    const vals = cols.map(() => []);
+    t.rows.forEach(r => {
+      const p = personOf(t, r), list = p.name ? roles[p.key] || [] : null;
+      cols.forEach((c, j) => {
+        if (!list) { vals[j].push([r[c] || '']); return; }        // 不是學生的列：原封不動
+        vals[j].push([j < cols.length - 1 ? list[j] || '' : list.slice(j).join('、')]); // 職位太多就寫在最後一欄
+      });
+    });
+    cols.forEach((c, j) => sh.getRange(t.headRow + 1, c + 1, n, 1).setValues(vals[j]));
+    return { ok: true, roster: rosterWithOutdoor() };
+  });
 }
 /** 名單工作表：CONFIG.ROSTER_SHEET，找不到就試常見的名稱（改過分頁名稱也讀得到） */
 function rosterSheet() {
@@ -429,7 +459,7 @@ function cadreMap() {
   const t = rosterTable(), out = {};
   t.rows.forEach(r => {
     const p = personOf(t, r);
-    const roles = t.cRoles.map(i => String(r[i] || '').trim()).filter(Boolean);
+    const roles = [].concat.apply([], t.cRoles.map(i => String(r[i] || '').split(/[、,，]/))).map(x => x.trim()).filter(Boolean);
     if (p.name && roles.length) out[p.key] = roles;
   });
   return out;
@@ -928,32 +958,42 @@ function minusOf(key) {
   return m;
 }
 // ── 值日生：班長、副班長（或導師）每天登記兩位 ──
+// 每天 4 位：資料科 2 位、多媒科 2 位（各科最多 2 位）
+function dutySheet() {
+  const sh = getSheet(SHEET_DUTY, HEAD_DUTY);
+  if (String(sh.getRange(1, 4).getValue()) !== HEAD_DUTY[3]) sh.getRange(1, 1, 1, HEAD_DUTY.length).setValues([HEAD_DUTY]).setFontWeight('bold'); // 舊版只有 2 位
+  return sh;
+}
 function getDuty() {
   const sh = getSS().getSheetByName(SHEET_DUTY);
   const today = ymd(new Date());
-  if (!sh || sh.getLastRow() < 2) return { date: today, a: '', b: '' };
-  const rows = sh.getRange(2, 1, sh.getLastRow() - 1, 4).getValues();
+  if (!sh || sh.getLastRow() < 2 || String(sh.getRange(1, 4).getValue()) !== HEAD_DUTY[3]) return { date: today, list: [] };
+  const rows = sh.getRange(2, 1, sh.getLastRow() - 1, 6).getValues();
   for (let i = rows.length - 1; i >= 0; i--) {
     const r = rows[i], d = r[0] instanceof Date ? ymd(r[0]) : String(r[0]);
-    if (d === today) return { date: today, a: String(r[1]), b: String(r[2]), by: String(r[3]) };
+    if (d === today) return { date: today, list: r.slice(1, 5).map(String).filter(Boolean), by: String(r[5]) };
   }
-  return { date: today, a: '', b: '' };
+  return { date: today, list: [] };
 }
-function setDuty(who, a, b) {
+function setDuty(who, list) {
   if (!who.teacher && !cadreRoles(who.key).some(r => /^副?班長$/.test(String(r).trim()))) throw new Error('只有班長、副班長可以登記值日生');
-  const list = getStudents().students;
-  a = String(a || ''); b = String(b || '');
-  if (list.indexOf(a) < 0 || list.indexOf(b) < 0) throw new Error('請選擇兩位同學');
-  if (a === b) throw new Error('兩位值日生不能是同一個人');
+  const all = getStudents().students;
+  list = (Array.isArray(list) ? list : []).map(String).filter(Boolean);
+  if (!list.length || list.length > 4) throw new Error('請選擇值日生（最多 4 位）');
+  if (list.some(k => all.indexOf(k) < 0)) throw new Error('名單裡找不到這位同學');
+  if (new Set(list).size !== list.length) throw new Error('同一個人不能選兩次');
+  const per = {};
+  list.forEach(k => { const d = (k.match(/^\D*/) || [''])[0]; per[d] = (per[d] || 0) + 1; });
+  if (Object.keys(per).some(d => per[d] > 2)) throw new Error('每一科最多 2 位值日生');
   withLock(() => {
-    const sh = getSheet(SHEET_DUTY, HEAD_DUTY);
+    const sh = dutySheet();
     const today = ymd(new Date());
-    const vals = [[today, a, b, who.key, new Date()]];
+    const vals = [[today].concat([0, 1, 2, 3].map(i => list[i] || '')).concat([who.key, new Date()])];
     // 今天已經登記過就改那一列
     const n = sh.getLastRow() - 1;
     const i = n > 0 ? sh.getRange(2, 1, n, 1).getValues().findIndex(r => (r[0] instanceof Date ? ymd(r[0]) : String(r[0])) === today) : -1;
     const row = i >= 0 ? i + 2 : sh.getLastRow() + 1;
-    sh.getRange(row, 1, 1, 5).setValues(vals);
+    sh.getRange(row, 1, 1, HEAD_DUTY.length).setValues(vals);
     sh.getRange(row, 1).setNumberFormat('yyyy/mm/dd');
   });
   return getDuty();
