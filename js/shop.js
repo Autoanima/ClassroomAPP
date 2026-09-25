@@ -345,22 +345,28 @@
         let by = cy - r.height / 2 - bh - 14;                       // 預設在座位上方
         if (by < top) by = cy + r.height / 2 + 14;                   // 上面放不下就放下面
         by = Math.max(top, Math.min(innerHeight - bh - 8, by));
-        let t = 0;
+        // 文字「誰送給誰」顯示 3 秒；煙火延遲 0.5 秒才開始放
+        const LABEL_MS = 3000, FX_DELAY = 500, t0 = performance.now();
+        let t = 0; // 煙火已經放了幾格
         const step = () => {
+          const e = performance.now() - t0;
           g.clearRect(0, 0, innerWidth, innerHeight);
-          parts.forEach(p => {
-            if (t < p.delay || t > p.delay + p.life) return;
-            p.x += p.vx; p.y += p.vy; p.vy += 0.06; p.vx *= 0.985; p.vy *= 0.985;
-            g.globalAlpha = Math.max(0, 1 - (t - p.delay) / p.life);
-            g.fillStyle = p.c;
-            g.beginPath(); g.arc(p.x, p.y, 2.6, 0, Math.PI * 2); g.fill();
-          });
-          g.globalAlpha = Math.min(1, t / 10) * (t > 110 ? Math.max(0, 1 - (t - 110) / 20) : 1);
+          if (e >= FX_DELAY) {
+            parts.forEach(p => {
+              if (t < p.delay || t > p.delay + p.life) return;
+              p.x += p.vx; p.y += p.vy; p.vy += 0.06; p.vx *= 0.985; p.vy *= 0.985;
+              g.globalAlpha = Math.max(0, 1 - (t - p.delay) / p.life);
+              g.fillStyle = p.c;
+              g.beginPath(); g.arc(p.x, p.y, 2.6, 0, Math.PI * 2); g.fill();
+            });
+            t++;
+          }
+          g.globalAlpha = Math.min(1, e / 150) * Math.max(0, Math.min(1, (LABEL_MS - e) / 250));
           g.font = `700 ${fs}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
           g.fillStyle = 'rgba(25,25,35,.88)';
           g.beginPath(); g.roundRect ? g.roundRect(bx, by, bw, bh, 8) : g.rect(bx, by, bw, bh); g.fill();
           g.fillStyle = '#fff'; g.fillText(label, bx + bw / 2, by + bh / 2, bw - 12);
-          if (++t < 130) requestAnimationFrame(step); else { cv.hidden = true; done(); }
+          if (e < LABEL_MS || t < 130) requestAnimationFrame(step); else { cv.hidden = true; done(); }
         };
         step();
       }, 350);
