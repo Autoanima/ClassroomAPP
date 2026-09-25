@@ -140,7 +140,7 @@
           <div class="field"><label for="mkName">商品名稱</label><input type="text" id="mkName" maxlength="12" placeholder="例如：星星髮夾"></div>
           <div class="field"><label for="mkPrice">售價（點）</label><input type="number" id="mkPrice" min="1" max="100" inputmode="numeric" value="${S.createPrice || 20}"></div>
         </div></div>
-      <p class="muted small" id="mkInfo">圖片會自動縮小到 256 像素以內。同學買了之後，點數會加到你的帳戶（每人每天最多 3 個）。</p>
+      <p class="muted small" id="mkInfo">建議尺寸：<b>正方形 256×256 像素</b>、去背（透明背景）的 PNG，圖案盡量填滿畫面、四周不要留太多空白。比較大的圖會自動縮小到 256 像素以內；不是正方形也可以，會等比例放進正方形裡。同學買了之後，點數會加到你的帳戶（每人每天最多 3 個）。</p>
       <div class="actions"><button type="button" class="btn btn--primary wide" data-act="mkOk">🎨 上架</button></div>`;
     A.openSheet({ kind: 'create' }, h);
   }
