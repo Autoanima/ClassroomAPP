@@ -1094,3 +1094,7 @@ body.locked.test-mode .test-banner { position: fixed; left: 0; right: 0; }
 .pk-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .pk-foot .btn { padding: 4px 12px; font-size: 13px; }
 @media (max-width: 420px) { .fund-grid { grid-template-columns: 1fr; } .pack-new { grid-template-columns: 1fr auto; } .pack-new .btn { grid-column: 1 / -1; } }
+
+/* 商店最上面：重新整理 */
+.shop-top { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin: 8px 16px 0; }
+.shop-refresh { padding: 5px 14px; font-size: 13px; }

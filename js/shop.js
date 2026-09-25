@@ -6,6 +6,7 @@
   const K = { inv: 'indoor.shopinv.v1.test', deco: 'indoor.shopdeco.v1.test', spend: 'indoor.shopspend.v1.test', seenFx: 'indoor.fxseen.v1' + A.SFX };
   let S = null;          // 雲端回傳的商店狀態
   let loading = false;
+  let loadedAt = 0;      // 上次從雲端讀取的時間
 
   const code = k => A.parseKey(k).code;
   const accImgStyle = id => `background-image:url('${A.accUrl(id)}')`;
@@ -25,6 +26,7 @@
       const [r] = await Promise.all([A.api('shopState'), A.builtinCatalog()]);
       S = r;
       if (S.catalog.some(a => a.id.startsWith('d:') && !A.accUrl(a.id))) await A.loadAccImages().catch(() => {});
+      loadedAt = Date.now();
     } catch (e) { toast('商店讀取失敗：' + e.message); }
     loading = false;
     render();
@@ -37,7 +39,10 @@
     const coinTxt = S.unlimited ? '∞' : S.coins;
     const active = S.inv.filter(x => !x.expired);
     const used = new Set((S.deco || []).map(l => l.inv));
-    let h = (S.stolen || []).map(x => `<div class="banner warn"><div class="bn-sub">⚠ 你的「${esc(x.name)}」被 ${esc(x.thief)} 用竊盜卡奪走了（${esc(x.time)}）</div></div>`).join('');
+    // 最上面：重新整理（同學剛上架的商品、剛收到的點數，按一下就看得到）
+    let h = `<div class="shop-top"><span class="muted small">${loadedAt ? `更新於 ${A.fmtTime(new Date(loadedAt))}` : ''}</span>
+      <button type="button" class="btn shop-refresh" data-s="refresh"${loading ? ' disabled' : ''}>${loading ? '讀取中…' : '🔄 重新整理'}</button></div>`;
+    h += (S.stolen || []).map(x => `<div class="banner warn"><div class="bn-sub">⚠ 你的「${esc(x.name)}」被 ${esc(x.thief)} 用竊盜卡奪走了（${esc(x.time)}）</div></div>`).join('');
     const banned = S.swapBan != null && S.minus > S.swapBan;
     if (S.freeSwap) h += `<div class="banner ok"><div class="bn-main">🎉 段考前五名獎勵：你有 ${S.freeSwap} 張免費的交換位置卡</div><div class="bn-sub">${esc((S.rankCards || []).map(x => x.from).join('、'))}｜使用時不會扣點數</div></div>`;
     h += (S.swapped || []).map(x => `<div class="banner warn"><div class="bn-sub">🔀 ${esc(x.by)} 用交換位置卡和你對調了座位（${esc(x.time)}）</div></div>`).join('');
@@ -129,6 +134,13 @@
     const b = e.target.closest('[data-s]');
     if (!b || b.disabled) return;
     const act = b.dataset.s;
+    if (act === 'refresh') {
+      b.disabled = true; b.textContent = '讀取中…';
+      await Promise.all([load(), A.loadAccImages?.().catch(() => {})]);
+      A.ensureFaces?.(true); // 大家的大頭照裝飾也一起更新
+      toast('✓ 已更新');
+      return;
+    }
     if (act === 'buy') {
       const a = S.catalog.find(x => x.id === b.dataset.acc);
       if (!await A.ask(`用 ${a.price} 點買「${a.name}」？\n買了之後有效 10 個上課日。`, '購買')) return;
