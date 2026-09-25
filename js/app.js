@@ -1150,7 +1150,7 @@
   function paintDuty() {
     const b = $('#dutyChip');
     const has = hasDuty();
-    $('.duty-row').hidden = !has && !canDuty();
+    b.hidden = !has && !canDuty();
     if (has) {
       const by = {};
       duty.list.forEach(k => { (by[deptOf(k)] ||= []).push(shortName(k)); });
@@ -1857,7 +1857,7 @@
   };
 
   // ── 自動更新：切回 App 或每 10 分鐘檢查 GitHub 上的檔案有沒有變 ──
-  const WATCH = ['index.html', 'sw.js','config.js', 'js/map-data.js', 'js/sel-engine.js', 'js/app.js', 'js/seats.js', 'js/points.js', 'js/draw.js', 'js/shop.js', 'js/line.js', 'css/style.css'];
+  const WATCH = ['index.html', 'sw.js','config.js', 'js/map-data.js', 'js/sel-engine.js', 'js/app.js', 'js/seats.js', 'js/points.js', 'js/draw.js', 'js/shop.js', 'js/line.js', 'js/board.js', 'css/style.css'];
   async function fingerprint() {
     try {
       const tags = await Promise.all(WATCH.map(async u => {

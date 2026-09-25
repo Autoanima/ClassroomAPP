@@ -66,7 +66,7 @@
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.7 7.7 0 0 0 0-2l2-1.6a.5.5 0 0 0 .1-.6l-1.9-3.3a.5.5 0 0 0-.6-.2l-2.4 1a7.3 7.3 0 0 0-1.7-1l-.4-2.6a.5.5 0 0 0-.5-.4h-3.8a.5.5 0 0 0-.5.4l-.4 2.6a7.3 7.3 0 0 0-1.7 1l-2.4-1a.5.5 0 0 0-.6.2L2.5 8.8a.5.5 0 0 0 .1.6l2 1.6a7.7 7.7 0 0 0 0 2l-2 1.6a.5.5 0 0 0-.1.6l1.9 3.3c.1.2.4.3.6.2l2.4-1c.5.4 1.1.7 1.7 1l.4 2.6c0 .2.2.4.5.4h3.8c.3 0 .5-.2.5-.4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.4 1c.2.1.5 0 .6-.2l1.9-3.3a.5.5 0 0 0-.1-.6zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>
       </button>
     </div>
-    <div class="topbar-row duty-row" hidden><button id="dutyChip" class="duty-chip" type="button"></button></div>
+    <div class="topbar-row duty-row"><button id="dutyChip" class="duty-chip" type="button" hidden></button><button id="boardBtn" class="board-btn" type="button" hidden>📌 公布欄</button></div>
     <div class="topbar-row stats">
       <span id="progress" class="progress clean-only"></span>
       <button id="issueChip" class="chip chip--issue clean-only" type="button" hidden></button>
@@ -173,7 +173,7 @@
   <input id="faceInput" type="file" accept="image/*" hidden>
 
   <script>
-    ['config.js', 'js/map-data.js', 'js/sel-engine.js', 'js/app.js', 'js/seats.js', 'js/points.js', 'js/draw.js', 'js/shop.js', 'js/line.js'].forEach(function (s) {
+    ['config.js', 'js/map-data.js', 'js/sel-engine.js', 'js/app.js', 'js/seats.js', 'js/points.js', 'js/draw.js', 'js/shop.js', 'js/line.js', 'js/board.js'].forEach(function (s) {
       document.write('<script src="' + s + '?v=' + __V + '"><\/script>');
     });
     document.write('<script>App.boot();<\/script>');

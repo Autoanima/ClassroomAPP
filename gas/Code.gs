@@ -63,6 +63,9 @@ const SHEET_SEATS = '座位表';
 const HEAD_SEATS = ['座位', '排', '個', '同學'];
 const SHEET_DUTY = '值日生';           // 班長、副班長每天登記的值日生（兩位）
 const HEAD_DUTY = ['日期', '值日生1', '值日生2', '值日生3', '值日生4', '登記人', '登記時間'];
+const SHEET_BOARD = '公布欄';          // 導師、幹部的留言（例如作業）；刪除只做標記，紀錄保留
+const HEAD_BOARD = ['時間', '內容', '發布人', '編號', '狀態'];
+const BOARD_DAYS = 14;
 const SHEET_CARDS = '道具卡';          // 免費道具卡的發放紀錄（段考前五名）
 const HEAD_CARDS = ['時間', '同學', '卡片', '張數', '來源'];
 const SHEET_DEFSEAT = '預設座位';    // 導師按「把目前座位存成預設」存的（只存座號）
@@ -81,11 +84,11 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
-const GUEST_OK = { ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
+const GUEST_OK = { getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1 };
 
 function doGet() {
@@ -138,6 +141,9 @@ function doPost(e) {
       case 'buyFirework': return json(buyFirework(who, String(req.to || '')));
       case 'swapSeatCard': return json(swapSeatCard(who, String(req.to || '')));
       case 'createAcc': return json(createAcc(who, req.name, req.price, req.data));
+      case 'getBoard': return json({ ok: true, posts: getBoard() });
+      case 'addPost': return json({ ok: true, posts: addPost(who, req.text) });
+      case 'delPost': return json({ ok: true, posts: delPost(who, String(req.id || '')) });
       case 'getDuty': return json({ ok: true, duty: getDuty() });
       case 'setDuty': return json({ ok: true, duty: setDuty(who, req.list || []) });
       case 'saveCadres': return json(saveCadres(req.pairs || []));
@@ -958,6 +964,39 @@ function minusOf(key) {
   return m;
 }
 // ── 值日生：班長、副班長（或導師）每天登記兩位 ──
+// ── 公布欄：導師、幹部留言；大家打開 App 會先看到 ──
+function getBoard() {
+  const sh = getSS().getSheetByName(SHEET_BOARD);
+  if (!sh || sh.getLastRow() < 2) return [];
+  const since = Date.now() - BOARD_DAYS * 86400e3;
+  return sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_BOARD.length).getValues()
+    .filter(r => r[0] instanceof Date && r[0].getTime() >= since && !String(r[4]) && String(r[1]).trim())
+    .map(r => ({ id: String(r[3]), t: r[0].getTime(), date: ymd(r[0]), time: Utilities.formatDate(r[0], CONFIG.TIMEZONE, 'yyyy/MM/dd HH:mm'), text: String(r[1]), by: String(r[2]) }))
+    .sort((a, b) => b.t - a.t);
+}
+function addPost(who, text) {
+  text = String(text || '').trim().slice(0, 300);
+  if (!text) throw new Error('請寫下要公布的內容');
+  withLock(() => {
+    const sh = getSheet(SHEET_BOARD, HEAD_BOARD);
+    sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_BOARD.length).setValues([[new Date(), text, who.teacher ? CONFIG.TEACHER_NAME : who.key, Utilities.getUuid().slice(0, 8), '']]);
+  });
+  return getBoard();
+}
+/** 刪除：只標記「已刪除」，紀錄留在試算表；只能刪自己的（導師可以刪全部） */
+function delPost(who, id) {
+  withLock(() => {
+    const sh = getSheet(SHEET_BOARD, HEAD_BOARD);
+    const n = sh.getLastRow() - 1;
+    if (n < 1) return;
+    const vals = sh.getRange(2, 1, n, HEAD_BOARD.length).getValues();
+    const i = vals.findIndex(r => String(r[3]) === id);
+    if (i < 0) throw new Error('找不到這則留言');
+    if (!who.teacher && String(vals[i][2]) !== who.key) throw new Error('只能刪除自己發布的留言');
+    sh.getRange(i + 2, 5).setValue('已刪除 ' + Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'MM/dd HH:mm') + '（' + (who.teacher ? CONFIG.TEACHER_NAME : who.key) + '）');
+  });
+  return getBoard();
+}
 // 每天 4 位：資料科 2 位、多媒科 2 位（各科最多 2 位）
 function dutySheet() {
   const sh = getSheet(SHEET_DUTY, HEAD_DUTY);
