@@ -259,7 +259,8 @@
         <details class="field"><summary><b>📁 大頭照資料夾</b></summary>
           <p class="small">貼上 Google 雲端硬碟資料夾的連結。照片檔名用「組別座號姓名」，例如 <code>料 24 王小明.jpg</code>、<code>多 11 陳小華.jpg</code>，會自動放到對應同學的座位。</p>
           <input type="url" id="faceUrl" placeholder="https://drive.google.com/drive/folders/…" autocomplete="off">
-          <div class="actions"><button type="button" class="btn btn--primary wide" data-sa="faceFolder">連結並讀取大頭照</button></div>
+          <div class="actions"><button type="button" class="btn btn--primary wide" data-sa="faceFolder">連結並讀取大頭照</button>
+            <button type="button" class="btn wide" data-sa="faceCheck">🔍 檢查大頭照（重新從雲端讀取）</button></div>
           <p id="faceMsg" class="small muted">目前有照片的同學：${list.filter(k => faces[parseKey(k).code]).length} / ${list.length} 人</p>
         </details>`;
     }
@@ -324,6 +325,16 @@
       if (k && seatById[`${col}-${i + 1}`]) out[`${col}-${i + 1}`] = k;
     }));
     return out;
+  }
+  // 還沒有座位的同學，如果他的預設座位是空的，就自動放回去（例如座號改過：羅偲倚改為多08）
+  function healChart() {
+    if (!A.students().length || !Object.keys(chart).length) return false;
+    const seated = new Set(Object.values(chart));
+    const def = defaultChart();
+    let n = 0;
+    Object.entries(def).forEach(([id, k]) => { if (!chart[id] && !seated.has(k)) { chart[id] = k; seated.add(k); n++; } });
+    if (n) saveChart(true);
+    return n > 0;
   }
   async function applyDefault(ask) {
     // 先抓最新的名單（座號可能改過，例如羅偲倚改為多08），抓不到才用手機上的
@@ -570,6 +581,26 @@
       if (!await A.ask('還原成備份的座位表？目前的座位表會被取代。', '還原')) return;
       chart = store.get(K.backup, {}); store.del(K.backup);
       saveChart(); return;
+    }
+    if (act === 'faceCheck') {
+      const msg = $('#faceMsg');
+      b.disabled = true; msg.textContent = '從雲端重新讀取大頭照中，可能需要 10–30 秒…';
+      try {
+        faces = {}; // 全部重新下載
+        const r = await A.api('getFaces', { have: {} });
+        const got = Object.keys(r.faces || {}).length, files = (r.codes || []).length;
+        Object.entries(r.faces || {}).forEach(([c, f]) => { faces[c] = f; });
+        saveFaces();
+        facesLoaded = Date.now();
+        const list = A.students();
+        const missing = list.filter(k => !faces[parseKey(k).code]);
+        renderAll();
+        $('#faceMsg').textContent = `雲端找到 ${files} 位同學的照片，下載了 ${got} 張。`
+          + (missing.length ? `還沒有照片：${missing.join('、')}` : '全班都有照片了 🎉')
+          + (files && !got ? '（照片可能太大或讀取失敗）' : '');
+      } catch (err) { msg.textContent = '✕ 讀取失敗：' + err.message; }
+      b.disabled = false;
+      return;
     }
     if (act === 'faceFolder') {
       const url = $('#faceUrl').value.trim();
@@ -893,6 +924,8 @@
       if (A.isTeacher() && !Object.keys(chart).length && !store.get(K.defaulted, false) && !live?.started) {
         await applyDefault(false);
         toast('已套用預設座位');
+      } else if (A.isTeacher() && !live?.started && healChart()) {
+        toast('已把還沒有座位的同學放回預設座位');
       } else if (res.some(Boolean)) renderAll();
     } catch (err) { toast('座位資料讀取失敗：' + err.message); }
     schedulePoll();
