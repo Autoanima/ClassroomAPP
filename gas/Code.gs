@@ -1451,7 +1451,7 @@ function fileCode(fileName, byName) {
   return faceCode(base) || byName[base.replace(/\s+/g, '')] || '';
 }
 function getFaces(have) {
-  const latest = {}, byName = faceNameMap();
+  const latest = {}, byName = faceNameMap(), unmatched = [];
   // 連結的資料夾＋網頁上傳的「大頭照」資料夾；同一位同學有好幾張時用最新的
   const folders = [linkedFaceFolder(), getFaceFolder()].filter(Boolean);
   folders.filter((f, i) => folders.findIndex(g => g.getId() === f.getId()) === i).forEach(folder => { // 同一個資料夾只讀一次
@@ -1460,10 +1460,12 @@ function getFaces(have) {
       const f = it.next();
       if (!/^image\//.test(f.getMimeType())) continue;
       const code = fileCode(f.getName(), byName);
-      if (!code) continue;
+      if (!code) { unmatched.push(f); continue; }
       if (!latest[code] || f.getLastUpdated() > latest[code].getLastUpdated()) latest[code] = f;
     }
   });
+  // 導師的大頭照：沒有設定 TEACHER_PHOTO（或檔名對不上）時，資料夾裡唯一一張對不到同學的照片就當成導師的
+  if (!latest.T00 && unmatched.length === 1) latest.T00 = unmatched[0];
   const faces = {};
   Object.keys(latest).forEach(code => {
     const f = latest[code], t = f.getLastUpdated().getTime();
