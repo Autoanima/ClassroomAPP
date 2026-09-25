@@ -82,9 +82,10 @@
   // role：staff＝導師（統一密碼）／cadre＝幹部（自己的身分證字號）／student＝學生（身分證字號，只能選位）
   const isStudent = () => settings.role === 'student';
   const isCadre = () => settings.role === 'cadre';
+  const isGuest = () => settings.role === 'guest'; // 任課老師：只能抽籤、看座位表
   const isStaff = () => settings.role === 'staff' || isCadre();
   const isTeacher = () => settings.role === 'staff';
-  const usesSid = () => isStudent() || isCadre();
+  const usesSid = () => isStudent() || isCadre() || isGuest();
 
   let roster = store.get(LS.roster, null);
   const emptyState = () => ({ sessionId: null, startedAt: null, records: {} });
@@ -537,7 +538,7 @@
   // ── 分頁 ──
   const TABS = ['clean', 'points', 'seats', 'draw', 'shop', 'line', 'jobs'];
   const tabHooks = {};
-  const allowedTabs = () => (isStudent() ? ['seats', 'shop', 'line', 'jobs']
+  const allowedTabs = () => (isGuest() ? ['draw', 'seats'] : isStudent() ? ['seats', 'shop', 'line', 'jobs']
     : TABS.filter(t => (t === 'clean' ? isChecker() : t === 'points' ? canPoints() : true)));
   function showTab(name) {
     if (!allowedTabs().includes(name)) name = allowedTabs()[0];
@@ -1869,6 +1870,7 @@
   function start() {
     document.body.classList.remove('locked');
     document.body.classList.toggle('role-student', isStudent());
+    document.body.classList.toggle('role-guest', isGuest());
     document.body.classList.toggle('role-teacher', isTeacher());
     paintDefog();
     setTimeout(loadDuty, 300);
@@ -1901,7 +1903,12 @@
     document.querySelectorAll('.lock-tabs button').forEach(b => b.setAttribute('aria-pressed', b.dataset.lk === m));
     $('#lockMsg').textContent = '';
     $('#stepId').hidden = m !== 'student';
-    if (m === 'student') {
+    $('#stepGuest').hidden = m !== 'guest';
+    if (m === 'guest') {
+      $('#stepPw').hidden = true; $('#stepWho').hidden = true;
+      $('#lockBtn').textContent = '任課老師登入';
+      $('#lockTitle').textContent = '任課老師';
+    } else if (m === 'student') {
       $('#stepPw').hidden = true; $('#stepWho').hidden = true;
       $('#lockBtn').textContent = '登入選位';
       $('#lockTitle').textContent = '座位選位';
@@ -1941,6 +1948,22 @@
     if (lockMode === 'staff' && !$('#stepWho').hidden) {
       setUser($('#whoSel').value);
       start();
+      return;
+    }
+    if (lockMode === 'guest') {
+      btn.disabled = true; btn.textContent = '登入中…';
+      try {
+        const r = TEST ? { sid: 'test', className: '商一甲' } : await api('guestLogin', { code: normInput($('#guestCode').value) });
+        Object.assign(settings, { role: 'guest', sid: r.sid, me: '', token: '', inspector: '任課老師' });
+        saveSettings();
+        ui.tab = 'draw'; saveUi();
+        start();
+        syncRoster();
+      } catch (err) {
+        if (err.code === 'guestcode' || /登入碼/.test(err.message)) { $('#guestCode').hidden = false; $('#guestCode').focus(); }
+        lockError(err.message);
+      }
+      btn.disabled = false; btn.textContent = '任課老師登入';
       return;
     }
     if (lockMode === 'student') {
@@ -2020,7 +2043,7 @@
   const App = window.App = {
     D, TEST, SFX, $, esc, pad2, toast, ask, store, api, copyText, fmtDate, fmtTime, fmtDateW,
     loadImage, drawTo, toBlob, blobToBase64,
-    isStudent, isStaff, isTeacher, isChecker, jobsOf, roster: () => roster, me: () => settings.me, userName: () => settings.inspector,
+    isStudent, isStaff, isTeacher, isGuest, isChecker, jobsOf, roster: () => roster, me: () => settings.me, userName: () => settings.inspector,
     students, loadStudents, studentList: () => studentList, className: () => className() || studentList?.className || '',
     DEMO_STUDENTS,
     mountMap, renderMap, sizeMap, maps, flipOn,
@@ -2040,7 +2063,7 @@
     paintView();
     let msg = '';
     try { msg = sessionStorage.getItem('indoor.relogin') || ''; sessionStorage.removeItem('indoor.relogin'); } catch { /* ignore */ }
-    if (isStudent() && settings.sid && settings.me) {
+    if ((isStudent() && settings.sid && settings.me) || (isGuest() && settings.sid)) {
       if (roster) applyRoster(roster);
       start();
       syncRoster();

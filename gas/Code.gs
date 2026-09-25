@@ -29,6 +29,7 @@ const CONFIG = {
   TIMEZONE: 'Asia/Taipei',
   SESSION_DAYS: 30,                    // 學生、幹部登入後幾天內有效（試算表選單「內掃檢查 → 讓所有人重新登入」可以提早全部失效）
   TEACHER_NAME: '導師',
+  GUEST_CODE: '',                      // 任課老師登入碼（留空＝在登入畫面直接按「任課老師登入」就能進入；只能用抽籤、看座位表）
   TEACHER_PHOTO: '',                   // 導師大頭照的檔名（不含 .png），放在大頭照資料夾；只有在座位表點「講桌／講台」時才會顯示
   OUTDOOR_SHEET_ID: '',                // 舊的「外掃區檢查」App 試算表 ID：只用來第一次匯入外掃工作分配，以及選單「同步到外掃 App」
   BUTTON_IMAGE: 'https://autoanima.github.io/outdoor-cleaning-map/assets/sum-button.png',
@@ -84,6 +85,8 @@ const SHOP_OK = { shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1
 const STUDENT_OK = Object.assign({ getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
 const CADRE_OK = Object.assign({ getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+// 任課老師（不用密碼）：只能抽籤、看座位表
+const GUEST_OK = { ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1 };
 
 function doGet() {
@@ -97,15 +100,16 @@ function doPost(e) {
     const req = JSON.parse(e.postData.contents);
     if (req.action === 'stuLogin') return json(stuLogin(req.idno));
     if (req.action === 'staffLogin') return json(staffLogin(req.pw));
+    if (req.action === 'guestLogin') return json(guestLogin(req.code));
     // who：{ teacher } 或 { key, role: 'S'學生 / 'C'幹部 }
     let who;
     if (req.sid) {
       const v = readSession(String(req.sid));
       if (!v) return json({ ok: false, error: '登入已過期，請重新登入', code: 'session' });
-      const m = v.match(/^([SC])\|(.*)$/);
+      const m = v.match(/^([SCG])\|(.*)$/);
       who = m ? { role: m[1], key: m[2] } : { role: 'S', key: v };
-      const ok = who.role === 'C'
-        ? CADRE_OK[req.action] || (CHECKER_OK[req.action] && isInspector(who.key))
+      const ok = who.role === 'G' ? GUEST_OK[req.action]
+        : who.role === 'C' ? CADRE_OK[req.action] || (CHECKER_OK[req.action] && isInspector(who.key))
         : STUDENT_OK[req.action];
       if (!ok) return json({ ok: false, error: '沒有權限' });
     } else {
@@ -520,9 +524,16 @@ function readSession(sid) {
     payload = Utilities.newBlob(Utilities.base64DecodeWebSafe(b + '==='.slice((b.length + 3) % 4))).getDataAsString('UTF-8');
   } catch (e) { return ''; }
   if (signSession(payload) !== sid.slice(i + 1)) return '';
-  const m = payload.match(/^([SC])\|(.*)\|(\d+)$/);
+  const m = payload.match(/^([SCG])\|(.*)\|(\d+)$/);
   if (!m || Date.now() > Number(m[3])) return '';
   return m[1] + '|' + m[2];
+}
+/** 任課老師登入：不用密碼（或輸入 GUEST_CODE），只能抽籤、看座位表 */
+function guestLogin(code) {
+  if (CONFIG.GUEST_CODE && normPw(code) !== normPw(CONFIG.GUEST_CODE)) {
+    return { ok: false, error: code ? '登入碼錯誤' : '請輸入任課老師登入碼', code: 'guestcode' };
+  }
+  return { ok: true, sid: newSession('G', '任課老師'), className: CONFIG.CLASS_NAME };
 }
 /** 試算表選單：讓所有學生、幹部重新登入（例如有人手機遺失） */
 function resetSessions() {

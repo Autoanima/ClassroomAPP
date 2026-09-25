@@ -159,7 +159,8 @@
       h += sub === 'swap' ? swapBanner() : studentBanner();
     } else {
       if (sub === 'live' && !A.isTeacher()) sub = 'chart';
-      h += `<div class="subsw" role="tablist">
+      if (A.isGuest()) sub = 'chart'; // 任課老師：只看座位表
+      if (!A.isGuest()) h += `<div class="subsw" role="tablist">
         <button type="button" data-sub="chart" aria-selected="${sub === 'chart'}">📋 座位表</button>
         ${A.isTeacher() ? `<button type="button" data-sub="live" aria-selected="${sub === 'live'}">🎯 現場選位${live?.started && live.idx < live.order.length ? '<span class="live-dot"></span>' : ''}</button>` : ''}
         <button type="button" data-sub="sel" aria-selected="${sub === 'sel'}">🗳 線上選位${selLive() ? '<span class="live-dot" title="選位進行中"></span>' : ''}</button>

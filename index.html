@@ -24,9 +24,11 @@
       <div class="lock-tabs" role="group" aria-label="登入身分">
         <button type="button" data-lk="staff" aria-pressed="true">老師／幹部</button>
         <button type="button" data-lk="student" aria-pressed="false">學生選位</button>
+        <button type="button" data-lk="guest" aria-pressed="false">任課老師</button>
       </div>
       <div id="stepPw">
         <p class="muted">導師：輸入密碼<br>幹部：輸入自己的身分證字號</p>
+        <p class="muted small">想先試試看？輸入 <b>test</b>（不分大小寫）進入測試模式：姓名會遮住，資料不會送出。</p>
         <input id="lockPw" type="password" aria-label="密碼或身分證字號" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" maxlength="30">
       </div>
       <div id="stepWho" hidden>
@@ -37,6 +39,10 @@
         <p class="muted">請輸入你的身分證字號</p>
         <input id="lockId" class="idno" type="password" inputmode="text" aria-label="身分證字號" autocapitalize="characters" autocorrect="off" autocomplete="off" spellcheck="false" maxlength="12">
         <p id="stuHint" class="muted small">只用來確認身分，不會存在手機上。</p>
+      </div>
+      <div id="stepGuest" hidden>
+        <p class="muted">任課老師可以使用「抽籤」和查看「座位表」。</p>
+        <input id="guestCode" type="password" aria-label="任課老師登入碼" placeholder="登入碼" autocomplete="off" maxlength="30" hidden>
       </div>
       <p id="lockMsg" class="lock-msg" role="alert"></p>
       <button id="lockBtn" class="btn btn--primary" type="submit">下一步</button>
