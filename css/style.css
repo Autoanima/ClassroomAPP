@@ -911,7 +911,7 @@ code.url { display: inline-block; margin: 2px 0; }
 @keyframes fxFlipIn { 0% { transform: rotateY(-90deg) scale(.7); } 100% { transform: none; } }
 @keyframes fxBanner { 0% { transform: translateX(-50%) scale(.3); opacity: 0; } 100% { transform: translateX(-50%) scale(1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .dcard.fx-charge .face, .dcard.fx-charge .face::after { animation: none; } }
-.special.draw { border-color: #b9c6ff; background: #f1f4ff; }
+.special.drawc { border-color: #b9c6ff; background: #f1f4ff; }
 .special.wx { border-color: #ffd98a; background: #fffaeb; }
 [data-theme="dark"] .special.wx { background: #33301a; border-color: #7a6a2c; }
 /* 座位上的小太陽（左上）、小雨傘（右上）：在自己的座位格子裡，不會蓋到別人 */
@@ -921,7 +921,7 @@ code.url { display: inline-block; margin: 2px 0; }
 @keyframes wxSun { to { transform: rotate(360deg); } }
 @keyframes wxRain { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
 @media (prefers-reduced-motion: reduce) { .seat .wx { animation: none; } }
-[data-theme="dark"] .special.draw { background: #1d2340; border-color: #3d4a8a; }
+[data-theme="dark"] .special.drawc { background: #1d2340; border-color: #3d4a8a; }
 @keyframes reveal { from { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.08); } }
 .draw:fullscreen .dcard .face { width: 26vh; height: 26vh; }
 .draw:fullscreen .dname { font-size: 7vh; }

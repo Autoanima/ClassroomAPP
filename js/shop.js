@@ -64,16 +64,6 @@
     if (expired.length) h += `<details class="small muted"><summary>已過期（${expired.length}）</summary>${expired.map(x => `${esc(x.name)}（${esc(x.exp)} 到期）`).join('、')}</details>`;
     h += `</div>`;
     const othersN = Object.values(S.others || {}).flat().length;
-    h += `<div class="panel"><h3>特殊道具</h3><div class="specials">
-      <button type="button" class="special" data-s="firework"${S.coins >= S.fireworkPrice ? '' : ' disabled'}><span class="sp-ico">🎆</span><b>煙火</b><span class="muted small">放在同學的座位上，大家下次打開 App 時都會看到</span><span class="sp-price">💰 ${S.fireworkPrice} 點</span></button>
-      <button type="button" class="special swap" data-s="swap"${!banned && (S.freeSwap || S.coins >= (S.swapPrice || 20)) ? '' : ' disabled'}><span class="sp-ico">🔀</span><b>交換位置卡</b><span class="muted small">${banned ? `你被扣了 ${S.minus} 分（超過 ${S.swapBan} 分），不能使用` : '和另一位同學強制對調座位'}</span><span class="sp-price">${S.freeSwap ? `🎟 免費卡 ${S.freeSwap} 張` : `💰 ${S.swapPrice || 20} 點`}</span></button>
-      <button type="button" class="special steal" data-s="steal"${S.coins >= S.stealPrice && othersN ? '' : ' disabled'}><span class="sp-ico">🦹</span><b>竊盜卡</b><span class="muted small">把別人的一個配件變成你的（到期日不變）${othersN ? '' : '｜目前沒有人有配件'}</span><span class="sp-price">💰 ${S.stealPrice} 點</span></button>
-      <button type="button" class="special wx" data-s="sun"${S.coins >= (S.weatherPrice || 5) ? '' : ' disabled'}><span class="sp-ico">☀️</span><b>小太陽卡</b><span class="muted small">放在一位同學的座位上方，維持 ${S.weatherDays || 10} 個上課日</span><span class="sp-price">💰 ${S.weatherPrice || 5} 點</span></button>
-      <button type="button" class="special wx" data-s="rain"${S.coins >= (S.weatherPrice || 5) ? '' : ' disabled'}><span class="sp-ico">☂️</span><b>小雨傘卡</b><span class="muted small">放在一位同學的座位上方，維持 ${S.weatherDays || 10} 個上課日</span><span class="sp-price">💰 ${S.weatherPrice || 5} 點</span></button>
-      <button type="button" class="special draw" data-s="transfer"${S.coins >= (S.transferPrice || 20) && !S.unlimited ? '' : S.unlimited ? '' : ' disabled'}><span class="sp-ico">🔄</span><b>抽籤轉移卡</b><span class="muted small">設定一位替身：${S.transferDays || 10} 天內抽籤抽到你，會立刻換成替身上場（次數不限）</span><span class="sp-price">💰 ${S.transferPrice || 20} 點</span></button>
-      <button type="button" class="special draw" data-s="sure"${S.coins >= (S.surePrice || 30) ? '' : ' disabled'}><span class="sp-ico">🎯</span><b>抽籤必中卡</b><span class="muted small">指定一位同學：下一次抽籤，第一位一定會變成他（只有一次）</span><span class="sp-price">💰 ${S.surePrice || 30} 點</span></button>
-      <button type="button" class="special create" data-s="create"><span class="sp-ico">🎨</span><b>創造卡</b><span class="muted small">上傳自己畫的 PNG 變成新商品；別人買了，點數算給你</span><span class="sp-price">免費建立</span></button>
-    </div></div>`;
     const md = S.myDraw || {};
     if (md.transfer || md.sure?.length) {
       h += `<div class="panel"><h3>我的抽籤卡</h3><ul class="inv">`;
@@ -98,6 +88,18 @@
       h += `<details class="panel"><summary><b>我的加分紀錄</b></summary><ul class="pt-list">${S.plus.map(p =>
         `<li><span class="pt-v plus">+${p.points}</span><div class="pt-what">${esc(p.reason)}<div class="muted small">${esc(p.date)}</div></div></li>`).join('')}</ul></details>`;
     }
+    // 特殊道具放在商店最下面
+    const specialsHtml = `<div class="panel"><h3>特殊道具</h3><div class="specials">
+      <button type="button" class="special" data-s="firework"${S.coins >= S.fireworkPrice ? '' : ' disabled'}><span class="sp-ico">🎆</span><b>煙火</b><span class="muted small">放在同學的座位上，大家下次打開 App 時都會看到</span><span class="sp-price">💰 ${S.fireworkPrice} 點</span></button>
+      <button type="button" class="special swap" data-s="swap"${!banned && (S.freeSwap || S.coins >= (S.swapPrice || 20)) ? '' : ' disabled'}><span class="sp-ico">🔀</span><b>交換位置卡</b><span class="muted small">${banned ? `你被扣了 ${S.minus} 分（超過 ${S.swapBan} 分），不能使用` : '和另一位同學強制對調座位'}</span><span class="sp-price">${S.freeSwap ? `🎟 免費卡 ${S.freeSwap} 張` : `💰 ${S.swapPrice || 20} 點`}</span></button>
+      <button type="button" class="special steal" data-s="steal"${S.coins >= S.stealPrice && othersN ? '' : ' disabled'}><span class="sp-ico">🦹</span><b>竊盜卡</b><span class="muted small">把別人的一個配件變成你的（到期日不變）${othersN ? '' : '｜目前沒有人有配件'}</span><span class="sp-price">💰 ${S.stealPrice} 點</span></button>
+      <button type="button" class="special wx" data-s="sun"${S.coins >= (S.weatherPrice || 5) ? '' : ' disabled'}><span class="sp-ico">☀️</span><b>小太陽卡</b><span class="muted small">放在一位同學的座位上方，維持 ${S.weatherDays || 10} 個上課日</span><span class="sp-price">💰 ${S.weatherPrice || 5} 點</span></button>
+      <button type="button" class="special wx" data-s="rain"${S.coins >= (S.weatherPrice || 5) ? '' : ' disabled'}><span class="sp-ico">☂️</span><b>小雨傘卡</b><span class="muted small">放在一位同學的座位上方，維持 ${S.weatherDays || 10} 個上課日</span><span class="sp-price">💰 ${S.weatherPrice || 5} 點</span></button>
+      <button type="button" class="special drawc" data-s="transfer"${S.coins >= (S.transferPrice || 20) && !S.unlimited ? '' : S.unlimited ? '' : ' disabled'}><span class="sp-ico">🔄</span><b>抽籤轉移卡</b><span class="muted small">設定一位替身：${S.transferDays || 10} 天內抽籤抽到你，會立刻換成替身上場（次數不限）</span><span class="sp-price">💰 ${S.transferPrice || 20} 點</span></button>
+      <button type="button" class="special drawc" data-s="sure"${S.coins >= (S.surePrice || 30) ? '' : ' disabled'}><span class="sp-ico">🎯</span><b>抽籤必中卡</b><span class="muted small">指定一位同學：下一次抽籤，第一位一定會變成他（只有一次）</span><span class="sp-price">💰 ${S.surePrice || 30} 點</span></button>
+      <button type="button" class="special create" data-s="create"><span class="sp-ico">🎨</span><b>創造卡</b><span class="muted small">上傳自己畫的 PNG 變成新商品；別人買了，點數算給你</span><span class="sp-price">免費建立</span></button>
+    </div></div>`;
+    h += specialsHtml;
     if (S.admin) h += adminHtml();
     root.innerHTML = h;
   }
