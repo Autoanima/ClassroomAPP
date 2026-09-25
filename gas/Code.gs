@@ -30,7 +30,7 @@ const CONFIG = {
   SESSION_DAYS: 30,                    // 學生、幹部登入後幾天內有效（試算表選單「內掃檢查 → 讓所有人重新登入」可以提早全部失效）
   TEACHER_NAME: '導師',
   TEACHER_PHOTO: '',                   // 導師大頭照的檔名（不含 .png），放在大頭照資料夾；只有在座位表點「講桌／講台」時才會顯示
-  OUTDOOR_SHEET_ID: '',                // 外掃區 App 的試算表 ID（也可以在網頁「工作分配 → 外掃區」貼連結設定）
+  OUTDOOR_SHEET_ID: '',                // 舊的「外掃區檢查」App 試算表 ID：只用來第一次匯入外掃工作分配，以及選單「同步到外掃 App」
   BUTTON_IMAGE: 'https://autoanima.github.io/outdoor-cleaning-map/assets/sum-button.png',
   SITE_URL: 'https://autoanima.github.io/indoor-cleaning-map/',   // 網站網址（讀取內建配件清單 assets/acc/catalog.json）
   ACC_FOLDER: '配件',                 // 「內掃檢查」資料夾裡放配件 PNG 的子資料夾；檔名「名稱_價格.png」
@@ -51,6 +51,7 @@ const SHEET_SCORE = '扣分統計';
 const SCORE_START_ROW = 10;
 const SHEET_ROSTER = '工作分配';
 const HEAD_ROSTER = ['代號', '工作內容', '負責人1', '負責人2'];
+const SHEET_OUT = '外掃工作分配';     // 外掃區的工作分配（以這個 App 為主）
 const SHEET_SEATS = '座位表';
 const HEAD_SEATS = ['座位', '排', '個', '同學'];
 const SHEET_SELLOG = '選位紀錄';
@@ -144,6 +145,7 @@ function setup() {
   getRecordsSheet();
   getSheet(SHEET_ROSTER, HEAD_ROSTER);
   getSheet(SHEET_SEATS, HEAD_SEATS);
+  getOutdoor();
   getSheet(SHEET_SELLOG, HEAD_SELLOG);
   getSheet(SHEET_POINTS, HEAD_POINTS);
   getSheet(SHEET_INV, HEAD_INV);
@@ -164,6 +166,9 @@ function onOpen() {
     .addItem('計算扣分', 'computeScores')
     .addItem('檢查名單與排名（身分證字號）', 'checkPeople')
     .addItem('讓所有人重新登入', 'resetSessions')
+    .addSeparator()
+    .addItem('外掃工作分配：同步到舊的外掃 App', 'pushOutdoorToOldApp')
+    .addItem('外掃工作分配：從舊的外掃 App 重新匯入（會覆蓋這裡的）', 'importOutdoorFromOldApp')
     .addToUi();
 }
 
@@ -211,7 +216,8 @@ function saveRoster(r) {
   });
 }
 
-// ── 外掃區：直接讀寫「外掃區檢查」App 試算表裡的「工作分配」工作表（兩個 App 因此同步）──
+// ── 外掃區：工作分配存在這份試算表的「外掃工作分配」工作表（以這個 App 為主）──
+// 舊的「外掃區檢查」App 試算表只在第一次（這裡還是空的）自動匯入一次；之後要同步回去，用試算表選單「同步到舊的外掃 App」
 function outdoorId() {
   const props = PropertiesService.getScriptProperties();
   const id = props.getProperty('OUTDOOR_SHEET_ID') || CONFIG.OUTDOOR_SHEET_ID;
@@ -230,13 +236,11 @@ function outdoorSheet() {
     return { ss: ss, sh: ss.getSheetByName(SHEET_ROSTER) };
   } catch (e) { return null; }
 }
-/** 外掃的工作分配：{ name, jobs:{J01:[..]}, inspectors:{I1:..}, labels:{J01:'公佈欄玻璃 1、…'} }；沒連結時為 null */
-function getOutdoor() {
-  const o = outdoorSheet();
-  if (!o) return null;
-  const out = { name: o.ss.getName(), jobs: {}, inspectors: {}, labels: {} };
-  if (!o.sh || o.sh.getLastRow() < 2) return out;
-  o.sh.getRange(2, 1, o.sh.getLastRow() - 1, 4).getDisplayValues().forEach(r => {
+/** 讀一張「代號／工作內容／負責人1／負責人2」的工作表 → { jobs, inspectors, labels } */
+function readOutdoorRows(sh) {
+  const out = { jobs: {}, inspectors: {}, labels: {} };
+  if (!sh || sh.getLastRow() < 2) return out;
+  sh.getRange(2, 1, sh.getLastRow() - 1, 4).getDisplayValues().forEach(r => {
     const id = String(r[0]).trim();
     if (!id || id === 'CLASS') return;
     const names = [r[2], r[3]].map(s => String(s).trim()).filter(Boolean);
@@ -246,15 +250,17 @@ function getOutdoor() {
   });
   return out;
 }
-/** 只更新有傳來的代號，其他列（例如班級 CLASS）原封不動 */
-function saveOutdoor(o) {
-  const x = outdoorSheet();
-  if (!x) throw new Error('還沒有連結外掃區的試算表');
-  let sh = x.sh;
-  if (!sh) {
-    sh = x.ss.insertSheet(SHEET_ROSTER);
-    sh.getRange(1, 1, 1, HEAD_ROSTER.length).setValues([HEAD_ROSTER]).setFontWeight('bold');
+/** 外掃的工作分配：{ name, jobs:{J01:[..]}, inspectors:{I1:..}, labels:{J01:'公佈欄玻璃 1、…'} } */
+function getOutdoor() {
+  let sh = getSS().getSheetByName(SHEET_OUT);
+  if ((!sh || sh.getLastRow() < 2) && !PropertiesService.getScriptProperties().getProperty('OUT_IMPORTED')) {
+    importOutdoorFromOldApp(true); // 第一次：從舊的外掃 App 匯入
+    sh = getSS().getSheetByName(SHEET_OUT);
   }
+  return Object.assign({ name: SHEET_OUT }, readOutdoorRows(sh));
+}
+/** 把外掃工作分配寫進工作表：只更新有傳來的代號，其他列原封不動 */
+function writeOutdoorRows(sh, o) {
   const n = sh.getLastRow() - 1;
   const rows = n > 0 ? sh.getRange(2, 1, n, 4).getDisplayValues() : [];
   const at = {};
@@ -267,6 +273,33 @@ function saveOutdoor(o) {
   Object.keys(o.inspectors || {}).forEach(id => put(id, labels[id] || '檢查人', [o.inspectors[id]]));
   Object.keys(o.jobs || {}).forEach(id => put(id, labels[id] || '', o.jobs[id] || []));
   if (rows.length) sh.getRange(2, 1, rows.length, 4).setValues(rows);
+}
+function saveOutdoor(o) {
+  writeOutdoorRows(getSheet(SHEET_OUT, HEAD_ROSTER), o);
+}
+/** 從舊的外掃 App 試算表匯入（第一次自動；選單也可以手動重新匯入，會覆蓋這裡的） */
+function importOutdoorFromOldApp(auto) {
+  const props = PropertiesService.getScriptProperties();
+  const x = outdoorSheet();
+  if (!x || !x.sh) {
+    if (auto) { props.setProperty('OUT_IMPORTED', '1'); return; }
+    throw new Error('找不到舊的外掃 App 試算表（「' + CONFIG.FOLDER_NAME + '」資料夾裡檔名含「外掃」的試算表）');
+  }
+  const o = readOutdoorRows(x.sh);
+  const sh = getSheet(SHEET_OUT, HEAD_ROSTER);
+  if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_ROSTER.length).clearContent();
+  writeOutdoorRows(sh, o);
+  props.setProperty('OUT_IMPORTED', '1');
+  if (!auto) try { SpreadsheetApp.getUi().alert('完成：已從「' + x.ss.getName() + '」匯入外掃工作分配。'); } catch (e) { /* 從編輯器執行 */ }
+}
+/** 試算表選單：把這裡的外掃工作分配寫回舊的外掃 App（需要時才用） */
+function pushOutdoorToOldApp() {
+  const x = outdoorSheet();
+  if (!x) throw new Error('找不到舊的外掃 App 試算表');
+  let sh = x.sh;
+  if (!sh) { sh = x.ss.insertSheet(SHEET_ROSTER); sh.getRange(1, 1, 1, HEAD_ROSTER.length).setValues([HEAD_ROSTER]).setFontWeight('bold'); }
+  writeOutdoorRows(sh, getOutdoor());
+  try { SpreadsheetApp.getUi().alert('完成：已把外掃工作分配同步到「' + x.ss.getName() + '」。'); } catch (e) { /* 從編輯器執行 */ }
 }
 function rosterWithOutdoor() {
   const r = getRoster();
@@ -1147,15 +1180,15 @@ function computeScores() {
   const pts = {};
   const psh = pointsSheet();
   if (psh.getLastRow() > 1) {
-    psh.getRange(2, 1, psh.getLastRow() - 1, 5).getValues().forEach(r => {
+    psh.getRange(2, 1, psh.getLastRow() - 1, 6).getValues().forEach(r => {
       const d = r[0] instanceof Date ? r[0] : new Date(r[0]);
-      const who = String(r[1]).trim(), p = Number(r[2]) || 0, cat = String(r[3]).trim(), reason = String(r[4]).trim();
+      const who = String(r[1]).trim(), p = Number(r[2]) || 0, cat = String(r[3]).trim(), reason = String(r[4]).trim(), by = String(r[5]).trim();
       if (!who || !p || isNaN(d)) return;
       const t = d.getTime();
       if (t < fromT || t > toT) return;
       const s = pts[who] || (pts[who] = { clean: 0, order: 0, other: 0, list: [] });
       if (cat === '整潔') s.clean += p; else if (cat === '秩序') s.order += p; else s.other += p;
-      s.list.push({ t: t, text: Utilities.formatDate(d, CONFIG.TIMEZONE, 'M/d') + ' ' + cat + (p > 0 ? '+' : '') + p + ' ' + reason });
+      s.list.push({ t: t, text: Utilities.formatDate(d, CONFIG.TIMEZONE, 'M/d') + ' ' + cat + (p > 0 ? '+' : '') + p + ' ' + reason + (by ? '（' + by + '登記）' : '') });
     });
   }
 

@@ -1271,11 +1271,11 @@
       h += `</div>`;
     });
     h += `</details>`;
-    // 外掃區：和外掃 App 共用同一份工作分配
+    // 外掃區：工作分配存在這個 App 的試算表（以這裡為主）
     const O = roster?.outdoor;
     h += `<details class="jobs-fold"${ui.outdoorOpen ? ' open' : ''} data-fold="outdoor"><summary>🌳 ${esc(D.outdoor.label)}工作分配</summary>`;
     if (O) {
-      h += `<p class="muted small">和「外掃區檢查」App 同步（${esc(O.name || '外掃試算表')}）。${isTeacher() ? '<b>點名字就可以換人</b>，' : ''}外掃 App 幾分鐘內就會更新；在外掃 App 修改，這裡也會跟著變。</p>`;
+      h += `<p class="muted small">${isTeacher() ? '<b>點名字就可以換人</b>。' : ''}存在試算表的「外掃工作分配」工作表（以這個 App 為主）。</p>`;
       h += outdoorDiagram(O);
     } else if (isTeacher()) {
       h += `<p class="small">還沒有連結外掃區。貼上「外掃區檢查」App 使用的 Google 試算表網址，兩邊的工作分配就會同步。</p>

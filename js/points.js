@@ -57,7 +57,7 @@
         const canDel = A.isTeacher() || r.by === A.me();
         h += `<li><span class="pt-v ${r.points < 0 ? 'minus' : 'plus'}">${fmtPts(r.points)}</span>
           <div class="pt-what"><b>${esc(r.student)}</b> <span class="tagc">${esc(r.cat)}</span> ${esc(r.reason)}
-          <div class="muted small">${esc(r.time)}${A.isTeacher() ? '｜' + esc(r.by) : ''}</div></div>
+          <div class="muted small">${esc(r.time)}｜登記人：${esc(r.by === A.me() ? '我' : r.by)}</div></div>
           ${canDel ? `<button type="button" class="pt-del" data-del="${esc(r.id)}" aria-label="刪除這筆">✕</button>` : ''}</li>`;
       });
       h += `</ul>`;
@@ -81,7 +81,7 @@
     if (!reason) { $('#ptReason')?.focus(); return toast('請寫理由'); }
     const pts = form.sign * form.pts;
     const names = [...chosen];
-    const ok = await A.ask(`${form.sign < 0 ? '扣' : '加'} ${form.pts} 分（${form.cat}）\n理由：${reason}\n\n${names.join('、')}`, '送出', form.sign < 0);
+    const ok = await A.ask(`${form.sign < 0 ? '扣' : '加'} ${form.pts} 分（${form.cat}）\n理由：${reason}\n登記人：${A.isTeacher() ? D.teacherLabel : A.me()}（會留下紀錄）\n\n${names.join('、')}`, '送出', form.sign < 0);
     if (!ok) return;
     busy = true; render();
     try {
