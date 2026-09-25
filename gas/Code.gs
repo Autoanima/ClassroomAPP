@@ -1667,7 +1667,11 @@ function showExamRank() {
   let sh = ss.getSheetByName(SHEET_EXAMRANK);
   if (!sh) sh = ss.insertSheet(SHEET_EXAMRANK, 1);
   sh.clear();
-  const head = ['總名次', '科別', '座號', '姓名', '平均百分比'].concat(EXAMS.reduce((a, n) => a.concat([n + (R.byRank ? '（科排名）' : ''), '科內名次', '百分比', '班名次']), []));
+  // 每次段考 4 欄，標題都寫明是第幾次（第一次 科內名次、第一次 百分比、第一次 班名次…）
+  const head = ['總名次', '科別', '座號', '姓名', '平均百分比'].concat(EXAMS.reduce((a, n) => {
+    const w = n.replace('段考', '');
+    return a.concat([n + (R.byRank ? '（科排名）' : '（分數）'), w + ' 科內名次', w + ' 百分比', w + ' 班名次']);
+  }, []));
   const rows = R.list.slice().sort((a, b) => (R.overall[a.key] || 999) - (R.overall[b.key] || 999) || a.key.localeCompare(b.key))
     .map(x => [R.overall[x.key] || '', x.dept, x.no, x.name, x.avgPct == null ? '' : x.avgPct]
       .concat([0, 1, 2].reduce((a, i) => a.concat([x.s[i] == null ? '' : x.s[i], R.per[i].deptRank[x.key] || '', R.per[i].pct[x.key] == null ? '' : R.per[i].pct[x.key], R.per[i].rank[x.key] || '']), [])));
@@ -1688,7 +1692,9 @@ function showExamRank() {
   const n1 = note.indexOf('】') + 1; // 標題粗體
   sh.getRange(2, 1).setRichTextValue(SpreadsheetApp.newRichTextValue().setText(note).setTextStyle(0, n1, SpreadsheetApp.newTextStyle().setBold(true).build()).build());
   sh.setRowHeight(2, 190);
-  sh.getRange(3, 1, 1, head.length).setValues([head]).setFontWeight('bold').setBackground('#dff3ea');
+  sh.getRange(3, 1, 1, head.length).setValues([head]).setFontWeight('bold').setBackground('#dff3ea').setWrap(true).setVerticalAlignment('middle');
+  ['#e3edff', '#fff1d6', '#f3e3ff'].forEach((c, i) => sh.getRange(3, 6 + i * 4, 1, 4).setBackground(c)); // 三次段考用不同底色分開
+  sh.setRowHeight(3, 36);
   if (rows.length) {
     sh.getRange(4, 1, rows.length, head.length).setValues(rows);
     sh.getRange(4, 5, rows.length, 1).setNumberFormat('0.0%');
