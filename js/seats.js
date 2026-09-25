@@ -21,8 +21,12 @@
   let highlight = new Set(), popSeats = new Set();
   let savingWishes = false;
 
+  // 非導師的「交換位置」＝試用：改的是一份副本，不會儲存；用了交換位置卡（card）才會真的對調
+  let trial = null, card = 0;
+  const trialOn = () => sub === 'swap' && !A.isTeacher();
+  const cur = () => (trialOn() && !card ? trial || (trial = { ...chart }) : chart);
   const selLive = () => !!sel && ['ready', 'open', 'paused'].includes(sel.status);
-  const inSel = () => (A.isStudent() ? !!sel && (selLive() || (sel.status === 'done' && !sel.applied)) : sub === 'sel' && !!sel && sel.status !== 'idle');
+  const inSel = () => trialOn() ? false : (A.isStudent() ? !!sel && (selLive() || (sel.status === 'done' && !sel.applied)) : sub === 'sel' && !!sel && sel.status !== 'idle');
   const takenOf = () => (!sel || sel.status === 'idle' ? {} : sel.taken || SelEngine.taken(sel));
   const seatById = Object.fromEntries(D.seats.map(s => [s.id, s]));
   const seatName = id => (seatById[id] ? `第${seatById[id].col}排第${seatById[id].row}個` : id);
@@ -98,7 +102,7 @@
       } else if (k && sel.how?.[k]) {
         extra = `<span class="how">${HOW[sel.how[k]]}</span>`;
       }
-    } else k = chart[s.id];
+    } else k = cur()[s.id];
     if (!k) return `<span class="sid">${s.id}</span>${extra}`;
     const { code, name } = parseKey(k);
     // 大頭照滿版，底下兩行小字：組別 座號／姓名
@@ -114,7 +118,7 @@
       if (A.isStudent() && sel.myTurn && !k && !blocked) c.push('free');
       if (A.isStudent() && sel.myWishes.includes(s.id)) c.push('wished');
     } else {
-      k = chart[s.id];
+      k = cur()[s.id];
       if (liveRunning() && !k) c.push('free');
     }
     if (sub === 'swap' && picked?.seat === s.id) c.push('picked');
@@ -141,21 +145,58 @@
   function renderTop() {
     const root = $('#seatTop');
     let h = '';
-    if (!A.isStudent()) {
-      if ((sub === 'live' || sub === 'swap') && !A.isTeacher()) sub = 'chart';
+    if (A.isStudent()) {
+      if (!['chart', 'swap'].includes(sub)) sub = 'chart';
+      h += `<div class="subsw" role="tablist">
+        <button type="button" data-sub="chart" aria-selected="${sub === 'chart'}">📋 座位表${selLive() ? '<span class="live-dot" title="選位進行中"></span>' : ''}</button>
+        <button type="button" data-sub="swap" aria-selected="${sub === 'swap'}">🔁 交換位置</button>
+      </div>`;
+      h += sub === 'swap' ? swapBanner() : studentBanner();
+    } else {
+      if (sub === 'live' && !A.isTeacher()) sub = 'chart';
       h += `<div class="subsw" role="tablist">
         <button type="button" data-sub="chart" aria-selected="${sub === 'chart'}">📋 座位表</button>
         ${A.isTeacher() ? `<button type="button" data-sub="live" aria-selected="${sub === 'live'}">🎯 現場選位${live?.started && live.idx < live.order.length ? '<span class="live-dot"></span>' : ''}</button>` : ''}
         <button type="button" data-sub="sel" aria-selected="${sub === 'sel'}">🗳 線上選位${selLive() ? '<span class="live-dot" title="選位進行中"></span>' : ''}</button>
-        ${A.isTeacher() ? `<button type="button" data-sub="swap" aria-selected="${sub === 'swap'}">🔁 交換位置</button>` : ''}
+        <button type="button" data-sub="swap" aria-selected="${sub === 'swap'}">🔁 交換位置</button>
       </div>`;
-      if (sub === 'swap') h += `<p class="muted small tip">💡 點一個座位、再點另一個座位，兩人就互換；點空位就是搬過去。</p>`;
+      if (sub === 'swap') h += A.isTeacher() ? `<p class="muted small tip">💡 點一個座位、再點另一個座位，兩人就互換；點空位就是搬過去。</p>` : swapBanner();
       if (sub === 'chart') h += `<p class="muted small tip">點同學的大頭照可以放大，再點一次關閉。</p>`;
       if (sub === 'sel' && sel && sel.status !== 'idle') h += teacherBanner();
-    } else {
-      h += studentBanner();
     }
     root.innerHTML = h;
+  }
+  // 非導師的交換位置：試用提示，或交換位置卡
+  function swapBanner() {
+    if (card) {
+      return `<div class="banner myturn"><div class="bn-main">🔀 交換位置卡：點一位同學的座位，和你對調</div>
+        <div class="bn-sub">對調後會扣 ${card} 點，並且真的儲存。<button type="button" class="link-btn" data-tr="cancelCard">取消</button></div></div>`;
+    }
+    return `<div class="banner warn"><div class="bn-main">⚠ 僅供試用，無法儲存座位的分配狀態</div>
+      <div class="bn-sub">點一個座位、再點另一個座位就互換，只有你自己看得到。要真的換位置，請等導師開放選位，或在商店用「交換位置卡」。
+        <button type="button" class="link-btn" data-tr="reset">↺ 還原</button></div></div>`;
+  }
+  // 商店按「交換位置卡」→ 到這裡點同學的座位
+  A.useSwapCard = price => {
+    card = price || 20;
+    sub = 'swap'; store.set(K.sub, sub);
+    picked = null;
+    A.showTab('seats');
+    toast('🔀 點一位同學的座位，和你對調');
+  };
+  async function cardTap(id) {
+    const me = A.me(), k = chart[id], mine = seatOf(me);
+    if (!mine) { card = 0; renderAll(); return toast('你還沒有座位，不能用交換位置卡'); }
+    if (!k || k === me) return toast('請點另一位同學的座位');
+    if (!await A.ask(`花 ${card} 點，和 ${k} 對調座位？\n（${seatName(mine)} ⇄ ${seatName(id)}）`, '對調！', true)) return;
+    try {
+      await A.api('swapSeatCard', { to: k });
+      card = 0; trial = null;
+      popSeats.add(id); popSeats.add(mine);
+      await loadChart();
+      toast(`🔀 已和 ${k} 對調座位！`);
+    } catch (err) { toast(err.message); }
+    renderAll();
   }
 
   function teacherBanner() {
@@ -205,10 +246,17 @@
   }
 
   $('#seatTop').addEventListener('click', e => {
+    const tr = e.target.closest('[data-tr]');
+    if (tr) {
+      if (tr.dataset.tr === 'reset') { trial = { ...chart }; toast('已還原成目前的座位表'); }
+      if (tr.dataset.tr === 'cancelCard') card = 0;
+      picked = null; renderAll(); return;
+    }
     const s = e.target.closest('[data-sub]');
     if (s) {
       sub = s.dataset.sub; store.set(K.sub, sub);
       picked = null;
+      if (sub === 'swap' && !A.isTeacher()) trial = { ...chart }; // 每次進來都從目前的座位表開始試
       renderAll();
       if (sub === 'sel') loadSel(true).then(renderAll).catch(err => toast(err.message)).finally(schedulePoll);
       return;
@@ -220,6 +268,7 @@
   // ── 下方面板 ──
   function renderPanel() {
     const root = $('#seatPanel');
+    if (sub === 'swap' && !A.isTeacher()) { root.innerHTML = ''; return; }
     if (A.isStudent()) { root.innerHTML = legendHtml(); return; }
     if (sub === 'chart') { root.innerHTML = chartViewPanel(); return; }
     if (sub === 'swap') { root.innerHTML = chartPanel(); return; }
@@ -272,12 +321,12 @@
   function renderBar() {
     const bar = $('#swapBar');
     let h = '';
-    if (A.isTeacher() && sub === 'swap' && picked) {
-      const k = picked.key || chart[picked.seat];
+    if (sub === 'swap' && picked && (A.isTeacher() || !card)) {
+      const k = picked.key || cur()[picked.seat];
       const what = picked.key ? `${esc(k)}（還沒有座位）` : `${picked.seat}　${k ? esc(k) : '空位'}`;
       const job = k ? A.jobsOf(k).jobs.join('、') : '';
       h = `${k ? `<span class="face">${faceHtml(k)}</span>` : ''}<div class="sb-text"><b>已選：${what}</b>${job ? `<span class="sb-job">🧹 ${esc(job)}</span>` : ''}<span>${picked.key ? '點一個座位放進去' : '再點另一個座位 → 互換；點空位 → 搬過去'}</span></div>
-        ${picked.seat && k ? `<button type="button" class="btn" data-pk="info">詳細</button>` : ''}${picked.seat ? `<button type="button" class="btn" data-pk="edit">✏️</button>` : ''}<button type="button" class="btn" data-pk="cancel">取消</button>`;
+        ${A.isTeacher() && picked.seat && k ? `<button type="button" class="btn" data-pk="info">詳細</button>` : ''}${A.isTeacher() && picked.seat ? `<button type="button" class="btn" data-pk="edit">✏️</button>` : ''}<button type="button" class="btn" data-pk="cancel">取消</button>`;
     } else if (liveRunning()) {
       const k = live.order[live.idx];
       h = `<span class="face">${faceHtml(k)}</span><div class="sb-text"><span>第 ${live.idx + 1} / ${live.order.length} 位</span><b class="big">${esc(k)}</b><span>請點一個空位</span></div>
@@ -299,20 +348,22 @@
   function chartTap(id) {
     if (!picked) { picked = { seat: id }; renderAll(); return; }
     if (picked.seat === id) { picked = null; renderAll(); return; }
+    const C = cur();
     if (picked.key) {
-      const k = picked.key, old = chart[id];
-      const at = seatOf(k);
-      if (at) { if (old) chart[at] = old; else delete chart[at]; } else if (old) toast(`${old} 移到「還沒有座位」`);
-      chart[id] = k;
+      const k = picked.key, old = C[id];
+      const at = Object.keys(C).find(x => C[x] === k);
+      if (at) { if (old) C[at] = old; else delete C[at]; } else if (old) toast(`${old} 移到「還沒有座位」`);
+      C[id] = k;
       popSeats.add(id);
     } else {
-      const a = picked.seat, ka = chart[a], kb = chart[id];
+      const a = picked.seat, ka = C[a], kb = C[id];
       if (!ka && !kb) { picked = { seat: id }; renderAll(); return; }
-      if (kb) chart[a] = kb; else delete chart[a];
-      if (ka) chart[id] = ka; else delete chart[id];
+      if (kb) C[a] = kb; else delete C[a];
+      if (ka) C[id] = ka; else delete C[id];
       popSeats.add(a); popSeats.add(id);
     }
     picked = null;
+    if (trialOn()) { renderAll(); return; } // 試用：不儲存
     saveChart(true);
   }
 
@@ -657,6 +708,7 @@
     const b = e.target.closest('[data-seat]');
     if (!b) return;
     const id = b.dataset.seat;
+    if (trialOn()) return card ? cardTap(id) : chartTap(id);
     if (A.isStudent()) return studentSeat(id);
     if (sub === 'live' && A.isTeacher()) return liveSeat(id);
     if (inSel()) return A.isTeacher() ? teacherSelSeat(id) : showSeatInfo(id);

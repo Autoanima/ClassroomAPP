@@ -234,8 +234,13 @@
     render();
   };
 
-  // ── 交換位置卡：選一位同學，和他對調座位 ──
+  // ── 交換位置卡：到「座位 → 交換位置」點一位同學的座位，和他對調（這時候才會扣點數） ──
   function openSwap() {
+    if (!A.useSwapCard) return openSwapList();
+    if (!A.seatOf?.(S.me)) return toast('你還沒有座位，不能用交換位置卡');
+    A.useSwapCard(S.swapPrice || 20);
+  }
+  function openSwapList() {
     const mine = A.seatOf?.(S.me);
     let h = A.sheetHead(`🔀 交換位置卡（${S.swapPrice || 20} 點）`, mine ? `你現在坐在 ${mine}` : '你還沒有座位，不能交換');
     h += `<div class="field"><select id="swapTo"><option value="">— 要和誰對調？ —</option>${S.classmates.map(k => {
@@ -481,12 +486,13 @@
     }
   };
 
-  // ── 換了新造型的同學：每天第一次打開 App 時，大頭照快速閃過＋震動 ──
+  // ── 換了新造型的同學：每週第一次打開 App 時，大頭照快速閃過＋震動 ──
   const FLASH = 'indoor.decoflash.v1' + A.SFX;
+  const weekOf = d => { const m = new Date(d); m.setHours(0, 0, 0, 0); m.setDate(m.getDate() - (m.getDay() + 6) % 7); return A.fmtDate(m); }; // 這週的星期一
   A.on('decoNews', decoT => {
-    const st = store.get(FLASH, {}), today = A.fmtDate(new Date());
+    const st = store.get(FLASH, {}), today = weekOf(new Date());
     if (st.day === today) return;
-    const since = st.since || Date.now() - 3 * 86400e3;
+    const since = st.since || Date.now() - 7 * 86400e3;
     const byCode = Object.fromEntries(A.students().map(k => [code(k), k]));
     const keys = Object.entries(decoT || {}).filter(([c, t]) => t > since && byCode[c] && A.decoOf(byCode[c]).length).sort((a, b) => b[1] - a[1]).map(([c]) => byCode[c]);
     if (!keys.length) return;

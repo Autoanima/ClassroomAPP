@@ -1111,7 +1111,7 @@
     const cnt = { '好': 0, '不好': 0, '未出席': 0 };
     const problems = new Map();
     const issues = [];
-    const items = scopeUnits();
+    const items = scopeUnits().filter(u => u.area === ui.area); // 報表只包含目前這一區（內掃區、外掃區分開傳）
     items.forEach(it => {
       const r = state.records[it.id];
       it.owners.forEach(o => {
@@ -1131,8 +1131,8 @@
     const checked = items.filter(it => ['good', 'bad', 'absent'].includes(unitSummary(it).st)).length;
     const d = state.startedAt ? new Date(state.startedAt) : new Date();
     const L = [];
-    const areas = [...new Set(items.map(it => it.area))].map(a => (a === 'in' ? '內掃區' : '外掃區' + (outZone() ? D.outdoor.zones[outZone()] : ''))).join('＋');
-    L.push(`【${areas || '掃地'}檢查】${fmtDateW(d)}`);
+    const areaName = ui.area === 'out' ? '外掃區' + (outZone() ? D.outdoor.zones[outZone()] : '') : '內掃區';
+    L.push(`【${areaName}檢查】${fmtDateW(d)}`);
     L.push(`檢查 ${checked}/${items.length} 項｜好 ${cnt['好']}・不好 ${cnt['不好']}・未出席 ${cnt['未出席']}`);
     if (problems.size) {
       L.push('', '❌ 需要改進的同學：');
@@ -1148,13 +1148,13 @@
       });
     }
     if (settings.inspector) L.push('', `檢查人：${settings.inspector}`);
-    return { d, total: items.length, cnt, problems, issues, checked, message: L.join('\n') };
+    return { d, areaName, total: items.length, cnt, problems, issues, checked, message: L.join('\n') };
   }
 
   function openReport() {
     commitNote();
     const R = buildReport();
-    let h = sheetHead('檢查報表', fmtDateW(R.d));
+    let h = sheetHead(`${R.areaName}檢查報表`, fmtDateW(R.d));
     h += `<div class="tiles">
       <div class="tile good"><b>${R.cnt['好']}</b><span>好</span></div>
       <div class="tile bad"><b>${R.cnt['不好']}</b><span>不好</span></div>
