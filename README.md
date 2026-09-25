@@ -81,7 +81,7 @@
 
 ## 一、放到 GitHub Pages
 
-1. 建立 repository（例如 `indoor-cleaning-map`），把這個資料夾的所有檔案上傳（包含 `sw.js`）。
+1. 建立 repository（例如 `ClassroomAPP`），把這個資料夾的所有檔案上傳（包含 `sw.js`）。
 2. **Settings → Pages**：`Deploy from a branch`、`main`、`/ (root)`。
 
 ## 二、連接 Google 試算表與雲端硬碟

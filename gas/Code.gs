@@ -32,7 +32,7 @@ const CONFIG = {
   GUEST_CODE: '',                      // 任課老師登入碼（留空＝在登入畫面直接按「任課老師登入」就能進入；只能用抽籤、看座位表）
   TEACHER_PHOTO: '',                   // 導師大頭照的檔名（不含 .png），放在大頭照資料夾；只有在座位表點「講桌／講台」時才會顯示
   OUTDOOR_SHEET_ID: '',                // 舊的「外掃區檢查」App 試算表 ID：只用來第一次匯入外掃工作分配，以及選單「同步到外掃 App」
-  SITE_URL: 'https://autoanima.github.io/indoor-cleaning-map/',   // 網站網址（讀取內建配件清單 assets/acc/catalog.json）
+  SITE_URL: 'https://autoanima.github.io/ClassroomAPP/',   // 網站網址（讀取內建配件清單 assets/acc/catalog.json）
   ACC_FOLDER: '配件',                 // 「內掃檢查」資料夾裡放配件 PNG 的子資料夾；檔名「名稱_價格.png」
   ACC_DEFAULT_PRICE: 3,               // 檔名沒寫價格時的價格
   ACC_DAYS: 10,                       // 配件有效天數（只算週一到週五）

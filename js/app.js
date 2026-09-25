@@ -2013,7 +2013,7 @@
     } else {
       $('#stepPw').hidden = false; $('#stepWho').hidden = true;
       $('#lockBtn').textContent = '登入';
-      $('#lockTitle').textContent = TEST ? '商一甲（測試模式）' : '商一甲';
+      $('#lockTitle').textContent = TEST ? '商?甲（測試模式）' : '商?甲';
       setTimeout(() => $('#lockPw').focus(), 30);
     }
   }
@@ -2025,7 +2025,7 @@
     $('#stepWho').hidden = false;
     $('#whoSel').innerHTML = whoOptions(settings.inspector);
     $('#lockBtn').textContent = '開始使用';
-    $('#lockTitle').textContent = TEST ? '商一甲（測試模式）' : '商一甲';
+    $('#lockTitle').textContent = TEST ? '商?甲（測試模式）' : '商?甲';
     $('#whoSel').focus();
   }
   function lockError(msg) {
