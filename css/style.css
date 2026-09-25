@@ -109,6 +109,8 @@ body.locked > :not(.lock):not(script):not(.test-banner) { display: none !importa
 .view-toggle span { padding: 4px 9px; border-radius: 999px; color: var(--accent); white-space: nowrap; transition: .15s; }
 .view-toggle[aria-pressed="false"] .vt-s, .view-toggle[aria-pressed="true"] .vt-t { background: var(--accent); color: #fff; }
 .view-toggle:active { transform: scale(.97); }
+.view-toggle { grid-template-columns: auto; }
+.view-toggle .vt-one { font-weight: 700; padding: 4px 12px; text-align: center; }
 @media (max-width: 420px) {
   .view-toggle { font-size: 12px; }
   .view-toggle span { padding: 4px 6px; }
