@@ -7,7 +7,7 @@
     chart: 'indoor.chart.v1' + A.SFX, faces: 'indoor.faces.v1' + A.SFX, sub: 'indoor.seatsub.v1',
     testSel: 'indoor.testsel.v1.test', testChart: 'indoor.testchart.v1.test', bots: 'indoor.bots.v1.test',
     live: 'indoor.live.v1' + A.SFX, backup: 'indoor.chartbak.v1' + A.SFX, defaulted: 'indoor.defaulted.v1' + A.SFX,
-    decos: 'indoor.decos.v1' + A.SFX, acc: 'indoor.accimg.v1' + A.SFX,
+    decos: 'indoor.decos.v1' + A.SFX, acc: 'indoor.accimg.v1' + A.SFX, def: 'indoor.defseats.v1' + A.SFX,
   };
   const HOW = { wish: '志願', self: '自選', teacher: '老師指定', auto: '系統分配' };
   const STATUS = { idle: '沒有進行選位', ready: '準備中（可預選志願）', open: '選位中', paused: '暫停中', done: '選位結束' };
@@ -303,6 +303,7 @@
       const bak = store.get(K.backup, null);
       h += `<div class="actions">
         <button type="button" class="btn" data-sa="default">↺ 恢復預設座位</button>
+        <button type="button" class="btn" data-sa="saveDefault">💾 把目前座位存成預設</button>
         <button type="button" class="btn btn--danger" data-sa="clear">清空座位表</button>
         ${bak ? `<button type="button" class="btn wide" data-sa="restore">↶ 還原到現場選位前的座位表</button>` : ''}</div>
         <details class="field"><summary><b>📁 大頭照資料夾</b></summary>
@@ -366,10 +367,16 @@
   }
 
   // 預設座位（只存座號，用名單換成姓名）
+  // 導師存過的預設座位（座位 → 座號）；沒有存過就用網站內建的
+  let savedDef = store.get(K.def, null);
   function defaultChart() {
     const list = A.students();
     const byCode = Object.fromEntries(list.map(k => [parseKey(k).code, k]));
     const out = {};
+    if (savedDef && Object.keys(savedDef).length) {
+      Object.entries(savedDef).forEach(([id, c]) => { const k = byCode[parseKey(c).code]; if (k && seatById[id]) out[id] = k; });
+      return out;
+    }
     Object.entries(D.defaultSeats || {}).forEach(([col, codes]) => codes.forEach((c, i) => {
       const k = byCode[parseKey(c).code];
       if (k && seatById[`${col}-${i + 1}`]) out[`${col}-${i + 1}`] = k;
@@ -620,6 +627,20 @@
     const act = b.dataset.sa;
     if (act === 'copyUrl') { toast(await A.copyText(studentUrl()) ? '已複製學生登入網址' : '複製失敗'); return; }
     if (act === 'default') return applyDefault(true);
+    if (act === 'saveDefault') {
+      const n = Object.keys(chart).length;
+      if (!n) return toast('座位表是空的，沒有東西可以存');
+      if (!await A.ask(`把目前的座位表（${n} 人）存成預設座位？\n之後按「恢復預設座位」就會回到這個樣子。`, '存成預設')) return;
+      const seats = Object.fromEntries(Object.entries(chart).map(([id, k]) => [id, parseKey(k).code]));
+      b.disabled = true;
+      try {
+        const r = await A.api('saveDefaultSeats', { seats });
+        savedDef = r.defaults || seats; store.set(K.def, savedDef);
+        toast(`✓ 已把目前座位（${n} 人）存成預設`);
+      } catch (err) { toast('儲存失敗：' + err.message); }
+      b.disabled = false;
+      return;
+    }
     if (act === 'clear') {
       if (!await A.ask('確定要清空整張座位表嗎？\n（清空前的座位表會備份，可以還原）', '清空', true)) return;
       store.set(K.backup, chart);
@@ -941,6 +962,7 @@
   }
   async function loadChart() {
     const r = await A.api('getSeats');
+    if (r.defaults) { savedDef = r.defaults; store.set(K.def, savedDef); }
     const next = r.seats || {};
     if (JSON.stringify(next) === JSON.stringify(chart)) return false;
     chart = next; store.set(K.chart, chart);
@@ -1084,7 +1106,8 @@
     let extra = {};
     switch (action) {
       case 'stuLogin': return { ok: true, sid: 'test', me: TEST_ME, className: '商一甲' };
-      case 'getSeats': return { ok: true, seats: store.get(K.testChart, {}) };
+      case 'getSeats': return { ok: true, seats: store.get(K.testChart, {}), defaults: store.get('indoor.testdef.v1.test', {}) };
+      case 'saveDefaultSeats': store.set('indoor.testdef.v1.test', p.seats); return { ok: true, defaults: p.seats };
       case 'saveSeats': store.set(K.testChart, p.seats); return { ok: true, seats: p.seats };
       case 'getFaces': return { ok: true, faces: {}, codes: Object.keys(faces) };
       case 'uploadFace': return { ok: true, t: now };

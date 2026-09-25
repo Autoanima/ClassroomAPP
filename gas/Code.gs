@@ -54,6 +54,8 @@ const HEAD_ROSTER = ['代號', '工作內容', '負責人1', '負責人2'];
 const SHEET_OUT = '外掃工作分配';     // 外掃區的工作分配（以這個 App 為主）
 const SHEET_SEATS = '座位表';
 const HEAD_SEATS = ['座位', '排', '個', '同學'];
+const SHEET_DEFSEAT = '預設座位';    // 導師按「把目前座位存成預設」存的（只存座號）
+const HEAD_DEFSEAT = ['座位', '座號'];
 const SHEET_SELLOG = '選位紀錄';
 const HEAD_SELLOG = ['套用時間', '順序', '名次', '同學', '座位', '方式', '排名來源'];
 
@@ -120,7 +122,8 @@ function doPost(e) {
       case 'swapSeatCard': return json(swapSeatCard(who, String(req.to || '')));
       case 'createAcc': return json(createAcc(who, req.name, req.price, req.data));
       case 'delAcc': return json(delAcc(who, String(req.acc || '')));
-      case 'getSeats': return json({ ok: true, seats: getSeats() });
+      case 'getSeats': return json(who.teacher ? { ok: true, seats: getSeats(), defaults: getDefaultSeats() } : { ok: true, seats: getSeats() });
+      case 'saveDefaultSeats': return json({ ok: true, defaults: saveDefaultSeats(req.seats || {}) });
       case 'saveSeats': return json({ ok: true, seats: saveSeats(req.seats || {}) });
       case 'getFaces': return json(getFaces(req.have || {}));
       case 'uploadFace': return json(uploadFace(req.code, req.data));
@@ -881,6 +884,29 @@ function writeSeats(seats) {
     if (rows.length) sh.getRange(2, 1, rows.length, HEAD_SEATS.length).setNumberFormat('@').setValues(rows);
     return getSeats();
   }
+}
+
+// ── 預設座位：座位 → 座號（例如 5-6 → 多02）；沒有存過就用網站內建的預設 ──
+function getDefaultSeats() {
+  const sh = getSS().getSheetByName(SHEET_DEFSEAT);
+  const out = {};
+  if (!sh || sh.getLastRow() < 2) return out;
+  sh.getRange(2, 1, sh.getLastRow() - 1, 2).getDisplayValues().forEach(r => {
+    const id = String(r[0]).trim(), c = String(r[1]).trim();
+    if (/^\d+-\d+$/.test(id) && c) out[id] = c;
+  });
+  return out;
+}
+function saveDefaultSeats(seats) {
+  return withLock(() => {
+    const sh = getSheet(SHEET_DEFSEAT, HEAD_DEFSEAT);
+    const ids = Object.keys(seats).filter(id => /^\d+-\d+$/.test(id) && seats[id]);
+    ids.sort((a, b) => { const x = a.split('-').map(Number), y = b.split('-').map(Number); return x[0] - y[0] || x[1] - y[1]; });
+    const rows = ids.map(id => [id, faceCode(seats[id]) || String(seats[id])]);
+    if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_DEFSEAT.length).clearContent();
+    if (rows.length) sh.getRange(2, 1, rows.length, HEAD_DEFSEAT.length).setNumberFormat('@').setValues(rows);
+    return getDefaultSeats();
+  });
 }
 
 // ── 大頭照：檔名開頭是組別＋座號（料05.jpg、料 24 王小明.jpg、多11陳小華.png 都可以）──
