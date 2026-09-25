@@ -524,6 +524,14 @@ textarea:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 
 .seat .sn b { font-size: max(7px, calc(var(--u) * 14px)); font-weight: 700; opacity: .92; }
 .seat .sid { font-size: max(9px, calc(var(--u) * 22px)); color: #7e9d91; font-weight: 700; opacity: .5; }
 /* 還沒儲存的座位變動：紅色 */
+/* 只能看的人（學生）：掃地地圖不顯示檢查用的東西，標出自己負責的地方 */
+body.viewer .compass, body.viewer #tab-clean .legend, body.viewer .topbar-row.stats { display: none !important; }
+.mine-hint { margin: 6px 16px 0; padding: 8px 12px; border-radius: 12px; background: #fff4cc; color: #6b4e00; font-size: 14px; }
+[data-theme="dark"] .mine-hint { background: #3a3218; color: #f5d97a; }
+.it.mine, .oit.mine { outline: 3px solid #f5b800; outline-offset: 1px; box-shadow: 0 0 0 6px rgba(245,184,0,.35); z-index: 6; animation: mineGlow 1.6s ease-in-out infinite; }
+@keyframes mineGlow { 50% { box-shadow: 0 0 0 10px rgba(245,184,0,.15); } }
+@media (prefers-reduced-motion: reduce) { .it.mine, .oit.mine { animation: none; } }
+.job-card.mine { outline: 3px solid #f5b800; }
 .seat.changed { border-color: #dc2626; box-shadow: 0 0 0 2px #dc2626; }
 .seat.changed::after { content: ''; position: absolute; inset: 0; background: rgba(220,38,38,.38); z-index: 1; pointer-events: none; }
 .seat.changed:not(.has) { background: #fca5a5; }

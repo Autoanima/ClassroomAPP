@@ -549,8 +549,9 @@
   // ── 分頁 ──
   const TABS = ['clean', 'points', 'seats', 'draw', 'shop', 'line', 'jobs'];
   const tabHooks = {};
-  const allowedTabs = () => (isGuest() ? ['draw', 'seats'] : isStudent() ? ['seats', 'shop', 'line', 'jobs']
-    : TABS.filter(t => (t === 'clean' ? isChecker() : t === 'points' ? canPoints() : true)));
+  const allowedTabs = () => (isGuest() ? ['draw', 'seats'] : isStudent() ? ['seats', 'clean', 'shop', 'line', 'jobs']
+    : TABS.filter(t => (t === 'points' ? canPoints() : true)));
+  const isViewer = () => !isChecker(); // 不能檢查的人（學生、一般幹部）：掃地地圖只能看
   function showTab(name) {
     if (!allowedTabs().includes(name)) name = allowedTabs()[0];
     ui.tab = name; saveUi();
@@ -579,7 +580,7 @@
       if (checkable(it) && s.issue) issues++;
       const el = root.querySelector(`[data-id="${it.id}"]`);
       if (!el) return;
-      el.classList.toggle('out-scope', !checkable(it));
+      el.classList.toggle('out-scope', !isViewer() && !checkable(it));
       el.classList.remove('st-good', 'st-bad', 'st-absent', 'st-partial');
       if (s.st !== 'none') el.classList.add('st-' + s.st);
       el.classList.toggle('is-issue', s.issue);
@@ -591,6 +592,7 @@
           + (s.photos.length ? `<span class="phc" data-lb="${(unitOf[it.id] || it).id}" data-i="${(state.records[(unitOf[it.id] || it).id]?.photos || []).indexOf(s.photos[0])}" role="button" aria-label="查看照片">📷${s.photos.length > 1 ? s.photos.length : ''}</span>` : '');
       }
     });
+    paintMine();
     const zoneName = ui.area === 'out' && outZone() ? D.outdoor.zones[outZone()] : '';
     $('#progress').textContent = `${ui.area === 'out' ? '外掃' + zoneName : '內掃'} 已檢查 ${checked} / ${mine.length}`;
     const chip = $('#issueChip');
@@ -614,16 +616,41 @@
     const o = e.target.closest('[data-id]');
     if (!o) return;
     const it = itemById[o.dataset.id];
+    if (isViewer()) return showDuty(it);
     if (!checkable(it)) return toast(it.area === 'out' && outZone() ? `這裡不在你的檢查範圍（你負責外掃${D.outdoor.zones[outZone()]}）` : '這裡不在你的檢查範圍');
     openItem(it.id);
+  }
+  // 只能看的人點地圖：顯示這裡是誰負責
+  function showDuty(it) {
+    const out = it.area === 'out';
+    const owners = out ? (roster?.outdoor?.jobs?.[it.job] || []).filter(Boolean) : jobOwners(it.job);
+    const title = out ? outdoorTitle(it.job) : jobById[it.job]?.title || it.full;
+    const mine = owners.includes(settings.me);
+    let h = sheetHead(esc(it.full), out ? '外掃區' : '內掃區');
+    h += `<div class="job-card big${mine ? ' mine' : ''}"><div class="jt">${esc(title)}</div><div class="jn">${nameChips(owners, !out && jobById[it.job]?.fixed)}</div></div>`;
+    if (mine) h += `<p class="center"><b>⭐ 這是你負責的打掃區域</b></p>`;
+    openSheet({ kind: 'jobinfo' }, h);
+  }
+  // 自己負責的地方：地圖上標黃色；上方提示「你的打掃工作」
+  function paintMine() {
+    const me = settings.me, root = $('#tab-clean');
+    ALL_ITEMS.forEach(it => root.querySelector(`[data-id="${it.id}"]`)?.classList.toggle('mine', !!me && (it.owners || []).includes(me)));
+    const hint = $('#mineHint');
+    if (!hint) return;
+    const jobs = me ? jobsOf(me).jobs : [];
+    hint.hidden = !isViewer() || !me;
+    hint.innerHTML = jobs.length ? `⭐ 你的打掃工作：<b>${jobs.map(esc).join('、')}</b>（地圖上黃色的地方）` : '你目前沒有被分配打掃工作。';
   }
 
   // ── 內掃區／外掃區切換 ──
   function renderArea() {
-    const both = canCheckIn() && canCheckOut();
-    if (!canCheckIn() && canCheckOut()) ui.area = 'out';
-    if (!canCheckOut() && !isTeacher()) ui.area = 'in';
+    const both = (canCheckIn() && canCheckOut()) || isViewer();
+    if (!isViewer()) {
+      if (!canCheckIn() && canCheckOut()) ui.area = 'out';
+      if (!canCheckOut() && !isTeacher()) ui.area = 'in';
+    }
     $('#areaSw').hidden = !both && !isTeacher();
+    $('.foot-hint').innerHTML = isViewer() ? '點地圖上的地方，可以看到是誰負責打掃。' : '點地圖上的物件或地板即可記錄。<br>按右下角「匯出報表」彙整並通知。';
     document.querySelectorAll('#areaSw [data-area]').forEach(b => b.setAttribute('aria-selected', b.dataset.area === ui.area));
     $('#cleanIn').hidden = ui.area !== 'in';
     $('#cleanOut').hidden = ui.area !== 'out';
@@ -634,7 +661,7 @@
   function renderOutClean() {
     const O = roster?.outdoor;
     $('#outMap').innerHTML = O
-      ? `<p class="muted small center">上下滑動看整條走廊，點物件就能記錄（點了才會顯示負責的同學）${outZone() ? `｜你負責${D.outdoor.zones[outZone()]}` : ''}</p>${outdoorDiagram(O, 'check')}`
+      ? `<p class="muted small center">${isViewer() ? '上下滑動看整條走廊，點物件可以看到負責的同學' : '上下滑動看整條走廊，點物件就能記錄（點了才會顯示負責的同學）'}${outZone() ? `｜你負責${D.outdoor.zones[outZone()]}` : ''}</p>${outdoorDiagram(O, 'check')}`
       : `<div class="panel"><p>還沒有連結外掃區。${isTeacher() ? '請到「👥 工作分配 → 🌳 外掃區工作分配」貼上外掃試算表的網址。' : '請導師先連結外掃區。'}</p></div>`;
   }
   $('#areaSw').addEventListener('click', e => {
@@ -1938,6 +1965,7 @@
     document.body.classList.remove('locked');
     document.body.classList.toggle('role-student', isStudent());
     document.body.classList.toggle('role-guest', isGuest());
+    document.body.classList.toggle('viewer', isViewer());
     document.body.classList.toggle('role-teacher', isTeacher());
     paintDefog();
     setTimeout(loadDuty, 300);
@@ -2124,7 +2152,14 @@
   App.boot = () => {
     mountMap('clean', 'clean').el.addEventListener('click', onCleanClick);
     $('#outMap').addEventListener('click', onCleanClick);
-    tabHooks.clean = renderArea;
+    tabHooks.clean = () => {
+      // 學生打開時：直接切到自己負責的那一區（內掃或外掃）
+      if (isViewer() && settings.me) {
+        const areas = new Set(ALL_ITEMS.filter(it => (it.owners || []).includes(settings.me)).map(it => it.area));
+        if (areas.size === 1) ui.area = [...areas][0];
+      }
+      renderArea();
+    };
     mountMap('jobs', 'jobs').el.addEventListener('click', onJobsMapClick);
     tabHooks.jobs = () => renderJobs();
     paintView();
