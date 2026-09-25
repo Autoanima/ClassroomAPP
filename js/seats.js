@@ -326,7 +326,8 @@
     return out;
   }
   async function applyDefault(ask) {
-    if (!A.students().length) { try { await A.loadStudents(); } catch (e) { return toast('無法讀取名單：' + e.message); } }
+    // 先抓最新的名單（座號可能改過，例如羅偲倚改為多08），抓不到才用手機上的
+    try { await A.loadStudents(); } catch (e) { if (!A.students().length) return toast('無法讀取名單：' + e.message); }
     if (ask && Object.keys(chart).length && !await A.ask('恢復成預設座位？目前的座位表會被取代。', '恢復預設')) return;
     chart = defaultChart();
     store.set(K.defaulted, true);

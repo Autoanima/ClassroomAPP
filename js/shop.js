@@ -80,13 +80,15 @@
   }
 
   function adminHtml() {
-    let h = `<div class="panel"><h3>全班點數</h3><p class="muted small">點數＝加分累計 − 買配件用掉的。扣分不會減少點數。</p>
+    let h = `<div class="panel"><h3>商品（${S.catalog.length}）</h3><p class="muted small">要加新配件：把去背的 PNG 放到雲端硬碟「內掃檢查／配件」資料夾，檔名寫「名稱_價格.png」（例如「墨鏡_3.png」，沒寫價格就是 3 點）。10 分鐘內會出現在商店。</p><div class="shop-grid">`;
+    S.catalog.forEach(a => { h += `<div class="shop-item"><span class="acc-thumb big" style="${accImgStyle(a.id)}"></span><b>${esc(a.name)}</b><span class="muted small">${a.price} 點</span></div>`; });
+    h += `</div></div>`;
+    // 成員點數：放在最下面，預設收起來
+    h += `<details class="panel"><summary><b>成員點數</b> <span class="muted small">（${S.admin.length} 人）</span></summary>
+      <p class="muted small">點數＝加分累計 − 用掉的（配件、竊盜卡、煙火）。扣分不會減少點數。</p>
       <table class="admin"><thead><tr><th>同學</th><th>加分</th><th>已用</th><th>剩餘</th><th>配件</th></tr></thead><tbody>`;
     S.admin.forEach(r => { h += `<tr><td>${esc(r.key)}</td><td>${r.earned}</td><td>${r.spent}</td><td><b>${r.coins}</b></td><td>${r.active || ''}</td></tr>`; });
-    h += `</tbody></table></div>`;
-    h += `<div class="panel"><h3>商品（${S.catalog.length}）</h3><p class="muted small">要加新配件：把去背的 PNG 放到雲端硬碟「內掃檢查／配件」資料夾，檔名寫「名稱_價格.png」（例如「墨鏡_3.png」，沒寫價格就是 3 點）。10 分鐘內會出現在商店。</p><div class="shop-grid">`;
-    S.catalog.forEach(a => { h += `<div class="shop-item"><span class="acc-thumb big" style="${accImgStyle(a.id)}"></span><b>${esc(a.name)}</b><span class="muted small">${a.price} 點</span></div>`; });
-    return h + `</div></div>`;
+    return h + `</tbody></table></details>`;
   }
 
   $('#shopRoot').addEventListener('click', async e => {

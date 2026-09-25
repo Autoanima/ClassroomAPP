@@ -15,14 +15,14 @@
     roster: 'indoor.roster.v1' + SFX, students: 'indoor.students.v1' + SFX, ui: 'indoor.ui.v1',
   };
   // 測試模式用的名單：姓名中間以○遮住（去識別化），GitHub 上不會出現完整姓名
-  const DEMO_STUDENTS = ["多01杜○昊", "多02林○廷", "多03邱○家", "多04陳○方", "多05曾○瑄", "多06謝○翰", "多07呂○晏", "多09林○岳", "多10柯○伶", "多11張○珮", "多12張○讌", "多13陳○頎", "多14廖○涵", "多15趙○昀", "多16歐○晴", "多17歐○曦", "多18賴○瞳", "多19羅○倚", "料01方○聖", "料02吳○祐", "料03張○愷", "料04許○皓", "料05鄒○軒", "料06朱○潔", "料07李○慧", "料08李○萱", "料09林○廷", "料10張○寧", "料11張○葳", "料12張○敏", "料13陳○靚", "料14陳○芊", "料15陳○琳", "料16陳○微", "料17陳○婷", "料18陳○澖", "料19彭○晴", "料20葉○芸", "料21趙○釩", "料22劉○琪", "料23蔡○芳", "料24繆○恬", "料25蘇○妮", "料26蘇○莙"];
+  const DEMO_STUDENTS = ["多01杜○昊", "多02林○廷", "多03邱○家", "多04陳○方", "多05曾○瑄", "多06謝○翰", "多07呂○晏", "多08羅○倚", "多09林○岳", "多10柯○伶", "多11張○珮", "多12張○讌", "多13陳○頎", "多14廖○涵", "多15趙○昀", "多16歐○晴", "多17歐○曦", "多18賴○瞳", "料01方○聖", "料02吳○祐", "料03張○愷", "料04許○皓", "料05鄒○軒", "料06朱○潔", "料07李○慧", "料08李○萱", "料09林○廷", "料10張○寧", "料11張○葳", "料12張○敏", "料13陳○靚", "料14陳○芊", "料15陳○琳", "料16陳○微", "料17陳○婷", "料18陳○澖", "料19彭○晴", "料20葉○芸", "料21趙○釩", "料22劉○琪", "料23蔡○芳", "料24繆○恬", "料25蘇○妮", "料26蘇○莙"];
   const DEMO_ROSTER = { inspectors: {
-    I1: '料01方○聖', C1: '多19羅○倚', C2: '料07李○慧', C3: '多03邱○家', C4: '料04許○皓', C5: '多07呂○晏', C6: '多17歐○曦',
+    I1: '料01方○聖', C1: '多08羅○倚', C2: '料07李○慧', C3: '多03邱○家', C4: '料04許○皓', C5: '多07呂○晏', C6: '多17歐○曦',
     C7: '多09林○岳', C8: '料25蘇○妮', C9: '多07呂○晏', C10: '料22劉○琪',
   }, jobs: {
     J01: ['多14廖○涵', '料02吳○祐'], J02: ['料20葉○芸', '料09林○廷'], J03: ['多02林○廷', '多16歐○晴'],
     J04: ['多03邱○家', '多15趙○昀'], J05: ['多06謝○翰', '多05曾○瑄'], J06: ['料05鄒○軒', '料08李○萱'],
-    J07: ['料07李○慧', '多19羅○倚'], J08: ['料06朱○潔', '多12張○讌'], J09: ['料13陳○靚', '料22劉○琪'],
+    J07: ['料07李○慧', '多08羅○倚'], J08: ['料06朱○潔', '多12張○讌'], J09: ['料13陳○靚', '料22劉○琪'],
     J10: ['料11張○葳', '料16陳○微'], J11: ['料17陳○婷'], J12: ['多13陳○頎'], J13: ['多11張○珮'],
     J14: ['多10柯○伶', '多09林○岳'], J15: ['多04陳○方'], J16: ['料25蘇○妮'], CLASS: ['商一甲'],
   }, outdoor: { name: '外掃檢查紀錄（測試）', labels: {}, inspectors: { I1: '料26蘇○莙', I2: '料10張○寧' }, jobs: {
@@ -373,7 +373,11 @@
     const live = mode !== 'seats';
     let h = '';
     // 座位圖只畫教室牆壁和黑板溝，不畫掃地用的東西
-    L.deco.forEach(s => { if (inBox(s, box) && (live || ['room', 'ledge'].includes(s.cls))) h += `<div class="d d--${s.cls}" style="${rectStyle(s, box)}"></div>`; });
+    L.deco.forEach(s => {
+      if (!inBox(s, box) || (!live && !['room', 'ledge'].includes(s.cls))) return;
+      const r = !live && s.cls === 'room' ? { ...s, h: box.y1 - s.y - 2 } : s; // 座位圖：後牆畫在範圍底部
+      h += `<div class="d d--${s.cls}" style="${rectStyle(r, box)}"></div>`;
+    });
     L.items.forEach(it => {
       if (!inBox(it, box)) return;
       if (!live && !it.seatShow) return; // 座位圖：只留黑板、講桌、前後門
@@ -482,6 +486,22 @@
     toast(flipOn() ? '老師視角：黑板在下方' : '學生視角：黑板在上方');
   });
 
+  // ── 夜間模式：按月亮／太陽切換，記在這台裝置；沒選過就跟著手機設定 ──
+  const darkNow = () => document.documentElement.dataset.theme === 'dark';
+  function paintTheme() {
+    $('#themeBtn').textContent = darkNow() ? '☀️' : '🌙';
+    $('#themeBtn').setAttribute('aria-label', darkNow() ? '切換成白天模式' : '切換成夜間模式');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', darkNow() ? '#1f2127' : '#ffffff');
+  }
+  $('#themeBtn').addEventListener('click', () => {
+    ui.theme = darkNow() ? 'light' : 'dark';
+    document.documentElement.dataset.theme = ui.theme;
+    saveUi();
+    paintTheme();
+    toast(darkNow() ? '🌙 夜間模式' : '☀️ 白天模式');
+  });
+  paintTheme();
+
   // ── 緊縮排列開關（手機第一次打開時預設開啟）──
   if (ui.compact == null) ui.compact = window.innerWidth < 600;
   function paintCompact() {
@@ -501,9 +521,9 @@
   paintCompact();
 
   // ── 分頁 ──
-  const TABS = ['clean', 'points', 'jobs', 'seats', 'draw', 'shop', 'line'];
+  const TABS = ['clean', 'points', 'seats', 'draw', 'shop', 'line', 'jobs'];
   const tabHooks = {};
-  const allowedTabs = () => (isStudent() ? ['seats', 'jobs', 'shop', 'line']
+  const allowedTabs = () => (isStudent() ? ['seats', 'shop', 'line', 'jobs']
     : TABS.filter(t => (t === 'clean' ? isChecker() : t === 'points' ? canPoints() : true)));
   function showTab(name) {
     if (!allowedTabs().includes(name)) name = allowedTabs()[0];

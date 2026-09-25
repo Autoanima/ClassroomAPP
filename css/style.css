@@ -702,6 +702,75 @@ table.admin th:first-child, table.admin td:first-child { text-align: left; }
 .sw-c.custom { position: relative; overflow: hidden; background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); }
 .sw-c.custom input { position: absolute; inset: -6px; opacity: 0; cursor: pointer; }
 
+/* 座位的子分頁（座位表／現場選位／線上選位／交換位置）一行排完 */
+.seat-top .subsw { display: flex; width: 100%; }
+.seat-top .subsw button { flex: 1 1 0; min-width: 0; white-space: nowrap; padding: 7px 2px; font-size: 14px; letter-spacing: -.01em; }
+@media (max-width: 420px) { .seat-top .subsw button { font-size: 12.5px; } }
+
+/* 抽籤全螢幕（投影用） */
+#drawRoot.present { position: fixed; inset: 0; z-index: 57; background: var(--bg); overflow: auto; padding: calc(env(safe-area-inset-top) + 12px) 12px calc(env(safe-area-inset-bottom) + 12px); display: flex; flex-direction: column; }
+#drawRoot.present .draw { flex: 1; display: flex; flex-direction: column; margin: 0; }
+#drawRoot.present .stage { flex: 1; min-height: 55vh; }
+#drawRoot.present .draw-roster, #drawRoot.present h3, #drawRoot.present .hist { display: none; }
+#drawRoot.present .dcard .face { width: min(30vh, 38vw); height: min(30vh, 38vw); }
+#drawRoot.present .dname { font-size: min(7vh, 9vw); }
+body.presenting .compass, body.presenting .swapbar { display: none; }
+
+/* 上方列：手機上日期放在「商一甲」下面，不會被擠掉 */
+@media (max-width: 460px) {
+  .title { flex-direction: column; align-items: flex-start; gap: 0; }
+  .title h1 { font-size: 18px; line-height: 1.15; }
+  .title .muted { display: block !important; font-size: 12px; line-height: 1.2; }
+  .icon-btn { width: 34px; height: 34px; }
+  .view-toggle span { padding: 4px 7px; }
+}
+#themeBtn { font-size: 18px; }
+.view-toggle i { font-style: normal; }
+.title { flex: 1 1 auto; min-width: 72px; }
+@media (max-width: 460px) { .view-toggle i { display: none; } .topbar-row { gap: 4px; } }
+
+/* 自己：淺黃色醒目標示 */
+:root { --me-bg: #fff3b0; --me-fg: #5c4600; --me-line: #f5c518; }
+.nm.me, .od-nm.me { background: var(--me-bg) !important; color: var(--me-fg) !important; box-shadow: 0 0 0 1.5px var(--me-line); }
+.od-nm.me b, .od-nm.me small { color: var(--me-fg) !important; }
+.seat.me, .pt-stu.me { border: 3px solid var(--me-line) !important; box-shadow: 0 0 0 4px rgba(245,197,24,.35) !important; }
+.seat.me .sn, .pt-stu.me .sn { background: linear-gradient(transparent, var(--me-bg) 45%); color: var(--me-fg); text-shadow: none; }
+.chip--user { background: var(--me-bg); color: var(--me-fg); }
+
+/* ── 夜間模式 ── */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #15161a; --surface: #1f2127; --text: #e8e8ea; --muted: #9ea3ab; --line: #33363e;
+  --accent: #a48cf7; --accent-soft: #2d2743; --shadow: 0 8px 30px rgba(0,0,0,.5);
+  --me-bg: #574600; --me-fg: #ffe58a; --me-line: #d4a800;
+}
+[data-theme="dark"] .topbar { background: rgba(31,33,39,.95); }
+[data-theme="dark"] .sheet { background: rgba(31,33,39,var(--sheet-a,1)); }
+[data-theme="dark"] .sheet.see-through .sheet-body { text-shadow: 0 0 3px #000, 0 0 2px #000; }
+[data-theme="dark"] .sheet.see-through .btn:not(.btn--primary):not(.btn--dangerfill):not(.btn--line),
+[data-theme="dark"] .sheet.see-through .seg button:not([aria-pressed="true"]),
+[data-theme="dark"] .sheet.see-through textarea, [data-theme="dark"] .sheet.see-through .issue-box,
+[data-theme="dark"] .sheet.see-through .part { background-color: rgba(31,33,39,calc(var(--sheet-a) + .15)); }
+[data-theme="dark"] .map, [data-theme="dark"] .od { filter: brightness(.82) saturate(.9); }
+[data-theme="dark"] .seat.has { background: #2a2c33; }
+[data-theme="dark"] .banner.st-open, [data-theme="dark"] .banner.ok { background: #16301f; border-color: #2c6a45; }
+[data-theme="dark"] .banner.st-paused { background: #33290d; border-color: #7a6112; }
+[data-theme="dark"] .banner.warn { background: #3a1f1f; border-color: #7a3434; }
+[data-theme="dark"] .job-card.sup { background: #2e2a18; border-color: #6b5a1c; }
+[data-theme="dark"] .nm { color: #d6c9ff; }
+[data-theme="dark"] .nm.fixed { background: #3d3510; color: #f5d565; }
+[data-theme="dark"] .nm.empty { background: #2a2c33; }
+[data-theme="dark"] .special { background: #2e2a18; border-color: #6b5a1c; }
+[data-theme="dark"] .special.steal { background: #26213a; border-color: #5b4a99; }
+[data-theme="dark"] .issue-box.on { background: #3a1f1f; }
+[data-theme="dark"] .part:has(input:checked) { background: #3a1f1f; color: #ff9b9b; }
+[data-theme="dark"] .acc-thumb { background-image: none; background-color: #2a2c33; }
+[data-theme="dark"] .test-banner { background: #3d3510; color: #f5d565; border-color: #6b5a1c; }
+[data-theme="dark"] .test-banner button { background: #2a2c33; color: #f5d565; }
+[data-theme="dark"] .od-lm, [data-theme="dark"] .od-dir { fill: #d0d2d6; }
+[data-theme="dark"] .chips .nm.drawn { background: #2a2c33; color: #7d8189; }
+[data-theme="dark"] .chips .nm.absent { background: transparent; color: #666; border-color: #444; }
+
 /* 確認視窗 */
 .ask { position: fixed; inset: 0; z-index: 80; background: rgba(15,15,25,.45); display: grid; place-items: center; padding: 16px; }
 .ask-card { width: 100%; max-width: 360px; background: var(--surface); border-radius: 18px; padding: 20px 18px 16px; box-shadow: var(--shadow); animation: sheet-in .15s ease-out; }

@@ -50,7 +50,7 @@
         <div class="draw-meta small muted">可抽 ${p.length} 人${st.noRepeat ? `｜已抽過 ${st.drawn.filter(inScope).length} 人` : ''}
           <button type="button" class="link-btn" data-d="reset">全部重來</button>
           ${last.length ? `<button type="button" class="link-btn" data-d="seat">在座位表上看</button>` : ''}
-          <button type="button" class="link-btn" data-d="full">全螢幕</button></div>
+          <button type="button" class="link-btn" data-d="full">${$('#drawRoot').classList.contains('present') ? '✕ 離開全螢幕' : '⛶ 全螢幕（投影用）'}</button></div>
       </div>`;
     h += `<details class="draw-roster"><summary>名單（點名字設為缺席，不會被抽到${st.absent.length ? `｜缺席 ${st.absent.length} 人` : ''}）</summary><div class="chips">`;
     all().filter(inScope).forEach(k => {
@@ -116,11 +116,7 @@
       return;
     }
     else if (d === 'seat') return A.highlightSeats(last);
-    else if (d === 'full') {
-      const el = $('#drawRoot .draw');
-      (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
-      return;
-    }
+    else if (d === 'full') return present(!$('#drawRoot').classList.contains('present'));
     saveSt();
     render();
   });
@@ -128,7 +124,22 @@
     if (e.target.id === 'noRepeat') { st.noRepeat = e.target.checked; saveSt(); render(); }
   });
   // 空白鍵／Enter 也可以抽（接投影機、用簡報筆時方便）
+  // 全螢幕（投影用）：iPhone 不能讓網頁全螢幕，所以用 App 自己的全畫面；電腦和 Android 會再加上瀏覽器的全螢幕
+  function present(on) {
+    $('#drawRoot').classList.toggle('present', on);
+    document.body.classList.toggle('presenting', on);
+    try {
+      if (on) document.documentElement.requestFullscreen?.().then(() => { nativeFs = true; }).catch(() => {});
+      else if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    } catch { /* 不支援就只用 App 的全畫面 */ }
+    if (!on) nativeFs = false;
+    render();
+  }
+  let nativeFs = false;
+  // 使用者用瀏覽器的方式離開全螢幕時，App 的全畫面也一起關掉
+  document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && nativeFs && $('#drawRoot').classList.contains('present')) present(false); });
   document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && $('#drawRoot').classList.contains('present')) return present(false);
     if (A.currentTab() !== 'draw' || !$('#sheet').hidden || e.target.closest('input,select,textarea,button')) return;
     if (e.key === ' ' || e.key === 'Enter' || e.key === 'PageDown') { e.preventDefault(); if (!rolling) go(); }
   });

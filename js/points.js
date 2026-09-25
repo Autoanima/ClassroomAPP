@@ -43,7 +43,7 @@
       <div class="pt-grid">`;
     A.students().filter(k => !scope || A.parseKey(k).code.startsWith(scope)).forEach(k => {
       const { code, name } = A.parseKey(k);
-      h += `<button type="button" class="pt-stu${chosen.has(k) ? ' on' : ''}" data-stu="${esc(k)}" aria-pressed="${chosen.has(k)}">
+      h += `<button type="button" class="pt-stu${chosen.has(k) ? ' on' : ''}${k === A.me() ? ' me' : ''}" data-stu="${esc(k)}" aria-pressed="${chosen.has(k)}">
         <span class="photo">${A.faceHtml(k)}</span><span class="sn"><b>${esc(code.replace(/(\d+)$/, ' $1'))}</b><span>${esc(name)}</span></span></button>`;
     });
     h += `</div></div>`;
