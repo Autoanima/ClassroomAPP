@@ -6,6 +6,15 @@
   const LSK = 'indoor.draw.v1' + A.SFX;
   const st = Object.assign({ n: 1, scope: '', noRepeat: true, drawn: [], absent: [], history: [] }, store.get(LSK, {}));
   const saveSt = () => store.set(LSK, st);
+  // 抽籤紀錄只保留最近 30 天（每次打開、每次抽籤時清掉太舊的）
+  const KEEP_DAYS = 30;
+  function pruneHistory() {
+    const since = Date.now() - KEEP_DAYS * 86400e3;
+    st.history = st.history.filter(x => (x.ts || Date.now()) >= since).slice(0, 500);
+    saveSt();
+  }
+  st.history.forEach(x => { x.ts ||= Date.now(); }); // 舊紀錄沒有時間戳：從現在開始算 30 天
+  pruneHistory();
   let rolling = false;
   let last = [];
   // 同學在商店買的抽籤卡：轉移卡（替身）、必中卡（指定第一位）
@@ -23,14 +32,14 @@
       const from = result[0], j = result.indexOf(sure.target);
       if (j > 0) result[j] = from;
       result[0] = sure.target;
-      evs.push({ i: 0, kind: 'sure', from, to: sure.target });
+      evs.push({ i: 0, kind: 'sure', from, to: sure.target, by: sure.by });
       fx.sure = fx.sure.filter(c => c !== sure);
       A.api('drawUsed', { id: sure.id }).catch(() => {});
     }
     const now = Date.now();
     result.forEach((k, i) => {
       const tr = fx.transfers.filter(x => x.from === k && now - x.t < 10 * 86400e3).sort((a, b) => a.t - b.t).pop();
-      if (tr && ok(tr.to) && !result.includes(tr.to)) { result[i] = tr.to; evs.push({ i, kind: 'transfer', from: k, to: tr.to }); }
+      if (tr && ok(tr.to) && !result.includes(tr.to)) { result[i] = tr.to; evs.push({ i, kind: 'transfer', from: k, to: tr.to, by: k }); }
     });
     return evs;
   }
@@ -109,7 +118,8 @@
     });
     h += `</div></details>`;
     if (st.history.length) {
-      h += `<h3>抽籤紀錄</h3><ol class="hist">${st.history.slice(0, 30).map(x => `<li><span class="muted small">${esc(x.t)}</span> ${x.k.map(esc).join('、')}${x.fx?.length ? ` <span class="muted small">（${x.fx.map(esc).join('、')}）</span>` : ''}</li>`).join('')}</ol>`;
+      h += `<div class="hist-head"><h3>抽籤紀錄</h3><span class="muted small">保留 ${KEEP_DAYS} 天</span><button type="button" class="link-btn" data-d="clearHist">清空紀錄</button></div>
+        <ol class="hist">${st.history.map(x => `<li><span class="muted small">${esc(x.t)}</span> ${x.k.map(esc).join('、')}${x.fx?.length ? `<div class="hist-fx">${x.fx.map(f => `<div>${esc(f)}</div>`).join('')}</div>` : ''}</li>`).join('')}</ol>`;
     }
     root.innerHTML = h + `</div>`;
   }
@@ -141,8 +151,11 @@
     }
     last = result;
     st.drawn.push(...result.filter(k => !st.drawn.includes(k)));
-    st.history.unshift({ t: A.fmtTime(new Date()), k: result, fx: evs.map(e => (e.kind === 'sure' ? '🎯' : '🔄') + e.from + '→' + e.to) });
-    st.history = st.history.slice(0, 50);
+    // 抽籤紀錄：時間、結果、被抽籤卡改掉的事件（誰用了什麼卡、原本抽到誰、換成誰）
+    const now = new Date();
+    st.history.unshift({ ts: now.getTime(), t: `${A.pad2(now.getMonth() + 1)}/${A.pad2(now.getDate())} ${A.fmtTime(now)}`, k: result,
+      fx: evs.map(e => (e.kind === 'sure' ? `🎯 抽籤必中卡（${e.by} 使用）：原本抽到 ${e.from} → 換成 ${e.to}` : `🔄 抽籤轉移卡（${e.by} 使用）：抽到 ${e.from} → 由替身 ${e.to} 上場`)) });
+    pruneHistory();
     saveSt();
     rolling = false;
     render();
@@ -170,12 +183,16 @@
     else if (d === 'reset') {
       A.ask('清除「抽過」與缺席紀錄，全部重來？', '全部重來', true).then(ok => {
         if (!ok) return;
-        st.drawn = []; st.absent = []; st.history = []; last = [];
+        st.drawn = []; st.absent = []; last = []; // 抽籤紀錄另外用「清空紀錄」清
         saveSt(); render();
       });
       return;
     }
     else if (d === 'seat') return A.highlightSeats(last);
+    else if (d === 'clearHist') {
+      A.ask('清空全部抽籤紀錄？（「抽過」和缺席的設定不會動）', '清空', true).then(ok => { if (!ok) return; st.history = []; saveSt(); render(); toast('已清空抽籤紀錄'); });
+      return;
+    }
     else if (d === 'full') return present(!$('#drawRoot').classList.contains('present'));
     saveSt();
     render();

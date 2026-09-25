@@ -1023,3 +1023,9 @@ code.url { display: inline-block; margin: 2px 0; }
 .test-banner button { border: 1px solid #d9b22b; background: #fff; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 700; color: #7a5a00; }
 body.test-mode .topbar { top: 34px; padding-top: 6px; }
 body.locked.test-mode .test-banner { position: fixed; left: 0; right: 0; }
+
+/* 抽籤紀錄 */
+.hist-head { display: flex; align-items: baseline; gap: 8px; }
+.hist-head .link-btn { margin-left: auto; }
+.hist-fx { font-size: 13px; color: #b54708; margin: 2px 0 4px; }
+[data-theme="dark"] .hist-fx { color: #f5b041; }
