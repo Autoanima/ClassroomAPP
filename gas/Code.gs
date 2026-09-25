@@ -1393,8 +1393,8 @@ function ensureScoreSheet(withButton) {
     const b8 = sh.getRange('B8');
     b8.setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(['分數', '科排名'], true).build()).setBackground('#fff8db');
     if (!b8.getValue()) b8.setValue('分數');
-    sh.getRange('C8').setValue('（分數＝越高越好；科排名＝成績單上的科內名次）').setFontColor('#6b7079');
   }
+  sh.getRange('C8').setValue('（分數＝越高越好；科排名＝成績單上的科內名次。多媒、資料兩科怎麼混合排序，請看「段考排名」分頁最上面的說明）').setFontColor('#6b7079');
   if (withButton) ensureScoreButtons(sh);
   return sh;
 }
@@ -1579,7 +1579,22 @@ function showExamRank() {
     .map(x => [R.overall[x.key] || '', x.dept, x.no, x.name, x.avgPct == null ? '' : x.avgPct]
       .concat([0, 1, 2].reduce((a, i) => a.concat([x.s[i] == null ? '' : x.s[i], R.per[i].deptRank[x.key] || '', R.per[i].pct[x.key] == null ? '' : R.per[i].pct[x.key], R.per[i].rank[x.key] || '']), [])));
   sh.getRange(1, 1).setValue('段考排名（' + Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'yyyy/MM/dd HH:mm') + ' 更新）').setFontSize(14).setFontWeight('bold');
-  sh.getRange(2, 1).setValue('多媒、資料各自排名 → 換成百分比（科內名次 ÷ 該科人數，越小越好）→ 依百分比排出全班名次；總名次依平均百分比。線上選位和「前五名交換位置卡」依最近一次段考（' + R.label + '）的班名次。').setFontColor('#6b7079');
+  // 排名方式說明（兩科考的科目不同，分數不能直接比，所以用百分比混合排序）
+  const note = [
+    '【全班兩科混合排序的方式】',
+    '多媒科和資料科段考的科目不一樣，分數不能直接互相比較，所以用「百分比」把兩科放在一起排：',
+    '① 科內排名：每次段考，多媒科的同學只和多媒科比、資料科的同學只和資料科比，排出「科內名次」（同分同名次）。' + (R.byRank ? '目前「扣分統計」B8 選的是「科排名」，所以直接用填進去的科內名次。' : ''),
+    '② 換成百分比：百分比＝科內名次 ÷ 該科有成績的人數。例如多媒 18 人中第 3 名＝16.7%；資料 26 人中第 5 名＝19.2%。百分比越小越前面。',
+    '③ 全班名次（班名次）：把兩科同學的百分比放在一起，由小到大排，就是那次段考的全班名次。',
+    '④ 總名次：把已經有成績的各次段考百分比平均，再由小到大排。',
+    '例子：多媒某同學 70 分，是多媒第 1 名（18 人，5.6%）；資料某同學 90 分，是資料第 2 名（26 人，7.7%）→ 多媒這位同學排在前面，因為他在自己科裡的表現比較前面。',
+    '用途：線上選位的順序、前五名交換位置卡（第一名 2 張、第二～五名各 1 張），都依最近一次段考（' + R.label + '）的「班名次」。',
+    '成績填在「扣分統計」的 I～K 欄；B8 可以選填「分數」（越高越好）或「科排名」（成績單上的科內名次）。',
+  ].join('\n');
+  sh.getRange(2, 1, 1, head.length).merge().setWrap(true).setVerticalAlignment('top').setFontColor('#3d4250').setBackground('#f6f7fb');
+  const n1 = note.indexOf('】') + 1; // 標題粗體
+  sh.getRange(2, 1).setRichTextValue(SpreadsheetApp.newRichTextValue().setText(note).setTextStyle(0, n1, SpreadsheetApp.newTextStyle().setBold(true).build()).build());
+  sh.setRowHeight(2, 190);
   sh.getRange(3, 1, 1, head.length).setValues([head]).setFontWeight('bold').setBackground('#dff3ea');
   if (rows.length) {
     sh.getRange(4, 1, rows.length, head.length).setValues(rows);
