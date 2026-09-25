@@ -208,7 +208,14 @@ function saveRoster(r) {
 
 // ── 外掃區：直接讀寫「外掃區檢查」App 試算表裡的「工作分配」工作表（兩個 App 因此同步）──
 function outdoorId() {
-  return PropertiesService.getScriptProperties().getProperty('OUTDOOR_SHEET_ID') || CONFIG.OUTDOOR_SHEET_ID || '';
+  const props = PropertiesService.getScriptProperties();
+  const id = props.getProperty('OUTDOOR_SHEET_ID') || CONFIG.OUTDOOR_SHEET_ID;
+  if (id) return id;
+  // 沒設定時，自動找「商一甲 APP 專用」資料夾裡檔名含「外掃」的試算表，找到就記下來
+  const f = listSheetFiles().find(x => /外掃/.test(x.getName()));
+  if (!f) return '';
+  props.setProperty('OUTDOOR_SHEET_ID', f.getId());
+  return f.getId();
 }
 function outdoorSheet() {
   const id = outdoorId();
@@ -284,7 +291,7 @@ function listSheetFiles() {
 }
 const isRankName = n => /排名|成績/.test(n);
 function rosterFile() {
-  const files = listSheetFiles().filter(f => !isRankName(f.getName()));
+  const files = listSheetFiles().filter(f => !isRankName(f.getName()) && !/外掃/.test(f.getName()));
   if (!files.length) throw new Error('「' + CONFIG.FOLDER_NAME + '」資料夾裡找不到名單試算表');
   files.sort((a, b) => (/名單/.test(b.getName()) ? 1 : 0) - (/名單/.test(a.getName()) ? 1 : 0));
   return files[0];
