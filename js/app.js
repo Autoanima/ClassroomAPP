@@ -1253,6 +1253,12 @@
     h += `<div class="jobs-head"><h2>工作分配</h2>${isTeacher()
       ? `<button type="button" class="btn btn--primary" id="editRoster">✏️ 修改負責人員</button>`
       : `<span class="muted small">${isStudent() ? '點地圖可以看到負責的同學' : '只有導師可以修改'}</span>`}</div>`;
+    // 導師：還沒有任何掃地工作的同學（外掃區連結後才算得準）
+    if (isTeacher() && students().length) {
+      const free = students().filter(k => !jobsOf(k).jobs.length && k !== inspectorName('I1'));
+      if (!roster?.outdoor) h += `<div class="banner warn"><div class="bn-sub">⚠ 外掃區還沒有連結，外掃的同學會顯示「沒有指定」。</div></div>`;
+      else if (free.length) h += `<div class="banner warn"><div class="bn-main">還沒有掃地工作：${free.length} 人</div><div class="bn-sub">${free.map(esc).join('、')}</div></div>`;
+    }
     // 清單預設收起來（點地圖就能看到負責的人）
     h += `<details class="jobs-fold"${ui.jobsOpen ? ' open' : ''}><summary>📋 全部工作與負責同學</summary>`;
     h += `<div class="job-card sup"><div class="jt">環保股長（監督各掃區掃地工作）</div><div class="jn">${nameChips([inspectorName('I1')])}</div></div>`;
@@ -1969,7 +1975,7 @@
   const App = window.App = {
     D, TEST, SFX, $, esc, pad2, toast, ask, store, api, copyText, fmtDate, fmtTime, fmtDateW,
     loadImage, drawTo, toBlob, blobToBase64,
-    isStudent, isStaff, isTeacher, isChecker, jobsOf, me: () => settings.me, userName: () => settings.inspector,
+    isStudent, isStaff, isTeacher, isChecker, jobsOf, roster: () => roster, me: () => settings.me, userName: () => settings.inspector,
     students, loadStudents, studentList: () => studentList, className: () => className() || studentList?.className || '',
     DEMO_STUDENTS,
     mountMap, renderMap, sizeMap, maps, flipOn,

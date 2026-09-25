@@ -728,7 +728,8 @@
   // 掃地工作與幹部職位
   function dutyHtml(k) {
     const { jobs, roles } = A.jobsOf(k);
-    return `<div class="duty"><span class="muted small">🧹 掃地工作</span><b>${jobs.length ? jobs.map(esc).join('<br>') : '（沒有指定）'}</b>
+    const none = A.roster()?.outdoor ? '（沒有指定）' : '（內掃區沒有指定；外掃區還沒有連結，看不到外掃工作）';
+    return `<div class="duty"><span class="muted small">🧹 掃地工作</span><b>${jobs.length ? jobs.map(esc).join('<br>') : none}</b>
       ${roles.length ? `<span class="muted small">🎖 幹部</span><b>${roles.map(esc).join('、')}</b>` : ''}</div>`;
   }
   A.dutyHtml = dutyHtml;
