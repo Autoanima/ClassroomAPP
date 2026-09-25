@@ -80,6 +80,7 @@
       <button type="button" role="tab" data-tab="shop">🛍 商店</button>
       <button type="button" role="tab" data-tab="line">💬 LINE 圖</button>
       <button type="button" role="tab" data-tab="jobs">👥 工作分配</button>
+      <button type="button" role="tab" data-tab="fund">💰 班費</button>
     </nav>
   </header>
 
@@ -105,6 +106,11 @@
 
     <section id="tab-points" class="tab" hidden>
       <div id="pointsRoot"></div>
+      <div id="packRoot"></div>
+    </section>
+
+    <section id="tab-fund" class="tab" hidden>
+      <div id="fundRoot"></div>
     </section>
 
     <section id="tab-jobs" class="tab" hidden>
@@ -174,7 +180,7 @@
   <input id="faceInput" type="file" accept="image/*" hidden>
 
   <script>
-    ['config.js', 'js/map-data.js', 'js/sel-engine.js', 'js/app.js', 'js/seats.js', 'js/points.js', 'js/draw.js', 'js/shop.js', 'js/line.js', 'js/board.js', 'js/mail.js'].forEach(function (s) {
+    ['config.js', 'js/map-data.js', 'js/sel-engine.js', 'js/app.js', 'js/seats.js', 'js/points.js', 'js/draw.js', 'js/shop.js', 'js/line.js', 'js/board.js', 'js/mail.js', 'js/fund.js'].forEach(function (s) {
       document.write('<script src="' + s + '?v=' + __V + '"><\/script>');
     });
     document.write('<script>App.boot();<\/script>');

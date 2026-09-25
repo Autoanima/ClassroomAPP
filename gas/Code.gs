@@ -64,6 +64,11 @@ const SHEET_SEATS = '座位表';
 const HEAD_SEATS = ['座位', '排', '個', '同學'];
 const SHEET_DUTY = '值日生';           // 班長、副班長每天登記的值日生（兩位）
 const HEAD_DUTY = ['日期', '值日生1', '值日生2', '值日生3', '值日生4', '登記人', '登記時間'];
+const SHEET_FUND = '班費收支';          // 總務登記；刪除只做標記
+const HEAD_FUND = ['日期', '品項', '收支', '金額', '說明', '登記人', '登記時間', '編號', '狀態'];
+const SHEET_PACK = '紅包';              // 發紅包活動：發起、連署、發放都留紀錄
+const HEAD_PACK = ['發起時間', '發起人', '原因', '每人點數', '連署', '狀態', '發放時間', '編號', '發放人數'];
+const PACK_MAX = 20;                    // 每人最多發幾點
 const SHEET_MAIL = '飛鴿傳書';         // 站內信：3 天後在 App 上消失（紀錄留在試算表，導師看得到）
 const HEAD_MAIL = ['時間', '寄件人', '收件人', '內容', '編號'];
 const MAIL_DAYS = 3, MAIL_PER_DAY = 10;
@@ -88,9 +93,9 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
 const GUEST_OK = { rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1 };
@@ -145,6 +150,13 @@ function doPost(e) {
       case 'buyFirework': return json(buyFirework(who, String(req.to || '')));
       case 'swapSeatCard': return json(swapSeatCard(who, String(req.to || '')));
       case 'createAcc': return json(createAcc(who, req.name, req.price, req.data));
+      case 'getFund': return json(getFund());
+      case 'addFund': return json(addFund(who, req.row || {}));
+      case 'delFund': return json(delFund(who, String(req.id || '')));
+      case 'getPacks': return json({ ok: true, packs: getPacks() });
+      case 'startPack': return json({ ok: true, packs: startPack(who, req.reason, req.points) });
+      case 'signPack': return json({ ok: true, packs: signPack(who, String(req.id || '')) });
+      case 'cancelPack': return json({ ok: true, packs: cancelPack(who, String(req.id || '')) });
       case 'getMail': return json({ ok: true, mails: getMail(who) });
       case 'sendMail': return json(sendMail(who, String(req.to || ''), req.text));
       case 'getBoard': return json({ ok: true, posts: getBoard() });
@@ -790,9 +802,10 @@ function coinsOf(key, inv) {
   let earned = 0;
   if (psh.getLastRow() > 1) psh.getRange(2, 2, psh.getLastRow() - 1, 2).getValues().forEach(r => { if (String(r[0]).trim() === key && Number(r[1]) > 0) earned += Number(r[1]); });
   const income = salesOf(key, inv).income;
+  const red = packsFor(key).reduce((t, x) => t + x.points, 0); // 紅包（不算加扣分，不影響扣分統計和班名次）
   const spent = (inv || invRows()).filter(x => x.buyer === key).reduce((t, x) => t + x.price, 0)
     + spendRows().filter(x => x.who === key).reduce((t, x) => t + x.points, 0);
-  return { earned: earned + income, spent: spent, coins: earned + income - spent, income: income };
+  return { earned: earned + income + red, spent: spent, coins: earned + income + red - spent, income: income, red: red };
 }
 function decoRows() {
   const sh = getSheet(SHEET_DECO, HEAD_DECO);
@@ -828,6 +841,7 @@ function shopState(who) {
   const plus = psh.getLastRow() > 1 ? psh.getRange(2, 1, psh.getLastRow() - 1, 5).getValues()
     .filter(r => String(r[1]).trim() === key && Number(r[2]) > 0).slice(-20).reverse()
     .map(r => ({ date: r[0] instanceof Date ? ymd(r[0]) : String(r[0]), points: Number(r[2]), reason: String(r[4]) })) : [];
+  packsFor(key).forEach(x => plus.unshift({ date: x.date, points: x.points, reason: '🧧 紅包：' + x.reason }));
   let students = [], classmates = [];
   try { students = getStudents().students; classmates = students.filter(k => k !== key); } catch (e) { /* 沒有名單 */ }
   // 可以偷的：別人身上還有效的配件；被偷紀錄：最近 14 天
@@ -983,6 +997,116 @@ function minusOf(key) {
   return m;
 }
 // ── 值日生：班長、副班長（或導師）每天登記兩位 ──
+// ── 班費收支：總務（和導師）登記，大家都看得到 ──
+const isTreasurer = key => cadreRoles(key).some(r => /^總務/.test(String(r).trim()));
+function fundRows() {
+  const sh = getSS().getSheetByName(SHEET_FUND);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_FUND.length).getValues()
+    .filter(r => !String(r[8]) && String(r[1]).trim())
+    .map(r => ({ date: r[0] instanceof Date ? ymd(r[0]) : String(r[0]), item: String(r[1]), type: String(r[2]), amount: Number(r[3]) || 0, note: String(r[4]), by: String(r[5]), id: String(r[7]) }));
+}
+function getFund() {
+  const rows = fundRows().sort((a, b) => a.date.localeCompare(b.date));
+  let bal = 0;
+  rows.forEach(r => { bal += r.type === '支出' ? -r.amount : r.amount; r.balance = bal; });
+  const inc = rows.filter(r => r.type !== '支出').reduce((t, r) => t + r.amount, 0), out = rows.filter(r => r.type === '支出').reduce((t, r) => t + r.amount, 0);
+  return { ok: true, rows: rows.reverse(), income: inc, expense: out, balance: inc - out };
+}
+function addFund(who, r) {
+  if (!who.teacher && !isTreasurer(who.key)) throw new Error('只有總務和導師可以登記班費');
+  const item = String(r.item || '').trim().slice(0, 40), note = String(r.note || '').trim().slice(0, 100);
+  const amount = Math.round(Number(r.amount) * 100) / 100, type = r.type === '支出' ? '支出' : '收入';
+  if (!item) throw new Error('請填品項');
+  if (!(amount > 0) || amount > 1e7) throw new Error('金額要大於 0');
+  withLock(() => {
+    const sh = getSheet(SHEET_FUND, HEAD_FUND);
+    const row = sh.getLastRow() + 1;
+    sh.getRange(row, 1, 1, HEAD_FUND.length).setValues([[toDate(r.date || ymd(new Date())), item, type, amount, note, mailName(who), new Date(), Utilities.getUuid().slice(0, 8), '']]);
+    sh.getRange(row, 1).setNumberFormat('yyyy/mm/dd');
+  });
+  return getFund();
+}
+function delFund(who, id) {
+  if (!who.teacher && !isTreasurer(who.key)) throw new Error('只有總務和導師可以刪除');
+  withLock(() => {
+    const sh = getSheet(SHEET_FUND, HEAD_FUND);
+    const n = sh.getLastRow() - 1;
+    const i = n > 0 ? sh.getRange(2, 8, n, 1).getValues().findIndex(x => String(x[0]) === id) : -1;
+    if (i < 0) throw new Error('找不到這筆');
+    sh.getRange(i + 2, 9).setValue('已刪除 ' + Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'MM/dd HH:mm') + '（' + mailName(who) + '）');
+  });
+  return getFund();
+}
+
+// ── 發紅包：幹部發起 → 班長＋副班長＋另外兩位幹部（共 4 人）連署 → 發給全班（商店點數） ──
+function packRows() {
+  const sh = getSS().getSheetByName(SHEET_PACK);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_PACK.length).getValues().map((r, i) => ({
+    row: i + 2, t: r[0] instanceof Date ? r[0].getTime() : 0, time: r[0] instanceof Date ? Utilities.formatDate(r[0], CONFIG.TIMEZONE, 'MM/dd HH:mm') : '',
+    by: String(r[1]), reason: String(r[2]), points: Number(r[3]) || 0, signs: String(r[4]).split('、').map(x => x.replace(/（.*$/, '').trim()).filter(Boolean),
+    signText: String(r[4]), status: String(r[5]), date: r[6] instanceof Date ? ymd(r[6]) : '', id: String(r[7]),
+  }));
+}
+/** 連署夠不夠：要有班長、副班長，再加另外兩位幹部（共 4 人） */
+function packReady(signs) {
+  const roles = {};
+  signs.forEach(k => { roles[k] = cadreRoles(k).map(r => String(r).trim()); });
+  const head = k => roles[k].some(r => r === '班長'), vice = k => roles[k].some(r => r === '副班長');
+  const hasHead = signs.some(head), hasVice = signs.some(vice);
+  const others = signs.filter(k => !head(k) && !vice(k) && roles[k].length).length;
+  return { ok: hasHead && hasVice && others >= 2, hasHead: hasHead, hasVice: hasVice, others: others };
+}
+function getPacks() {
+  const since = Date.now() - 30 * 86400e3;
+  return packRows().filter(p => p.status === '連署中' || p.t >= since).reverse()
+    .map(p => Object.assign({ need: packReady(p.signs) }, p, { row: undefined }));
+}
+function packsFor(key) {
+  if (key === CONFIG.TEACHER_NAME) return [];
+  return packRows().filter(p => p.status === '已發放').map(p => ({ date: p.date, points: p.points, reason: p.reason }));
+}
+function startPack(who, reason, points) {
+  if (who.teacher) throw new Error('紅包活動由幹部發起');
+  if (!cadreRoles(who.key).length) throw new Error('只有幹部可以發起紅包活動');
+  reason = String(reason || '').trim().slice(0, 60);
+  points = Math.round(Number(points));
+  if (!reason) throw new Error('請寫發紅包的原因');
+  if (!(points >= 1 && points <= PACK_MAX)) throw new Error('每人點數要在 1～' + PACK_MAX + ' 點之間');
+  withLock(() => {
+    const sh = getSheet(SHEET_PACK, HEAD_PACK);
+    const now = new Date();
+    sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_PACK.length).setValues([[now, who.key, reason, points, who.key + '（' + Utilities.formatDate(now, CONFIG.TIMEZONE, 'MM/dd HH:mm') + '）', '連署中', '', Utilities.getUuid().slice(0, 8), '']]);
+  });
+  return getPacks();
+}
+function signPack(who, id) {
+  if (who.teacher || !cadreRoles(who.key).length) throw new Error('只有幹部可以連署');
+  withLock(() => {
+    const p = packRows().find(x => x.id === id);
+    if (!p || p.status !== '連署中') throw new Error('這個紅包活動已經結束了');
+    if (p.signs.indexOf(who.key) >= 0) throw new Error('你已經連署過了');
+    const sh = getSheet(SHEET_PACK, HEAD_PACK);
+    const signs = p.signs.concat([who.key]);
+    sh.getRange(p.row, 5).setValue(p.signText + '、' + who.key + '（' + Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'MM/dd HH:mm') + '）');
+    if (packReady(signs).ok) { // 連署夠了：發給全班
+      sh.getRange(p.row, 6, 1, 2).setValues([['已發放', new Date()]]);
+      sh.getRange(p.row, 9).setValue(getStudents().students.length);
+    }
+  });
+  return getPacks();
+}
+function cancelPack(who, id) {
+  withLock(() => {
+    const p = packRows().find(x => x.id === id);
+    if (!p || p.status !== '連署中') throw new Error('這個紅包活動已經結束了');
+    if (!who.teacher && p.by !== who.key) throw new Error('只有發起人或導師可以取消');
+    getSheet(SHEET_PACK, HEAD_PACK).getRange(p.row, 6).setValue('已取消（' + mailName(who) + ' ' + Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'MM/dd HH:mm') + '）');
+  });
+  return getPacks();
+}
+
 // ── 飛鴿傳書：寄給同學（或導師）的站內信，3 天後在 App 上消失 ──
 const mailName = who => (who.teacher ? CONFIG.TEACHER_NAME : who.key);
 function mailRows() {

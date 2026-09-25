@@ -1068,3 +1068,29 @@ body.locked.test-mode .test-banner { position: fixed; left: 0; right: 0; }
 .mail-foot .link-btn { margin-left: auto; }
 .special.mail { border-color: #9fd8e8; background: #eef9fc; }
 [data-theme="dark"] .special.mail { background: #17303a; border-color: #2c5f6a; }
+
+/* 班費收支 */
+#fundRoot, #packRoot { margin: 0; }
+.fund-sum { display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; gap: 6px; }
+.fund-sum b { display: block; font-size: 20px; }
+.fund-sum .plus, .fund-table .plus { color: #1a7f4b; }
+.fund-sum .minus, .fund-table .minus { color: #c0392b; }
+.fund-type { margin-bottom: 8px; }
+.fund-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.fund-grid label { display: flex; flex-direction: column; font-size: 13px; color: var(--muted); gap: 3px; }
+.fund-grid input { font: inherit; font-size: 15px; padding: 7px 8px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text, inherit); min-width: 0; }
+.fund-table td { vertical-align: top; }
+/* 發紅包 */
+.pack-new { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; margin-bottom: 10px; }
+.pack-new input[type=text] { font: inherit; padding: 7px 8px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--surface); color: inherit; min-width: 0; }
+.pk-pts { display: flex; align-items: center; gap: 3px; font-size: 13px; white-space: nowrap; }
+.pk-pts input { width: 3.2em; font: inherit; padding: 6px 4px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--surface); color: inherit; text-align: center; }
+.pack-card { border: 1.5px solid #f3b0b0; background: #fff5f5; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; display: grid; gap: 4px; }
+.pack-card.done { border-color: #9fd8b5; background: #effaf3; }
+.pack-card.off { opacity: .55; }
+[data-theme="dark"] .pack-card { background: #3a1f22; border-color: #7a3b40; }
+[data-theme="dark"] .pack-card.done { background: #17302a; border-color: #2c6a55; }
+.pk-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.pk-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pk-foot .btn { padding: 4px 12px; font-size: 13px; }
+@media (max-width: 420px) { .fund-grid { grid-template-columns: 1fr; } .pack-new { grid-template-columns: 1fr auto; } .pack-new .btn { grid-column: 1 / -1; } }

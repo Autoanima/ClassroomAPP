@@ -547,9 +547,9 @@
   paintCompact();
 
   // ── 分頁 ──
-  const TABS = ['clean', 'points', 'seats', 'draw', 'shop', 'line', 'jobs'];
+  const TABS = ['clean', 'points', 'seats', 'draw', 'shop', 'line', 'jobs', 'fund'];
   const tabHooks = {};
-  const allowedTabs = () => (isGuest() ? ['draw', 'seats'] : isStudent() ? ['seats', 'clean', 'shop', 'line', 'jobs']
+  const allowedTabs = () => (isGuest() ? ['draw', 'seats'] : isStudent() ? ['seats', 'clean', 'shop', 'line', 'jobs', 'fund']
     : TABS.filter(t => (t === 'points' ? canPoints() : true)));
   const isViewer = () => !isChecker(); // 不能檢查的人（學生、一般幹部）：掃地地圖只能看
   function showTab(name) {
@@ -1884,7 +1884,7 @@
   };
 
   // ── 自動更新：切回 App 或每 10 分鐘檢查 GitHub 上的檔案有沒有變 ──
-  const WATCH = ['index.html', 'sw.js','config.js', 'js/map-data.js', 'js/sel-engine.js', 'js/app.js', 'js/seats.js', 'js/points.js', 'js/draw.js', 'js/shop.js', 'js/line.js', 'js/board.js', 'js/mail.js', 'css/style.css'];
+  const WATCH = ['index.html', 'sw.js','config.js', 'js/map-data.js', 'js/sel-engine.js', 'js/app.js', 'js/seats.js', 'js/points.js', 'js/draw.js', 'js/shop.js', 'js/line.js', 'js/board.js', 'js/mail.js', 'js/fund.js', 'css/style.css'];
   async function fingerprint() {
     try {
       const tags = await Promise.all(WATCH.map(async u => {
