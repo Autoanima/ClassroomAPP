@@ -46,6 +46,10 @@ const CONFIG = {
   WEATHER_DAYS: 10,                   // 小太陽卡／小雨傘卡有效上課日
   SURE_PRICE: 30,                     // 抽籤必中卡：指定一位同學，下一次抽籤第一位一定是他（只有一次）
   SWAP_BAN_MINUS: 10,
+  PENALTY_PER: 2,                     // 每被扣 2 分，商店點數減 1 點（最少扣到 0 點，不會變負的）
+  PENALTY_FROM: '2026/09/26',         // 這天以後的扣分才會扣點數（之前的不算）
+  DRAW_BOOST: 0.1,                    // 抽籤加權：每被扣 1 分，被抽中的機率增加 10%
+  DRAW_BOOST_TIMES: 3,                // 加權持續接下來的 3 次抽籤
   RANK_POINT_WEIGHT: 1,               // 班名次＝段考表現＋那段期間的加扣分：加扣分 1 分＝百分比 1 個百分點（例如 +3 分≈往前 3%）                 // 「加扣分紀錄」被扣的分數加起來超過這個數，就不能用交換位置卡
   CREATE_PRICE: 20,                   // 創造卡：同學上傳 PNG 變成新商品，預設售價（可以自己改 1–100）
   CREATE_PER_DAY: 3,                  // 每人每天最多創造幾個商品
@@ -812,16 +816,51 @@ function salesOf(key, inv) {
   const rows = (inv || invRows()).filter(x => mine[x.acc] && x.buyer !== CONFIG.TEACHER_NAME);
   return { n: rows.length, income: rows.reduce((t, x) => t + x.price, 0), items: Object.keys(mine).map(id => ({ id: id, name: mine[id].name, price: mine[id].price, sold: rows.filter(x => x.acc === id).length, delisted: !!mine[id].delisted })) };
 }
+const timeOf = s => {
+  if (s instanceof Date) return s.getTime();
+  const str = String(s || '').trim();
+  try { return Utilities.parseDate(str, CONFIG.TIMEZONE, 'yyyy/MM/dd HH:mm').getTime(); } catch (e) { /* 只有日期 */ }
+  try { return Utilities.parseDate(str, CONFIG.TIMEZONE, 'yyyy/MM/dd').getTime() + 12 * 3600e3; } catch (e) { return 0; }
+};
+/** 商店點數：加分、作品收入、紅包 − 花掉的 − 扣分罰點（每扣 PENALTY_PER 分減 1 點，最少扣到 0）。
+ *  依時間順序一筆一筆算，這樣「扣到 0 為止」才正確 */
 function coinsOf(key, inv) {
-  if (key === CONFIG.TEACHER_NAME) return { earned: UNLIMITED, spent: 0, coins: UNLIMITED, income: 0 };
+  if (key === CONFIG.TEACHER_NAME) return { earned: UNLIMITED, spent: 0, coins: UNLIMITED, income: 0, penalty: 0 };
+  inv = inv || invRows();
+  const ev = []; // [時間, 種類(0 收入 1 花費 2 扣分), 數量]
   const psh = pointsSheet();
-  let earned = 0;
-  if (psh.getLastRow() > 1) psh.getRange(2, 2, psh.getLastRow() - 1, 2).getValues().forEach(r => { if (String(r[0]).trim() === key && Number(r[1]) > 0) earned += Number(r[1]); });
-  const income = salesOf(key, inv).income;
-  const red = packsFor(key).reduce((t, x) => t + x.points, 0); // 紅包（不算加扣分，不影響扣分統計和班名次）
-  const spent = (inv || invRows()).filter(x => x.buyer === key).reduce((t, x) => t + x.price, 0)
-    + spendRows().filter(x => x.who === key).reduce((t, x) => t + x.points, 0);
-  return { earned: earned + income + red, spent: spent, coins: earned + income + red - spent, income: income, red: red };
+  const from = timeOf(CONFIG.PENALTY_FROM) - 12 * 3600e3;
+  let earned = 0, minus = 0;
+  if (psh.getLastRow() > 1) psh.getRange(2, 1, psh.getLastRow() - 1, 7).getValues().forEach(r => {
+    if (String(r[1]).trim() !== key) return;
+    const p = Number(r[2]) || 0, t = timeOf(r[6] || r[0]);
+    if (p > 0) { earned += p; ev.push([t, 0, p]); }
+    else if (p < 0 && t >= from) { minus += -p; ev.push([t, 2, -p]); }
+  });
+  const sales = salesOf(key, inv);
+  const mine = {};
+  sales.items.forEach(a => { mine[a.id] = true; });
+  inv.filter(x => mine[x.acc] && x.buyer !== CONFIG.TEACHER_NAME).forEach(x => ev.push([timeOf(x.time), 0, x.price]));
+  const packs = packsFor(key);
+  packs.forEach(x => ev.push([timeOf(x.date), 0, x.points]));
+  let spent = 0;
+  inv.filter(x => x.buyer === key).forEach(x => { spent += x.price; ev.push([timeOf(x.time), 1, x.price]); });
+  spendRows().filter(x => x.who === key).forEach(x => { spent += x.points; ev.push([x.t, 1, x.points]); });
+  ev.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  let coins = 0, acc = 0, penalty = 0;
+  const per = Number(CONFIG.PENALTY_PER) || 2;
+  ev.forEach(e => {
+    if (e[1] === 0) coins += e[2];
+    else if (e[1] === 1) coins -= e[2];
+    else {
+      const d = Math.floor((acc + e[2]) / per) - Math.floor(acc / per);
+      acc += e[2];
+      const take = Math.max(0, Math.min(d, coins)); // 最少扣到 0
+      coins -= take; penalty += take;
+    }
+  });
+  const red = packs.reduce((t, x) => t + x.points, 0);
+  return { earned: earned + sales.income + red, spent: spent, coins: coins, income: sales.income, red: red, penalty: penalty, minus: minus };
 }
 function decoRows() {
   const sh = getSheet(SHEET_DECO, HEAD_DECO);
@@ -875,13 +914,14 @@ function shopState(who) {
     deco: (decoRows()[key] || { layers: [] }).layers,
     minus: minusOf(key), swapBan: CONFIG.SWAP_BAN_MINUS, freeSwap: freeSwapCards(key), rankCards: cardRows().filter(x => x.who === key).slice(-5).reverse(),
     held: heldCards(key), giftable: Object.keys(GIFT_CARDS()),
+    penalty: c.penalty || 0, penaltyPer: CONFIG.PENALTY_PER, penaltyFrom: CONFIG.PENALTY_FROM,
     unlimited: !!who.teacher, income: c.income, sales: who.teacher ? null : salesOf(key, inv), createPrice: CONFIG.CREATE_PRICE,
     // 導師：全班點數一覽
     admin: who.teacher ? (() => {
       const items = itemsByStudent();
       return students.map(k => {
         const x = coinsOf(k, inv);
-        return { key: k, earned: x.earned, spent: x.spent, coins: x.coins, income: x.income, active: inv.filter(y => y.owner === k && y.exp >= today).length,
+        return { key: k, earned: x.earned, spent: x.spent, coins: x.coins, income: x.income, penalty: x.penalty || 0, active: inv.filter(y => y.owner === k && y.exp >= today).length,
           held: items.held[k] || {}, used: items.used[k] || {} };
       });
     })() : null,
@@ -1303,10 +1343,31 @@ function weatherList() {
 }
 // ── 抽籤轉移卡／抽籤必中卡：記在「點數使用」；抽籤畫面（導師、幹部）讀取後套用 ──
 const isUsedNote = n => /^已使用/.test(String(n));
+/** 抽籤加權：{ 同學: { w: 1.3, pts: 3, left: 2 } }；每筆扣分在它之後的 DRAW_BOOST_TIMES 次抽籤內有效 */
+function drawWeights() {
+  const out = {};
+  const psh = pointsSheet();
+  if (psh.getLastRow() < 2) return out;
+  const since = Date.now() - 60 * 86400e3;
+  const dsh = getSS().getSheetByName(SHEET_DRAW);
+  const draws = dsh && dsh.getLastRow() > 1 ? dsh.getRange(2, 1, dsh.getLastRow() - 1, 1).getValues().map(r => (r[0] instanceof Date ? r[0].getTime() : 0)).filter(t => t >= since) : [];
+  const N = Number(CONFIG.DRAW_BOOST_TIMES) || 3, B = Number(CONFIG.DRAW_BOOST) || 0.1;
+  psh.getRange(2, 1, psh.getLastRow() - 1, 7).getValues().forEach(r => {
+    const p = Number(r[2]) || 0, who = String(r[1]).trim(), t = timeOf(r[6] || r[0]);
+    if (p >= 0 || !who || t < since) return;
+    const used = draws.filter(d => d > t).length;
+    if (used >= N) return;
+    const o = out[who] || (out[who] = { pts: 0, left: 0 });
+    o.pts += -p; o.left = Math.max(o.left, N - used);
+  });
+  Object.keys(out).forEach(k => { out[k].w = Math.round((1 + out[k].pts * B) * 100) / 100; });
+  return out;
+}
 function drawFx() {
   const since = Date.now() - CONFIG.TRANSFER_DAYS * 86400e3;
   const rows = spendRows();
   return {
+    weights: drawWeights(), boost: CONFIG.DRAW_BOOST, boostTimes: CONFIG.DRAW_BOOST_TIMES,
     // 同一人買好幾次：用最新的那張
     transfers: rows.filter(x => x.use === '抽籤轉移卡' && x.t >= since).map(x => ({ id: x.id, from: x.who, to: x.target, until: ymd(new Date(x.t + CONFIG.TRANSFER_DAYS * 86400e3)), t: x.t })),
     sure: rows.filter(x => x.use === '抽籤必中卡' && !isUsedNote(x.note)).map(x => ({ id: x.id, by: x.who, target: x.target, t: x.t })),

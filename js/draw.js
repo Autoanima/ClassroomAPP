@@ -39,10 +39,11 @@
   }
   document.addEventListener('visibilitychange', () => { if (!document.hidden && A.currentTab() === 'draw') { loadLog(true); poll(); } });
   // 同學在商店買的抽籤卡：轉移卡（替身）、必中卡（指定第一位）
-  let fx = { transfers: [], sure: [] }, fxAt = 0;
+  let fx = { transfers: [], sure: [], weights: {}, boost: 0.1, times: 3 }, fxAt = 0;
+  const weightOf = k => fx.weights?.[k]?.w || 1;
   async function loadFx(force) {
     if (A.isStudent() || (!force && Date.now() - fxAt < 60e3)) return;
-    try { const r = await A.api('getDrawFx'); fx = { transfers: r.transfers || [], sure: r.sure || [] }; fxAt = Date.now(); } catch { /* 讀不到就照一般抽籤 */ }
+    try { const r = await A.api('getDrawFx'); fx = { transfers: r.transfers || [], sure: r.sure || [], weights: r.weights || {}, boost: r.boost ?? 0.1, times: r.boostTimes ?? 3 }; fxAt = Date.now(); } catch { /* 讀不到就照一般抽籤 */ }
   }
   /** 套用抽籤卡：先必中卡（第一位換成指定的人），再轉移卡（抽到的人換成替身）；回傳要播的動畫 */
   function applyFx(result) {
@@ -101,9 +102,16 @@
     crypto.getRandomValues(a);
     return a[0] % n;
   }
-  function pickN(list, n) {
+  function pickN(list, n, weighted) {
     const a = [...list], out = [];
-    while (out.length < n && a.length) out.push(a.splice(randInt(a.length), 1)[0]);
+    while (out.length < n && a.length) {
+      if (!weighted) { out.push(a.splice(randInt(a.length), 1)[0]); continue; }
+      // 依權重抽：權重 1.3 的同學，被抽中的機會是一般同學的 1.3 倍
+      const total = a.reduce((t, k) => t + weightOf(k), 0);
+      let r = (randInt(1e9) / 1e9) * total, i = 0;
+      while (i < a.length - 1 && (r -= weightOf(a[i])) >= 0) i++;
+      out.push(a.splice(i, 1)[0]);
+    }
     return out;
   }
 
@@ -123,7 +131,7 @@
     const p = pool();
     const who = lastBy ? `<p class="muted small center draw-who">最近一次：${esc(lastTime)}｜${esc(lastBy)} 抽的</p>` : '';
     if (!canDraw()) {
-      root.innerHTML = `<div class="draw"><div class="stage" id="stage">${last.length ? last.map(k => card(k)).join('') : `<div class="stage-empty">🎲<br>還沒有抽籤</div>`}</div>${who}${histHtml()}</div>`;
+      root.innerHTML = `<div class="draw"><div class="stage" id="stage">${last.length ? last.map(k => card(k)).join('') : `<div class="stage-empty">🎲<br>還沒有抽籤</div>`}</div>${who}${boostHtml()}${histHtml()}</div>`;
       return;
     }
     let h = `<div class="draw">
@@ -138,14 +146,26 @@
           ${last.length ? `<button type="button" class="link-btn" data-d="seat">在座位表上看</button>` : ''}
           <button type="button" class="link-btn" data-d="full">${$('#drawRoot').classList.contains('present') ? '✕ 離開全螢幕' : '⛶ 全螢幕（投影用）'}</button></div>
       </div>`;
+    h += boostHtml();
     h += `<details class="draw-roster"><summary>名單（點名字設為缺席，不會被抽到${st.absent.length ? `｜缺席 ${st.absent.length} 人` : ''}）</summary><div class="chips">`;
     all().filter(inScope).forEach(k => {
       const cls = st.absent.includes(k) ? 'absent' : st.drawn.includes(k) ? 'drawn' : '';
-      h += `<button type="button" class="nm ${cls}" data-abs="${esc(k)}">${esc(k)}</button>`;
+      const w = weightOf(k);
+      h += `<button type="button" class="nm ${cls}" data-abs="${esc(k)}">${esc(k)}${w > 1 ? `<span class="w-tag">×${w}</span>` : ''}</button>`;
     });
     h += `</div></details>`;
     h += histHtml();
     root.innerHTML = h + `</div>`;
+  }
+  // 扣分加權的說明（全班都看得到）；抽籤的人另外看得到目前被加權的同學
+  function boostHtml() {
+    const pct = Math.round((fx.boost ?? 0.1) * 100), times = fx.times ?? 3;
+    const list = canDraw() ? Object.entries(fx.weights || {}).filter(([k]) => all().includes(k)).sort((a, b) => b[1].w - a[1].w) : [];
+    return `<details class="panel boost-note"><summary><b>⚖️ 扣分加權：被扣分的同學比較容易被抽到</b></summary>
+      <p class="small">每被扣 <b>1 分</b>，被抽中的機率增加 <b>${pct}%</b>（例如扣 3 分＝一般同學的 ${(1 + 3 * pct / 100).toFixed(1)} 倍）。效果持續<b>接下來的 ${times} 次抽籤</b>，之後就恢復正常。</p>
+      <p class="small muted">抽籤必中卡、抽籤轉移卡照樣有效；缺席的同學不會被抽到。</p>
+      ${list.length ? `<div class="chips">${list.map(([k, v]) => `<span class="nm">${esc(k)}<span class="w-tag">×${v.w}・剩 ${v.left} 次</span></span>`).join('')}</div>` : canDraw() ? '<p class="small muted">目前沒有同學被加權。</p>' : ''}
+    </details>`;
   }
   // 抽籤紀錄（全班共用）：時間、誰抽的、結果、抽籤卡事件
   function histHtml() {
@@ -161,7 +181,7 @@
     if (n < st.n) toast(`只剩 ${p.length} 人可以抽`);
     // 抽之前先讀最新的抽籤卡（避免兩台裝置同時抽、同一張必中卡發動兩次）；網路慢就用手機上的
     await Promise.race([loadFx(true), new Promise(r => setTimeout(r, 3000))]);
-    const result = pickN(p, n);
+    const result = pickN(p, n, true);
     const shown = [...result];              // 先顯示原本抽到的人，再播抽籤卡的動畫
     const evs = applyFx(result);
     rolling = true;

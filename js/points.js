@@ -160,7 +160,7 @@
     if (action === 'addPoints') {
       const now = new Date();
       const t = `${A.fmtDate(now).slice(5)} ${A.fmtTime(now)}`;
-      store.set(K.test, [...store.get(K.test, []), ...p.rows.map(r => ({ ...r, time: t, by: A.isTeacher() ? D.teacherLabel : A.me() }))]);
+      store.set(K.test, [...store.get(K.test, []), ...p.rows.map(r => ({ ...r, time: t, ts: Date.now(), by: A.isTeacher() ? D.teacherLabel : A.me() }))]);
       return { ok: true, rows: list() };
     }
     if (action === 'delPoints') {

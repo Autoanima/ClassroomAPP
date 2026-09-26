@@ -1117,3 +1117,9 @@ body.locked.test-mode .test-banner { position: fixed; left: 0; right: 0; }
 .shop-admin { display: flex; gap: 6px; justify-content: center; flex-wrap: nowrap; }
 .mini-btn { border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 700; white-space: nowrap; }
 .mini-btn.danger { border-color: #e8a3a3; color: #c0392b; }
+
+/* 扣分加權／扣點說明 */
+.w-tag { margin-left: 4px; font-size: 11px; font-weight: 800; color: #c0392b; }
+.boost-note summary { cursor: pointer; }
+.boost-note .chips { margin-top: 6px; }
+.penalty-note { border-color: #f3c0a0; }

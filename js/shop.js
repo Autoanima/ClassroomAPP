@@ -50,7 +50,7 @@
     h += `<div class="panel shop-me">
       <div class="shop-face"><span class="photo">${A.faceHtml(me)}</span></div>
       <div class="shop-wallet"><div class="coins">💰 <b>${coinTxt}</b> 點</div>
-        <div class="muted small">${S.unlimited ? '導師點數無限，可以試用所有商品' : `加分累計 ${S.earned} 點${S.income ? `（含作品收入 ${S.income} 點）` : ''}・已使用 ${S.spent} 點`}</div>
+        <div class="muted small">${S.unlimited ? '導師點數無限，可以試用所有商品' : `加分累計 ${S.earned} 點${S.income ? `（含作品收入 ${S.income} 點）` : ''}・已使用 ${S.spent} 點${S.penalty ? `・扣分扣掉 ${S.penalty} 點` : ''}`}</div>
         <button type="button" class="btn btn--primary" data-s="edit"${active.length ? '' : ' disabled'}>🎨 裝扮大頭照</button>
         ${active.length ? '' : '<div class="muted small">先在下面的商店買配件</div>'}</div>
     </div>`;
@@ -116,6 +116,9 @@
       ${sp('create', '創造卡', 'create', '🎨', '創造卡', '上傳自己畫的 PNG 變成新商品；別人買了，點數算給你', '免費建立', true)}
     </div></div>`;
     h += specialsHtml;
+    h += `<div class="panel penalty-note"><h3>⚠️ 扣分會減少點數</h3>
+      <p class="small">每被扣 <b>${S.penaltyPer || 2} 分</b>，商店點數就減少 <b>1 點</b>，最少扣到 0 點（不會變成負的）。${S.penaltyFrom ? `${esc(S.penaltyFrom)} 以後的扣分才算。` : ''}</p>
+      <p class="small muted">被扣分的同學，接下來的 3 次抽籤也比較容易被抽到（詳情看「抽籤」頁）。</p></div>`;
     if (S.admin) h += adminHtml();
     root.innerHTML = h;
   }
@@ -130,16 +133,16 @@
   function adminHtml() {
     let h = '';
     h += `<details class="panel"><summary><b>成員點數</b> <span class="muted small">（${S.admin.length} 人）</span></summary>
-      <p class="muted small">點數＝加分累計＋作品收入 − 用掉的（配件、竊盜卡、煙火、交換位置卡）。扣分不會減少點數。</p>
+      <p class="muted small">點數＝加分累計＋作品收入＋紅包 − 用掉的 − 扣分扣點（每扣 2 分減 1 點，最少到 0）。</p>
       <p class="muted small">「持有道具」＝還沒用或還在生效的特殊道具；「用過」＝用過幾次。</p>
-      <div class="admin-wrap"><table class="admin"><thead><tr><th>同學</th><th>加分</th><th>已用</th><th>剩餘</th><th>配件</th><th>持有道具</th><th>用過</th></tr></thead><tbody>`;
+      <div class="admin-wrap"><table class="admin"><thead><tr><th>同學</th><th>加分</th><th>已用</th><th>扣分扣點</th><th>剩餘</th><th>配件</th><th>持有道具</th><th>用過</th></tr></thead><tbody>`;
     S.admin.forEach(r => {
-      h += `<tr><td>${esc(r.key)}</td><td>${r.earned}${r.income ? `<div class="muted small">作品 ${r.income}</div>` : ''}</td><td>${r.spent}</td><td><b>${r.coins}</b></td><td>${r.active || ''}</td>
+      h += `<tr><td>${esc(r.key)}</td><td>${r.earned}${r.income ? `<div class="muted small">作品 ${r.income}</div>` : ''}</td><td>${r.spent}</td><td>${r.penalty ? '−' + r.penalty : ''}</td><td><b>${r.coins}</b></td><td>${r.active || ''}</td>
         <td class="items">${itemChips(r.held)}</td><td class="items muted">${itemChips(r.used)}</td></tr>`;
     });
     // 全班合計
     const sum = key => { const t = {}; S.admin.forEach(r => Object.entries(r[key] || {}).forEach(([n, c]) => { t[n] = (t[n] || 0) + c; })); return t; };
-    h += `</tbody><tfoot><tr><td colspan="5"><b>全班合計</b></td><td class="items">${itemChips(sum('held'))}</td><td class="items muted">${itemChips(sum('used'))}</td></tr></tfoot>`;
+    h += `</tbody><tfoot><tr><td colspan="6"><b>全班合計</b></td><td class="items">${itemChips(sum('held'))}</td><td class="items muted">${itemChips(sum('used'))}</td></tr></tfoot>`;
     return h + `</table></div></details>`;
   }
 
@@ -735,7 +738,7 @@
     const others = {};
     inv2.filter(x => x.owner !== me && x.exp >= today).forEach(x => { (others[x.owner] ||= []).push(x); });
     return {
-      ok: true, me, today, coins: earned - spent2, earned, spent: spent2, catalog: list, stealPrice: 10, fireworkPrice: 1, others,
+      ok: true, me, today, ...(() => { const minus = pts.filter(r => r.student === me && r.points < 0).reduce((t, r) => t - r.points, 0); const pen = Math.min(Math.max(0, earned - spent2), Math.floor(minus / 2)); return { coins: earned - spent2 - pen, penalty: pen, penaltyPer: 2, penaltyFrom: '2026/09/26' }; })(), earned, spent: spent2, catalog: list, stealPrice: 10, fireworkPrice: 1, others,
       stolen: spend.filter(x => x.use === '竊盜卡' && x.target === me).map(x => ({ time: x.time, thief: x.who, name: x.note })),
       minus: pts.filter(r => r.student === me && r.points < 0).reduce((t, r) => t - r.points, 0), swapBan: 10,
       transferPrice: 20, surePrice: 30, transferDays: 10, weatherPrice: 5, weatherDays: 10,
@@ -760,7 +763,18 @@
     if (action === 'createAcc' || action === 'delAcc') throw new Error('測試模式不能創造商品，請用正式登入試用');
     const testFx = () => {
       const sp = store.get(K.spend, []), since = Date.now() - 10 * 86400e3;
+      // 加權：每扣 1 分 +10%，持續接下來的 3 次抽籤
+      const draws = store.get('indoor.drawlog.v1.test', []).map(x => x.ts);
+      const weights = {};
+      store.get('indoor.points.v1.test', []).filter(r => r.points < 0).forEach(r => {
+        const t = r.ts || Date.now();
+        const used = draws.filter(d => d > t).length;
+        if (used >= 3) return;
+        const o = weights[r.student] || (weights[r.student] = { pts: 0, left: 0 });
+        o.pts += -r.points; o.left = Math.max(o.left, 3 - used); o.w = Math.round((1 + o.pts * 0.1) * 100) / 100;
+      });
       return {
+        weights, boost: 0.1, boostTimes: 3,
         transfers: sp.filter(x => x.use === '抽籤轉移卡' && x.t >= since).map(x => ({ id: x.id, from: x.who, to: x.target, until: ymd(new Date(x.t + 10 * 86400e3)), t: x.t })),
         sure: sp.filter(x => x.use === '抽籤必中卡' && !/^已使用/.test(x.note)).map(x => ({ id: x.id, by: x.who, target: x.target, t: x.t })),
       };
