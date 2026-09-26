@@ -47,7 +47,8 @@
   /** 套用抽籤卡：先必中卡（第一位換成指定的人），再轉移卡（抽到的人換成替身）；回傳要播的動畫 */
   function applyFx(result) {
     const evs = [];
-    const ok = k => all().includes(k) && !st.absent.includes(k);
+    // 抽籤卡只在這次抽的範圍裡生效（例如只抽多媒時，指定資料科同學的必中卡先不發動）
+    const ok = k => all().includes(k) && inScope(k) && !st.absent.includes(k);
     const sure = fx.sure.find(c => ok(c.target));
     if (sure && result.length && result[0] !== sure.target) {
       const from = result[0], j = result.indexOf(sure.target);
@@ -158,7 +159,8 @@
     if (!p.length) return toast(st.noRepeat ? '大家都抽過了！按「全部重來」可以重新開始' : '沒有可以抽的同學');
     const n = Math.min(st.n, p.length);
     if (n < st.n) toast(`只剩 ${p.length} 人可以抽`);
-    await loadFx();
+    // 抽之前先讀最新的抽籤卡（避免兩台裝置同時抽、同一張必中卡發動兩次）；網路慢就用手機上的
+    await Promise.race([loadFx(true), new Promise(r => setTimeout(r, 3000))]);
     const result = pickN(p, n);
     const shown = [...result];              // 先顯示原本抽到的人，再播抽籤卡的動畫
     const evs = applyFx(result);
