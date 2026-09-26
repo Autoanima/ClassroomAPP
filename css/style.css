@@ -1108,3 +1108,12 @@ body.locked.test-mode .test-banner { position: fixed; left: 0; right: 0; }
 
 .guest-hint { white-space: nowrap; font-size: 14px; }
 .draw-who { margin: 4px 0 0; }
+
+/* 特殊道具：送人按鈕 */
+.sp-cell { position: relative; display: grid; }
+.sp-cell > .special { height: 100%; }
+.sp-gift { position: absolute; right: 10px; bottom: 10px; border: 1.5px solid var(--accent); background: var(--surface); color: var(--accent); border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 700; }
+/* 商店裡導師管理創造卡商品的按鈕 */
+.shop-admin { display: flex; gap: 6px; justify-content: center; flex-wrap: nowrap; }
+.mini-btn { border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.mini-btn.danger { border-color: #e8a3a3; color: #c0392b; }

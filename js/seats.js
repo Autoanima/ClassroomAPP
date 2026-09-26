@@ -187,7 +187,7 @@
   function swapBanner() {
     if (card) {
       return `<div class="banner myturn"><div class="bn-main">🔀 交換位置卡：點一位同學的座位，和你對調</div>
-        <div class="bn-sub">${card === 'free' ? '使用 1 張免費交換位置卡（段考獎勵），不扣點數' : `對調後會扣 ${card} 點`}，並且真的儲存。<button type="button" class="link-btn" data-tr="cancelCard">取消</button></div></div>`;
+        <div class="bn-sub">${card === 'free' ? '使用 1 張你手上的交換位置卡（別人送的或段考獎勵），不扣點數' : `對調後會扣 ${card} 點`}，並且真的儲存。<button type="button" class="link-btn" data-tr="cancelCard">取消</button></div></div>`;
     }
     return `<div class="banner warn"><div class="bn-main">🔒 要使用「交換位置卡」才能換座位</div>
       <div class="bn-sub">交換位置卡可以讓你和一位同學對調座位（只能是你自己和別人對調）。
