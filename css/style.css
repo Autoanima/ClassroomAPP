@@ -61,6 +61,8 @@ body.locked > :not(.lock):not(script):not(.test-banner) { display: none !importa
 .lock-icon { font-size: 34px; }
 .lock-card h1 { font-size: 21px; margin: 4px 0 12px; }
 .lock-card p { margin: 2px 0 12px; }
+/* 登入畫面的說明文字：靠左對齊 */
+#stepPw p, #stepId p, #stepGuest p, #stepWho p { text-align: left; }
 .lock-card input { text-align: center; font-size: 22px; letter-spacing: .3em; }
 .lock-card input.idno { letter-spacing: .12em; text-transform: uppercase; }
 .lock-card .btn { width: 100%; margin-top: 4px; }
@@ -1101,3 +1103,6 @@ body.locked.test-mode .test-banner { position: fixed; left: 0; right: 0; }
 
 .shop-admin { display: flex; gap: 10px; justify-content: center; }
 .link-btn.danger { color: #c0392b; }
+
+.guest-hint { white-space: nowrap; font-size: 14px; }
+.draw-who { margin: 4px 0 0; }

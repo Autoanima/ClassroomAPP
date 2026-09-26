@@ -1029,6 +1029,7 @@
   }
 
   async function loadSel(force) {
+    if (A.isGuest()) return false; // 任課老師只看座位表
     const r = await A.api(A.isStudent() ? 'stuState' : 'selState', { v: force ? 0 : sel?.v || 0 });
     if (savingWishes) return false; // 志願還在儲存，先不要蓋掉
     return applySel(r);
@@ -1115,7 +1116,7 @@
 
   A.tabHooks.seats = () => {
     discardDraft();
-    if (A.isStudent() || A.isTeacher() || A.isStaff()) renderAll();
+    renderAll();
     refreshData();
   };
   A.on('students', () => { if (A.currentTab() === 'seats' && (sub === 'chart' || sub === 'swap')) renderPanel(); });

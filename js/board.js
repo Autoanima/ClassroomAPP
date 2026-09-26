@@ -87,7 +87,7 @@
     await load();
     let shown = false;
     try { shown = sessionStorage.getItem('indoor.boardShown') === '1'; sessionStorage.setItem('indoor.boardShown', '1'); } catch { /* ignore */ }
-    if (!shown && posts.length && !A.sheetMode()) open();
+    if (!shown && posts.length && !A.sheetMode() && !A.isGuest()) open(); // 任課老師預設不打開（可以自己按）
   });
   document.addEventListener('visibilitychange', () => { if (!document.hidden && A.started()) load(); });
 

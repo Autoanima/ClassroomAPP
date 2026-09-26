@@ -549,7 +549,7 @@
   // ── 分頁 ──
   const TABS = ['clean', 'points', 'seats', 'draw', 'shop', 'line', 'jobs', 'fund'];
   const tabHooks = {};
-  const allowedTabs = () => (isGuest() ? ['draw', 'seats'] : isStudent() ? ['seats', 'clean', 'shop', 'line', 'jobs', 'fund']
+  const allowedTabs = () => (isGuest() ? ['draw', 'seats'] : isStudent() ? ['seats', 'clean', 'draw', 'shop', 'line', 'jobs', 'fund']
     : TABS.filter(t => (t === 'points' ? canPoints() : true)));
   const isViewer = () => !isChecker(); // 不能檢查的人（學生、一般幹部）：掃地地圖只能看
   function showTab(name) {

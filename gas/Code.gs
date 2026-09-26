@@ -64,6 +64,9 @@ const SHEET_SEATS = '座位表';
 const HEAD_SEATS = ['座位', '排', '個', '同學'];
 const SHEET_DUTY = '值日生';           // 班長、副班長每天登記的值日生（兩位）
 const HEAD_DUTY = ['日期', '值日生1', '值日生2', '值日生3', '值日生4', '登記人', '登記時間'];
+const SHEET_DRAW = '抽籤紀錄';          // 大家都看得到最近的抽籤結果；「清空」只是從 App 上藏起來，試算表保留
+const HEAD_DRAW = ['時間', '抽籤人', '結果', '抽籤卡事件', '編號'];
+const DRAW_DAYS = 30;
 const SHEET_FUND = '班費收支';          // 總務登記；刪除只做標記
 const HEAD_FUND = ['日期', '品項', '收支', '金額', '說明', '登記人', '登記時間', '編號', '狀態'];
 const SHEET_PACK = '紅包';              // 發紅包活動：發起、連署、發放都留紀錄
@@ -93,11 +96,11 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
-const GUEST_OK = { rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
+const GUEST_OK = { getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1 };
 
 function doGet() {
@@ -150,6 +153,9 @@ function doPost(e) {
       case 'buyFirework': return json(buyFirework(who, String(req.to || '')));
       case 'swapSeatCard': return json(swapSeatCard(who, String(req.to || '')));
       case 'createAcc': return json(createAcc(who, req.name, req.price, req.data));
+      case 'getDrawLog': return json({ ok: true, log: getDrawLog() });
+      case 'addDrawLog': return json({ ok: true, log: addDrawLog(who, req.k || [], req.fx || []) });
+      case 'clearDrawLog': PropertiesService.getScriptProperties().setProperty('DRAW_CLEAR_AT', String(Date.now())); return json({ ok: true, log: [] });
       case 'getFund': return json(getFund());
       case 'addFund': return json(addFund(who, req.row || {}));
       case 'delFund': return json(delFund(who, String(req.id || '')));
@@ -1028,6 +1034,30 @@ function minusOf(key) {
   return m;
 }
 // ── 值日生：班長、副班長（或導師）每天登記兩位 ──
+// ── 抽籤紀錄：誰抽的、抽到誰、有沒有抽籤卡；全班都看得到最近 30 天 ──
+function getDrawLog() {
+  const sh = getSS().getSheetByName(SHEET_DRAW);
+  if (!sh || sh.getLastRow() < 2) return [];
+  const since = Math.max(Date.now() - DRAW_DAYS * 86400e3, Number(PropertiesService.getScriptProperties().getProperty('DRAW_CLEAR_AT') || 0));
+  const n = sh.getLastRow() - 1, from = Math.max(0, n - 300);
+  return sh.getRange(2 + from, 1, n - from, HEAD_DRAW.length).getValues()
+    .filter(r => r[0] instanceof Date && r[0].getTime() > since)
+    .map(r => ({ id: String(r[4]), ts: r[0].getTime(), t: Utilities.formatDate(r[0], CONFIG.TIMEZONE, 'MM/dd HH:mm'), by: String(r[1]),
+      k: String(r[2]).split('、').filter(Boolean), fx: String(r[3]).split('\n').filter(Boolean) }))
+    .reverse();
+}
+function addDrawLog(who, k, fx) {
+  const list = getStudents().students;
+  k = (Array.isArray(k) ? k : []).map(String).filter(x => list.indexOf(x) >= 0).slice(0, 10);
+  if (!k.length) throw new Error('沒有抽籤結果');
+  fx = (Array.isArray(fx) ? fx : []).map(x => String(x).slice(0, 120)).slice(0, 10);
+  withLock(() => {
+    const sh = getSheet(SHEET_DRAW, HEAD_DRAW);
+    sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_DRAW.length).setValues([[new Date(), who.teacher ? CONFIG.TEACHER_NAME : who.role === 'G' ? '任課老師' : who.key, k.join('、'), fx.join('\n'), Utilities.getUuid().slice(0, 8)]]);
+  });
+  return getDrawLog();
+}
+
 // ── 班費收支：總務（和導師）登記，大家都看得到 ──
 const isTreasurer = key => cadreRoles(key).some(r => /^總務/.test(String(r).trim()));
 function fundRows() {

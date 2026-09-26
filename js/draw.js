@@ -17,6 +17,27 @@
   pruneHistory();
   let rolling = false;
   let last = [];
+  // 全班共用的抽籤紀錄（雲端）；學生只能看
+  const canDraw = () => !A.isStudent();
+  let log = [], logTop = '', lastBy = '', lastTime = '';
+  async function loadLog(reveal) {
+    try {
+      const r = await A.api('getDrawLog');
+      log = r.log || [];
+      const top = log[0];
+      const isNew = top && top.id !== logTop;
+      logTop = top?.id || '';
+      if (top && (isNew || !last.length) && !rolling) { last = top.k; lastBy = top.by; lastTime = top.t; }
+      if (A.currentTab() === 'draw' && !rolling) { render(); if (isNew && reveal) $('#stage')?.classList.add('reveal'); }
+    } catch { /* 讀不到就先用手機上的 */ }
+  }
+  let pollT = null;
+  function poll() {
+    clearTimeout(pollT);
+    if (A.currentTab() !== 'draw' || document.hidden) return;
+    pollT = setTimeout(async () => { await loadLog(true); poll(); }, 15000);
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && A.currentTab() === 'draw') { loadLog(true); poll(); } });
   // 同學在商店買的抽籤卡：轉移卡（替身）、必中卡（指定第一位）
   let fx = { transfers: [], sure: [] }, fxAt = 0;
   async function loadFx(force) {
@@ -99,8 +120,13 @@
       return;
     }
     const p = pool();
+    const who = lastBy ? `<p class="muted small center draw-who">最近一次：${esc(lastTime)}｜${esc(lastBy)} 抽的</p>` : '';
+    if (!canDraw()) {
+      root.innerHTML = `<div class="draw"><div class="stage" id="stage">${last.length ? last.map(k => card(k)).join('') : `<div class="stage-empty">🎲<br>還沒有抽籤</div>`}</div>${who}${histHtml()}</div>`;
+      return;
+    }
     let h = `<div class="draw">
-      <div class="stage" id="stage">${last.length ? last.map(k => card(k)).join('') : `<div class="stage-empty">🎲<br>按下「抽籤」</div>`}</div>
+      <div class="stage" id="stage">${last.length ? last.map(k => card(k)).join('') : `<div class="stage-empty">🎲<br>按下「抽籤」</div>`}</div>${who}
       <div class="draw-ctrl">
         <div class="stepper" aria-label="抽幾人"><span>抽</span><button type="button" class="btn" data-d="n-" aria-label="少一人">－</button><b>${st.n}</b><button type="button" class="btn" data-d="n+" aria-label="多一人">＋</button><span>人</span></div>
         <div class="subsw small-sw">${['', ...depts()].map(d => `<button type="button" data-scope="${esc(d)}" aria-selected="${st.scope === d}">${d ? esc(d) : '全班'}</button>`).join('')}</div>
@@ -117,11 +143,14 @@
       h += `<button type="button" class="nm ${cls}" data-abs="${esc(k)}">${esc(k)}</button>`;
     });
     h += `</div></details>`;
-    if (st.history.length) {
-      h += `<div class="hist-head"><h3>抽籤紀錄</h3><span class="muted small">保留 ${KEEP_DAYS} 天</span><button type="button" class="link-btn" data-d="clearHist">清空紀錄</button></div>
-        <ol class="hist">${st.history.map(x => `<li><span class="muted small">${esc(x.t)}</span> ${x.k.map(esc).join('、')}${x.fx?.length ? `<div class="hist-fx">${x.fx.map(f => `<div>${esc(f)}</div>`).join('')}</div>` : ''}</li>`).join('')}</ol>`;
-    }
+    h += histHtml();
     root.innerHTML = h + `</div>`;
+  }
+  // 抽籤紀錄（全班共用）：時間、誰抽的、結果、抽籤卡事件
+  function histHtml() {
+    if (!log.length) return '';
+    return `<div class="hist-head"><h3>抽籤紀錄</h3><span class="muted small">全班都看得到・保留 ${KEEP_DAYS} 天</span>${A.isTeacher() ? '<button type="button" class="link-btn" data-d="clearHist">清空紀錄</button>' : ''}</div>
+      <ol class="hist">${log.map(x => `<li><span class="muted small">${esc(x.t)}・${esc(x.by)}</span> ${x.k.map(esc).join('、')}${x.fx?.length ? `<div class="hist-fx">${x.fx.map(f => `<div>${esc(f)}</div>`).join('')}</div>` : ''}</li>`).join('')}</ol>`;
   }
 
   async function go() {
@@ -150,6 +179,7 @@
       for (const ev of evs) await playFx(ev, shown);
     }
     last = result;
+    lastBy = A.isTeacher() ? A.D.teacherLabel : A.isGuest() ? '任課老師' : A.me(); lastTime = A.fmtTime(new Date());
     st.drawn.push(...result.filter(k => !st.drawn.includes(k)));
     // 抽籤紀錄：時間、結果、被抽籤卡改掉的事件（誰用了什麼卡、原本抽到誰、換成誰）
     const now = new Date();
@@ -158,6 +188,10 @@
     pruneHistory();
     saveSt();
     rolling = false;
+    try {
+      const r = await A.api('addDrawLog', { k: result, fx: st.history[0].fx });
+      log = r.log || log; logTop = log[0]?.id || logTop;
+    } catch (err) { toast('抽籤紀錄沒有存到雲端：' + err.message); }
     render();
     if (!evs.length) $('#stage').classList.add('reveal');
     loadFx(true);
@@ -190,7 +224,10 @@
     }
     else if (d === 'seat') return A.highlightSeats(last);
     else if (d === 'clearHist') {
-      A.ask('清空全部抽籤紀錄？（「抽過」和缺席的設定不會動）', '清空', true).then(ok => { if (!ok) return; st.history = []; saveSt(); render(); toast('已清空抽籤紀錄'); });
+      A.ask('清空全班的抽籤紀錄？\n（App 上會清掉；試算表「抽籤紀錄」仍然保留）', '清空', true).then(async ok => {
+        if (!ok) return;
+        try { await A.api('clearDrawLog'); log = []; st.history = []; saveSt(); render(); toast('已清空抽籤紀錄'); } catch (err) { toast(err.message); }
+      });
       return;
     }
     else if (d === 'full') return present(!$('#drawRoot').classList.contains('present'));
@@ -221,7 +258,22 @@
     if (e.key === ' ' || e.key === 'Enter' || e.key === 'PageDown') { e.preventDefault(); if (!rolling) go(); }
   });
 
-  A.tabHooks.draw = () => { render(); A.ensureFaces?.(); loadFx(true); };
+  A.tabHooks.draw = () => { render(); A.ensureFaces?.(); if (canDraw()) loadFx(true); loadLog(false); poll(); };
+
+  // ── 測試模式：紀錄存在這台裝置 ──
+  const prevTest = A.testSeatApi;
+  A.testSeatApi = async (action, p = {}) => {
+    const KEY = 'indoor.drawlog.v1.test';
+    if (action === 'getDrawLog') return { ok: true, log: store.get(KEY, []) };
+    if (action === 'addDrawLog') {
+      const t = new Date();
+      const row = { id: Math.random().toString(36).slice(2, 10), ts: t.getTime(), t: `${A.pad2(t.getMonth() + 1)}/${A.pad2(t.getDate())} ${A.fmtTime(t)}`, by: A.isTeacher() ? '導師' : A.isGuest() ? '任課老師' : A.me(), k: p.k, fx: p.fx || [] };
+      store.set(KEY, [row, ...store.get(KEY, [])].slice(0, 300));
+      return { ok: true, log: store.get(KEY, []) };
+    }
+    if (action === 'clearDrawLog') { store.set(KEY, []); return { ok: true, log: [] }; }
+    return prevTest ? prevTest(action, p) : null;
+  };
   const rerender = () => { if (A.currentTab() === 'draw' && !rolling) render(); };
   A.on('students', rerender);
   A.on('faces', rerender);
