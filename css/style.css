@@ -205,7 +205,8 @@ select:focus { outline: 2px solid var(--accent); outline-offset: 0; }
 
 /* ── 地圖 ── */
 .map-tools { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 16px 4px; font-size: 13px; color: var(--muted); }
-.orient { font-weight: 700; }
+.orient { display: none; } /* 不顯示「黑板在上／下」，省畫面空間（方向用上方「切換視角」切換） */
+.map-tools { justify-content: flex-end; }
 .map-tools { flex-wrap: wrap; row-gap: 4px; }
 .compact-btn {
   margin-left: auto; border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px;

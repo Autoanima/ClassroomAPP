@@ -2051,7 +2051,8 @@
         const r = TEST ? { sid: 'test', className: '商一甲' } : await api('guestLogin', { code: normInput($('#guestCode').value) });
         Object.assign(settings, { role: 'guest', sid: r.sid, me: '', token: '', inspector: '任課老師' });
         saveSettings();
-        ui.tab = 'draw'; saveUi();
+        ui.tab = 'draw'; ui.view = 'teacher'; saveUi(); // 任課老師預設「老師視角」（從講台往學生看）
+        paintView();
         start();
         syncRoster();
       } catch (err) {
