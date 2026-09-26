@@ -86,8 +86,14 @@
     paintBtn();
     await load();
     let shown = false;
-    try { shown = sessionStorage.getItem('indoor.boardShown') === '1'; sessionStorage.setItem('indoor.boardShown', '1'); } catch { /* ignore */ }
-    if (!shown && posts.length && !A.sheetMode() && !A.isGuest()) open(); // 任課老師預設不打開（可以自己按）
+    try { shown = sessionStorage.getItem('indoor.boardShown') === '1'; } catch { /* ignore */ }
+    if (shown || !posts.length || A.isGuest()) return; // 任課老師預設不打開（可以自己按）
+    // 先等飛鴿傳書看完、畫面上沒有別的視窗，再打開公布欄
+    await Promise.race([A.mailDone || Promise.resolve(), new Promise(r => setTimeout(r, 5 * 60e3))]);
+    for (let i = 0; i < 120 && A.sheetMode(); i++) await new Promise(r => setTimeout(r, 500));
+    if (A.sheetMode()) return;
+    try { sessionStorage.setItem('indoor.boardShown', '1'); } catch { /* ignore */ }
+    open();
   });
   document.addEventListener('visibilitychange', () => { if (!document.hidden && A.started()) load(); });
 

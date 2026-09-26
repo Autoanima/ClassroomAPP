@@ -795,7 +795,9 @@ table.admin th:first-child, table.admin td:first-child { text-align: left; }
 /* LINE 圖片製作 */
 .line-maker { max-width: 520px; margin-left: auto; margin-right: auto; }
 .line-canvas-wrap { display: flex; justify-content: center; margin: 4px 0 8px; }
-#lineCanvas { width: min(82vw, 340px); aspect-ratio: 3 / 4; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,.18); background: var(--bg); }
+#lineCanvas { width: min(82vw, 340px); aspect-ratio: 3 / 4; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,.18); touch-action: none; cursor: move;
+  background: repeating-conic-gradient(#d9d9de 0 25%, #f4f4f6 0 50%) 0 0 / 20px 20px; } /* 格子＝透明 */
+.line-tip { margin: 0 0 6px; text-align: center; }
 #lineText { min-height: 60px; margin-top: 4px; font-size: 17px; }
 .line-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
 .line-row input[type=range] { flex: 1; accent-color: var(--accent); }

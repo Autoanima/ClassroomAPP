@@ -73,11 +73,18 @@
 
   $('#mailBtn').addEventListener('click', openInbox);
   // 打開 App：有沒看過的信就顯示（公布欄開著的話，等它關掉再顯示）
+  // 打開 App 的順序：先飛鴿傳書，關掉之後才輪到公布欄（A.mailDone 讓公布欄等）
+  let mailDone;
+  A.mailDone = new Promise(r => { mailDone = r; });
   A.on('start', async () => {
-    await load();
-    if (!unseen().length) return;
-    for (let i = 0; i < 120 && A.sheetMode(); i++) await new Promise(r => setTimeout(r, 1000));
-    if (!A.sheetMode()) openInbox();
+    try {
+      await load();
+      if (!unseen().length) return;
+      for (let i = 0; i < 60 && A.sheetMode(); i++) await new Promise(r => setTimeout(r, 1000));
+      if (A.sheetMode()) return;
+      openInbox();
+      while (A.sheetMode()) await new Promise(r => setTimeout(r, 500)); // 等信件關掉
+    } finally { mailDone(); }
   });
   document.addEventListener('visibilitychange', () => { if (!document.hidden && A.started()) load(); });
 

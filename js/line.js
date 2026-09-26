@@ -4,7 +4,8 @@
   const A = window.App;
   const { $, esc, toast, store } = A;
   const LSK = 'indoor.linemsg.v1';
-  const st = Object.assign({ text: '', color: '#ffffff', size: 90, pos: 'bottom', stroke: true, who: '' }, store.get(LSK, {}));
+  const st = Object.assign({ text: '', color: '#ffffff', size: 90, pos: 'bottom', stroke: true, who: '', tx: 0.5, ty: 0.86, rot: 0 }, store.get(LSK, {}));
+  const PRESET_Y = { top: 0.12, middle: 0.5, bottom: 0.86 };
   const save = () => store.set(LSK, st);
   const W = 720, H = 960;             // 3:4，和座位上的大頭照一樣
   const COLORS = ['#ffffff', '#1f2328', '#ff3b30', '#ffcc00', '#ff6fb5', '#2f80ed', '#27ae60', '#8b5cf6'];
@@ -73,7 +74,9 @@
       const sw = W / s, sh = H / s;
       g.drawImage(base, (base.width - sw) / 2, (base.height - sh) * 0.25, sw, sh, 0, 0, W, H);
     } else {
-      g.fillStyle = `hsl(${A.faceHue(k)} 40% 58%)`; g.fillRect(0, 0, W, H);
+      // 沒有照片：圓形的姓氏（圖片其他地方保持透明，不要白色背景）
+      g.fillStyle = `hsl(${A.faceHue(k)} 40% 58%)`;
+      g.beginPath(); g.arc(W / 2, H * 0.42, W * 0.36, 0, Math.PI * 2); g.fill();
       g.fillStyle = '#fff'; g.font = `700 300px ${FONT}, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillText(A.parseKey(k).name.slice(0, 1) || '?', W / 2, H * 0.42);
     }
@@ -99,17 +102,21 @@
       g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
       const lines = wrap(g, st.text.trim(), W * 0.92);
       const lh = size * 1.18, total = lh * lines.length;
-      const top = st.pos === 'top' ? size * 0.8 : st.pos === 'middle' ? (H - total) / 2 + lh / 2 : H - total - size * 0.35 + lh / 2;
+      // 文字的中心在 (tx, ty)，可以拖曳移動、旋轉
+      g.save();
+      g.translate(st.tx * W, st.ty * H);
+      g.rotate((st.rot || 0) * Math.PI / 180);
       lines.forEach((t, i) => {
-        const y = top + i * lh;
+        const y = -total / 2 + lh / 2 + i * lh;
         if (st.stroke) {
           g.lineWidth = Math.max(6, size * 0.2);
           g.strokeStyle = isLight(st.color) ? 'rgba(20,20,30,.9)' : 'rgba(255,255,255,.95)';
-          g.strokeText(t, W / 2, y);
+          g.strokeText(t, 0, y);
         }
         g.fillStyle = st.color;
-        g.fillText(t, W / 2, y);
+        g.fillText(t, 0, y);
       });
+      g.restore();
     }
   }
   const isLight = hex => { const n = parseInt(hex.slice(1), 16); return ((n >> 16) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114) > 150; };
@@ -124,12 +131,14 @@
       <div class="field"><label for="lineText">訊息</label><textarea id="lineText" maxlength="60" placeholder="輸入想說的話，例如：今天打掃辛苦了！">${esc(st.text)}</textarea></div>
       <div class="line-row"><span class="pt-lbl">顏色</span><div class="swatches">${COLORS.map(c => `<button type="button" class="sw-c${c === st.color ? ' on' : ''}" data-color="${c}" style="background:${c}" aria-label="顏色 ${c}"></button>`).join('')}
         <label class="sw-c custom" title="自訂顏色"><input type="color" id="lineColor" value="${st.color}"></label></div></div>
-      <div class="line-row"><span class="pt-lbl">大小</span><input type="range" id="lineSize" min="40" max="160" value="${st.size}"></div>
-      <div class="line-row"><span class="pt-lbl">位置</span><div class="subsw small-sw">${[['top', '上'], ['middle', '中'], ['bottom', '下']].map(([v, t]) => `<button type="button" data-pos="${v}" aria-selected="${st.pos === v}">${t}</button>`).join('')}</div>
+      <p class="muted small line-tip">✋ 在圖上<b>拖曳</b>文字可以移動；<b>兩指</b>可以旋轉、縮放。</p>
+      <div class="line-row"><span class="pt-lbl">大小</span><input type="range" id="lineSize" min="30" max="200" value="${st.size}"></div>
+      <div class="line-row"><span class="pt-lbl">角度</span><input type="range" id="lineRot" min="-180" max="180" value="${Math.round(st.rot || 0)}"></div>
+      <div class="line-row"><span class="pt-lbl">位置</span><div class="subsw small-sw">${[['top', '上'], ['middle', '中'], ['bottom', '下']].map(([v, t]) => `<button type="button" data-pos="${v}" aria-selected="false">${t}</button>`).join('')}</div>
         <label class="switch-row small" style="margin-left:auto"><span class="switch"><input type="checkbox" id="lineStroke"${st.stroke ? ' checked' : ''}><span></span></span>外框</label></div>
       <div class="actions"><button type="button" class="btn btn--line wide" id="lineShare">📤 傳到 LINE</button>
         <button type="button" class="btn wide" id="lineSave">💾 存成圖片</button></div>
-      <p class="muted small">按「傳到 LINE」會打開手機的分享選單，選 LINE → 班級群組。電腦上會改成下載圖片。</p>
+      <p class="muted small">圖片是<b>透明背景</b>的 PNG（預覽的格子代表透明）。按「傳到 LINE」會打開手機的分享選單，選 LINE → 班級群組；電腦上會改成下載圖片。</p>
     </div>`;
     root.innerHTML = h;
     draw();
@@ -151,6 +160,7 @@
   $('#lineRoot').addEventListener('input', e => {
     if (e.target.id === 'lineText') { st.text = e.target.value; save(); draw(); }
     if (e.target.id === 'lineSize') { st.size = +e.target.value; save(); draw(); }
+    if (e.target.id === 'lineRot') { st.rot = +e.target.value; save(); draw(); }
     if (e.target.id === 'lineColor') { st.color = e.target.value; save(); document.querySelectorAll('.sw-c').forEach(b => b.classList.remove('on')); draw(); }
   });
   $('#lineRoot').addEventListener('change', e => {
@@ -161,7 +171,7 @@
     const c = e.target.closest('[data-color]');
     if (c) { st.color = c.dataset.color; save(); document.querySelectorAll('.sw-c').forEach(b => b.classList.toggle('on', b === c)); $('#lineColor').value = st.color; return draw(); }
     const p = e.target.closest('[data-pos]');
-    if (p) { st.pos = p.dataset.pos; save(); document.querySelectorAll('[data-pos]').forEach(b => b.setAttribute('aria-selected', b === p)); return draw(); }
+    if (p) { st.pos = p.dataset.pos; st.tx = 0.5; st.ty = PRESET_Y[st.pos]; st.rot = 0; save(); if ($('#lineRot')) $('#lineRot').value = 0; return draw(); }
     if (e.target.closest('#lineShare')) {
       const file = await toFile();
       if (navigator.canShare?.({ files: [file] })) {
@@ -170,6 +180,38 @@
     }
     if (e.target.closest('#lineSave')) { download(await toFile()); toast('✓ 已存成圖片'); }
   });
+
+  // ── 在圖上拖曳文字；兩指旋轉、縮放 ──
+  const pts = new Map();
+  let start = null, raf = 0;
+  const redraw = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; draw(); }); };
+  const snap = () => { start = { tx: st.tx, ty: st.ty, rot: st.rot || 0, size: st.size, p: [...pts.values()].map(q => ({ ...q })) }; };
+  $('#lineRoot').addEventListener('pointerdown', e => {
+    if (e.target.id !== 'lineCanvas' || !st.text.trim()) return;
+    e.target.setPointerCapture(e.pointerId);
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    snap();
+    e.preventDefault();
+  });
+  $('#lineRoot').addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId) || !start) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const r = $('#lineCanvas').getBoundingClientRect(), p = [...pts.values()];
+    if (p.length === 1 && start.p.length === 1) {
+      st.tx = Math.max(0, Math.min(1, start.tx + (p[0].x - start.p[0].x) / r.width));
+      st.ty = Math.max(0, Math.min(1, start.ty + (p[0].y - start.p[0].y) / r.height));
+    } else if (p.length >= 2 && start.p.length >= 2) {
+      const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y), ang = (a, b) => Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+      st.size = Math.round(Math.max(30, Math.min(200, start.size * d(p[0], p[1]) / Math.max(1, d(start.p[0], start.p[1])))));
+      st.rot = Math.round(((start.rot + ang(p[0], p[1]) - ang(start.p[0], start.p[1]) + 540) % 360) - 180);
+      if ($('#lineSize')) $('#lineSize').value = st.size;
+      if ($('#lineRot')) $('#lineRot').value = st.rot;
+    }
+    redraw();
+  });
+  const end = e => { if (!pts.delete(e.pointerId)) return; if (pts.size) snap(); else { start = null; save(); } };
+  $('#lineRoot').addEventListener('pointerup', end);
+  $('#lineRoot').addEventListener('pointercancel', end);
 
   A.tabHooks.line = () => { render(); A.ensureFaces?.(); if (A.isTeacher() && !A.students().length) A.loadStudents().then(render).catch(() => {}); };
   A.on('faces', () => { if (A.currentTab() === 'line') draw(); });
