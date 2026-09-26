@@ -655,6 +655,8 @@ body:not([data-tab="seats"]) .swapbar { display: none; }
 .olbl { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: max(10px, 3.2cqw); font-weight: 700; color: #2b2b33; white-space: nowrap; pointer-events: none; text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff; }
 .olbl.v { writing-mode: vertical-rl; text-orientation: upright; letter-spacing: .04em; }
 .oit.ostrip .olbl { color: #5b3fc4; font-size: max(9px, 2.6cqw); }
+/* 夜間模式：水泥平台的字改成白色（深色漸層背景上比較清楚） */
+[data-theme="dark"] .oit.ostrip .olbl { color: #fff; text-shadow: 0 0 3px rgba(0,0,0,.8), 0 0 2px rgba(0,0,0,.8); }
 .oit.ofloor .olbl { background: rgba(255,255,255,.8); border: 1px dashed rgba(0,0,0,.25); border-radius: 999px; padding: 2px 10px; font-size: max(11px, 3.4cqw); }
 .oit.ostrip { background: rgba(139,92,246,.15); }
 
