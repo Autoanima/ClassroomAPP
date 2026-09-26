@@ -94,7 +94,18 @@
   const all = () => A.students();
   const depts = () => [...new Set(all().map(k => A.parseKey(k).code.replace(/\d+$/, '')).filter(Boolean))];
   const inScope = k => !st.scope || A.parseKey(k).code.startsWith(st.scope);
-  const pool = () => all().filter(k => inScope(k) && !st.absent.includes(k) && !(st.noRepeat && st.drawn.includes(k)));
+  // 「抽過的不再抽」每個整點重置（1:00、2:00、3:00…）
+  const hourKey = () => { const d = new Date(); return `${A.fmtDate(d)} ${d.getHours()}`; };
+  function hourlyReset() {
+    const h = hourKey();
+    if (st.drawnHour === h) return false;
+    const had = st.drawn.length > 0;
+    st.drawn = []; st.drawnHour = h; saveSt();
+    return had;
+  }
+  const pool = () => { hourlyReset(); return all().filter(k => inScope(k) && !st.absent.includes(k) && !(st.noRepeat && st.drawn.includes(k))); };
+  // 畫面開著的時候，到整點也會自動重置
+  setInterval(() => { if (hourlyReset() && A.currentTab() === 'draw' && !rolling) { render(); toast('整點了，「抽過的」已經重置'); } }, 30e3);
 
   // 用加密等級的亂數，公平
   function randInt(n) {
@@ -139,7 +150,7 @@
       <div class="draw-ctrl">
         <div class="stepper" aria-label="抽幾人"><span>抽</span><button type="button" class="btn" data-d="n-" aria-label="少一人">－</button><b>${st.n}</b><button type="button" class="btn" data-d="n+" aria-label="多一人">＋</button><span>人</span></div>
         <div class="subsw small-sw">${['', ...depts()].map(d => `<button type="button" data-scope="${esc(d)}" aria-selected="${st.scope === d}">${d ? esc(d) : '全班'}</button>`).join('')}</div>
-        <label class="switch-row small"><span class="switch"><input type="checkbox" id="noRepeat"${st.noRepeat ? ' checked' : ''}><span></span></span>抽過的不再抽</label>
+        <label class="switch-row small"><span class="switch"><input type="checkbox" id="noRepeat"${st.noRepeat ? ' checked' : ''}><span></span></span>抽過的不再抽<span class="muted">（每個整點重置）</span></label>
         <button type="button" class="btn btn--primary go" data-d="go"${rolling ? ' disabled' : ''}>🎲 抽籤</button>
         <div class="draw-meta small muted">可抽 ${p.length} 人${st.noRepeat ? `｜已抽過 ${st.drawn.filter(inScope).length} 人` : ''}
           <button type="button" class="link-btn" data-d="reset">全部重來</button>
