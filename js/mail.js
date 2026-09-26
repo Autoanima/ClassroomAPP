@@ -35,7 +35,7 @@
     mails.forEach(m => {
       h += `<div class="mail-card${seen.has(m.id) ? '' : ' new'}"><div class="mail-head"><b>來自 ${esc(m.from)}</b><span class="muted small">${esc(m.time)}</span></div>
         <div class="mail-text">${esc(m.text)}</div>
-        <div class="mail-foot muted small">${esc(leftText(m.t))}${m.from !== A.D.teacherLabel && canMail() ? `<button type="button" class="link-btn" data-act="mailReply" data-to="${esc(m.from)}">↩ 回信</button>` : ''}</div></div>`;
+        <div class="mail-foot muted small">${esc(leftText(m.t))}${(A.students().includes(m.from) || m.from === A.D.teacherLabel) && canMail() ? `<button type="button" class="link-btn" data-act="mailReply" data-to="${esc(m.from)}">↩ 回信</button>` : `<button type="button" class="link-btn" data-act="mailCopy" data-id="${esc(m.id)}">📋 複製</button>`}</div></div>`;
     });
     h += `<div class="actions"><button type="button" class="btn wide" data-act="mailNew">✉️ 寫一封信</button></div>`;
     A.openSheet({ kind: 'mail' }, h);
@@ -63,6 +63,7 @@
   A.sheetHandlers.mail = async (act, b) => {
     if (act === 'mailNew') return openCompose();
     if (act === 'mailReply') return openCompose(b.dataset.to);
+    if (act === 'mailCopy') { const m = mails.find(x => x.id === b.dataset.id); toast(m && await A.copyText(m.text.replace(/^[^\n]*\n\n/, '')) ? '✓ 已複製，可以貼到 LINE 群組' : '複製失敗'); return; }
     if (act !== 'mailSend') return;
     const to = $('#mailTo').value, text = ($('#mailText').value || '').trim();
     if (!to) return toast('請選擇收件人');

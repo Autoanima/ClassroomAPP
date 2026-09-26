@@ -68,6 +68,9 @@ const SHEET_SEATS = '座位表';
 const HEAD_SEATS = ['座位', '排', '個', '同學'];
 const SHEET_DUTY = '值日生';           // 班長、副班長每天登記的值日生（兩位）
 const HEAD_DUTY = ['日期', '值日生1', '值日生2', '值日生3', '值日生4', '登記人', '登記時間'];
+const SHEET_LUNCH = '訂便當';            // 每週一開放登記，週五中午 12 點截止（登記的是下一週的便當）
+const HEAD_LUNCH = ['週次', '同學', '要不要', '登記時間', '已繳費', '繳費登記'];
+const LUNCH_BOT = '🍱 訂便當小幫手';
 const SHEET_DRAW = '抽籤紀錄';          // 大家都看得到最近的抽籤結果；「清空」只是從 App 上藏起來，試算表保留
 const HEAD_DRAW = ['時間', '抽籤人', '結果', '抽籤卡事件', '編號'];
 const DRAW_DAYS = 30;
@@ -100,9 +103,9 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
 const GUEST_OK = { getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1 };
@@ -157,6 +160,9 @@ function doPost(e) {
       case 'buyFirework': return json(buyFirework(who, String(req.to || '')));
       case 'swapSeatCard': return json(swapSeatCard(who, String(req.to || '')));
       case 'createAcc': return json(createAcc(who, req.name, req.price, req.data));
+      case 'getLunch': return json(getLunch(who));
+      case 'setLunch': return json(setLunch(who, String(req.choice || '')));
+      case 'setLunchPaid': return json(setLunchPaid(who, String(req.key || ''), !!req.paid));
       case 'getDrawLog': return json({ ok: true, log: getDrawLog() });
       case 'addDrawLog': return json({ ok: true, log: addDrawLog(who, req.k || [], req.fx || []) });
       case 'clearDrawLog': PropertiesService.getScriptProperties().setProperty('DRAW_CLEAR_AT', String(Date.now())); return json({ ok: true, log: [] });
@@ -1073,6 +1079,116 @@ function minusOf(key) {
   return m;
 }
 // ── 值日生：班長、副班長（或導師）每天登記兩位 ──
+// ── 訂便當：週一～週五中午 12 點登記下週的便當；週四 12 點第一次統計、17 點提醒還沒登記的人；週五 12 點截止並通知 ──
+/** 現在是第幾週、登記開不開放、哪些定時工作到期了 */
+function lunchNow() {
+  const now = new Date(), tz = CONFIG.TIMEZONE;
+  const dow = Number(Utilities.formatDate(now, tz, 'u')), hm = Number(Utilities.formatDate(now, tz, 'HHmm')); // 1＝週一
+  const mon = new Date(now.getTime() - (dow - 1) * 86400e3);
+  const week = ymd(mon);
+  const mealMon = new Date(mon.getTime() + 7 * 86400e3), mealFri = new Date(mon.getTime() + 11 * 86400e3);
+  return {
+    week: week, dow: dow, hm: hm,
+    meal: Utilities.formatDate(mealMon, tz, 'M/d') + '～' + Utilities.formatDate(mealFri, tz, 'M/d'),
+    locked: dow > 5 || (dow === 5 && hm >= 1200),
+    t1: dow > 4 || (dow === 4 && hm >= 1200),
+    t2: dow > 4 || (dow === 4 && hm >= 1700),
+  };
+}
+function lunchRows(week) {
+  const sh = getSS().getSheetByName(SHEET_LUNCH), out = {};
+  if (!sh || sh.getLastRow() < 2) return out;
+  sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_LUNCH.length).getValues().forEach((r, i) => {
+    const w = r[0] instanceof Date ? ymd(r[0]) : String(r[0]);
+    if (w !== week) return;
+    out[String(r[1]).trim()] = { row: i + 2, choice: String(r[2]), time: r[3] instanceof Date ? Utilities.formatDate(r[3], CONFIG.TIMEZONE, 'MM/dd HH:mm') : '', paid: r[4] === true || String(r[4]) === 'TRUE', paidBy: String(r[5]) };
+  });
+  return out;
+}
+/** 系統寄的信（寄件人是「🍱 訂便當小幫手」） */
+function botMail(list) {
+  if (!list.length) return;
+  const sh = getSheet(SHEET_MAIL, HEAD_MAIL), now = new Date();
+  sh.getRange(sh.getLastRow() + 1, 1, list.length, HEAD_MAIL.length).setValues(list.map(m => [now, LUNCH_BOT, m[0], m[1], Utilities.getUuid().slice(0, 8)]));
+}
+const treasurers = () => { try { const m = cadreMap(); return Object.keys(m).filter(k => m[k].some(r => /^總務/.test(String(r).trim()))); } catch (e) { return []; } };
+/** 給 LINE 群組的報表（清楚的文字格式） */
+function lunchReport(L, rows, students) {
+  const yes = students.filter(k => rows[k] && rows[k].choice === '要'), no = students.filter(k => rows[k] && rows[k].choice === '不要');
+  const none = students.filter(k => !rows[k]);
+  const paid = yes.filter(k => rows[k].paid), unpaid = yes.filter(k => !rows[k].paid);
+  const nm = k => k.replace(/^(\D*?)(\d+)/, '$1$2 ');
+  return ['🍱 ' + CONFIG.CLASS_NAME + ' 便當登記（' + L.meal + '）',
+    '✅ 要訂 ' + yes.length + ' 人' + (yes.length ? '：\n' + yes.map(nm).join('、') : ''),
+    '❌ 不訂 ' + no.length + ' 人',
+    '⚠️ 未登記 ' + none.length + ' 人' + (none.length ? '：\n' + none.map(nm).join('、') : ''),
+    '💰 已繳費 ' + paid.length + '／' + yes.length + ' 人' + (unpaid.length ? '（未繳：' + unpaid.map(nm).join('、') + '）' : ''),
+    '（' + Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'MM/dd HH:mm') + ' 統計）'].join('\n');
+}
+/** 定時工作：到了時間、這週還沒做過的才做（任何人打開 App 時檢查） */
+function lunchTick() {
+  const L = lunchNow(), props = PropertiesService.getScriptProperties();
+  const k1 = 'LUNCH_T1_' + L.week, k2 = 'LUNCH_T2_' + L.week, k3 = 'LUNCH_T3_' + L.week;
+  const need1 = L.t1 && !props.getProperty(k1), need2 = L.t2 && !L.locked && !props.getProperty(k2), need3 = L.locked && !props.getProperty(k3);
+  if (!need1 && !need2 && !need3) return;
+  withLock(() => {
+    const rows = lunchRows(L.week), students = getStudents().students;
+    const yes = students.filter(k => rows[k] && rows[k].choice === '要'), no = students.filter(k => rows[k] && rows[k].choice === '不要');
+    const none = students.filter(k => !rows[k]);
+    if (L.t1 && !props.getProperty(k1)) {   // 週四中午：第一次統計（畫面上會顯示）
+      props.setProperty(k1, JSON.stringify({ time: Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'MM/dd HH:mm'), yes: yes.length, no: no.length, none: none.length }));
+    }
+    if (L.t2 && !L.locked && !props.getProperty(k2)) { // 週四 17:00：提醒還沒登記的人
+      botMail(none.map(k => [k, '🍱 你還沒登記下週（' + L.meal + '）要不要訂便當！\n請在週五中午 12 點前，到 App 的「🍱 便當」登記「要」或「不要」。']));
+      props.setProperty(k2, '1');
+    }
+    if (L.locked && !props.getProperty(k3)) { // 週五 12:00：截止，通知總務和有訂的同學
+      const report = lunchReport(L, rows, students);
+      botMail(treasurers().concat([CONFIG.TEACHER_NAME]).map(k => [k, '📋 本週便當登記已截止，以下是統計（可以複製傳到 LINE 群組）：\n\n' + report]));
+      botMail(yes.map(k => [k, '🍱 你登記了下週（' + L.meal + '）的便當。\n請在今天（週五）放學前把便當費交給總務，逾時未交會取消訂餐喔！']));
+      props.setProperty(k3, '1');
+    }
+  });
+}
+function getLunch(who) {
+  try { lunchTick(); } catch (e) { Logger.log('訂便當定時工作失敗：' + e); }
+  const L = lunchNow(), rows = lunchRows(L.week), students = getStudents().students;
+  const first = PropertiesService.getScriptProperties().getProperty('LUNCH_T1_' + L.week);
+  return {
+    ok: true, week: L.week, meal: L.meal, locked: L.locked, first: first ? JSON.parse(first) : null,
+    rows: students.map(k => ({ key: k, choice: rows[k] ? rows[k].choice : '', paid: rows[k] ? rows[k].paid : false, time: rows[k] ? rows[k].time : '' })),
+    me: who.teacher ? '' : who.key, canPay: !!who.teacher || treasurers().indexOf(who.key) >= 0,
+    report: lunchReport(L, rows, students),
+  };
+}
+function setLunch(who, choice) {
+  if (who.teacher) throw new Error('導師不用登記便當');
+  if (choice !== '要' && choice !== '不要') throw new Error('請選「要」或「不要」');
+  const L = lunchNow();
+  if (L.locked) throw new Error('本週登記已經在週五中午 12 點截止了，下週一再開放');
+  withLock(() => {
+    const sh = getSheet(SHEET_LUNCH, HEAD_LUNCH), cur = lunchRows(L.week)[who.key];
+    if (cur) sh.getRange(cur.row, 3, 1, 2).setValues([[choice, new Date()]]);
+    else {
+      const row = sh.getLastRow() + 1;
+      sh.getRange(row, 1, 1, HEAD_LUNCH.length).setValues([[L.week, who.key, choice, new Date(), false, '']]);
+      sh.getRange(row, 1).setNumberFormat('@');
+    }
+  });
+  return getLunch(who);
+}
+/** 總務（和導師）勾選誰已經繳餐費（截止後也可以勾） */
+function setLunchPaid(who, key, paid) {
+  if (!who.teacher && treasurers().indexOf(who.key) < 0) throw new Error('只有總務股長和導師可以登記繳費');
+  const L = lunchNow();
+  withLock(() => {
+    const cur = lunchRows(L.week)[key];
+    if (!cur || cur.choice !== '要') throw new Error('這位同學沒有訂便當');
+    getSheet(SHEET_LUNCH, HEAD_LUNCH).getRange(cur.row, 5, 1, 2).setValues([[paid, paid ? mailName(who) + ' ' + Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'MM/dd HH:mm') : '']]);
+  });
+  return getLunch(who);
+}
+
 // ── 抽籤紀錄：誰抽的、抽到誰、有沒有抽籤卡；全班都看得到最近 30 天 ──
 function getDrawLog() {
   const sh = getSS().getSheetByName(SHEET_DRAW);
@@ -1217,6 +1333,7 @@ function mailRows() {
     .map(r => ({ t: r[0].getTime(), time: Utilities.formatDate(r[0], CONFIG.TIMEZONE, 'MM/dd HH:mm'), from: String(r[1]), to: String(r[2]), text: String(r[3]), id: String(r[4]) }));
 }
 function getMail(who) {
+  try { lunchTick(); } catch (e) { Logger.log('訂便當定時工作失敗：' + e); }
   const me = mailName(who), since = Date.now() - MAIL_DAYS * 86400e3;
   return mailRows().filter(m => m.to === me && m.t >= since).sort((a, b) => b.t - a.t);
 }

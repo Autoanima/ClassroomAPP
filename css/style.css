@@ -1126,3 +1126,13 @@ body.locked.test-mode .test-banner { position: fixed; left: 0; right: 0; }
 .boost-note summary { cursor: pointer; }
 .boost-note .chips { margin-top: 6px; }
 .penalty-note { border-color: #f3c0a0; }
+
+/* 訂便當 */
+.lunch-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.lunch-pick .btn { font-size: 17px; padding: 12px; }
+.lunch-list { list-style: none; padding: 0; margin: 8px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; }
+.lunch-list li { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+.lunch-paid { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.lunch-paid input { width: 18px; height: 18px; }
+.lunch-names { margin: 6px 0 0; line-height: 1.7; }
+.lunch-report { white-space: pre-wrap; font: inherit; font-size: 14px; background: var(--bg); border-radius: 10px; padding: 10px 12px; margin: 6px 0; }
