@@ -1136,3 +1136,34 @@ body.locked.test-mode .test-banner { position: fixed; left: 0; right: 0; }
 .lunch-paid input { width: 18px; height: 18px; }
 .lunch-names { margin: 6px 0 0; line-height: 1.7; }
 .lunch-report { white-space: pre-wrap; font: inherit; font-size: 14px; background: var(--bg); border-radius: 10px; padding: 10px 12px; margin: 6px 0; }
+
+/* 🎁 禮物盒 */
+.special.gbox { border-color: #f5b0c8; background: linear-gradient(135deg, #fff0f6, #fff8e6); }
+[data-theme="dark"] .special.gbox { background: linear-gradient(135deg, #3a1f2c, #33301a); border-color: #7a3b58; }
+#boxDock { position: absolute; transform: translate(-50%, -50%); z-index: 8; display: flex; gap: 6px; pointer-events: none; }
+#boxDock[hidden] { display: none; }
+.box-icon { pointer-events: auto; border: 0; background: rgba(255,255,255,.85); border-radius: 16px; font-size: 40px; line-height: 1; padding: 6px 8px; box-shadow: 0 4px 14px rgba(0,0,0,.25); animation: boxBob 1.2s ease-in-out infinite; }
+.box-icon.opened { animation: none; opacity: .55; font-size: 26px; }
+@keyframes boxBob { 50% { transform: translateY(-6px) rotate(-6deg); } }
+#giftFx { position: fixed; inset: 0; z-index: 95; background: rgba(10,10,25,.6); display: grid; place-items: center; overflow: hidden; }
+#giftFx[hidden] { display: none; }
+#giftFx .gb-from { position: absolute; top: 18%; left: 0; right: 0; text-align: center; color: #fff; font-weight: 800; font-size: 18px; text-shadow: 0 2px 6px rgba(0,0,0,.5); }
+#giftFx .gb-box { font-size: 130px; line-height: 1; filter: drop-shadow(0 10px 20px rgba(0,0,0,.4)); }
+#giftFx.falling .gb-box { animation: boxFall .9s cubic-bezier(.35,1.5,.6,1) both; }
+#giftFx.landed .gb-box { animation: boxShake .12s linear infinite; }
+#giftFx.burst .gb-box { animation: boxPop .45s ease-out forwards; }
+@keyframes boxFall { from { transform: translateY(-110vh) rotate(-20deg); } to { transform: none; } }
+@keyframes boxShake { 25% { transform: rotate(-8deg) scale(1.05); } 75% { transform: rotate(8deg) scale(1.05); } }
+@keyframes boxPop { to { transform: scale(2.6); opacity: 0; } }
+.gb-bit { position: absolute; left: 50%; top: 50%; font-size: 34px; animation: bitFly .6s ease-out forwards; }
+@keyframes bitFly { from { transform: translate(-50%, -50%) rotate(var(--a)) translateY(0); opacity: 1; } to { transform: translate(-50%, -50%) rotate(var(--a)) translateY(-40vmin); opacity: 0; } }
+.gb-card { background: var(--surface); border-radius: 18px; padding: 10px; max-width: 90vw; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,.45); animation: cardIn .35s cubic-bezier(.2,1.5,.4,1); }
+.gb-card img { display: block; max-width: 84vw; max-height: 64vh; border-radius: 12px; }
+.gb-note { margin-top: 8px; font-size: 13px; color: var(--muted); }
+.gb-noimg { padding: 40px; color: var(--muted); }
+.gb-reward { padding: 20px 22px; width: min(84vw, 320px); }
+.gb-big { font-size: 72px; line-height: 1.1; }
+@keyframes cardIn { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+.gb-pick { display: flex; justify-content: center; }
+.gb-pick .create-prev { width: 200px; height: 200px; }
+@media (prefers-reduced-motion: reduce) { #giftFx .gb-box, .gb-bit, .box-icon { animation: none !important; } }

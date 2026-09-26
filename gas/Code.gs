@@ -68,6 +68,11 @@ const SHEET_SEATS = '座位表';
 const HEAD_SEATS = ['座位', '排', '個', '同學'];
 const SHEET_DUTY = '值日生';           // 班長、副班長每天登記的值日生（兩位）
 const HEAD_DUTY = ['日期', '值日生1', '值日生2', '值日生3', '值日生4', '登記人', '登記時間'];
+const SHEET_BOX = '禮物盒';              // 導師、班長、副班長每週一個驚喜盒（圖片存在「禮物盒」資料夾）
+const HEAD_BOX = ['時間', '放禮物的人', '圖片', '編號', '週次'];
+const SHEET_BOXOPEN = '禮物盒開啟';
+const HEAD_BOXOPEN = ['時間', '同學', '禮物盒編號', '得到'];
+const BOX_DAYS = 7;
 const SHEET_LUNCH = '訂便當';            // 每週一開放登記，週五中午 12 點截止（登記的是下一週的便當）
 const HEAD_LUNCH = ['週次', '同學', '要不要', '登記時間', '已繳費', '繳費登記'];
 const LUNCH_BOT = '🍱 訂便當小幫手';
@@ -103,11 +108,11 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
-const GUEST_OK = { getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
+const GUEST_OK = { getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1 };
 
 function doGet() {
@@ -160,6 +165,9 @@ function doPost(e) {
       case 'buyFirework': return json(buyFirework(who, String(req.to || '')));
       case 'swapSeatCard': return json(swapSeatCard(who, String(req.to || '')));
       case 'createAcc': return json(createAcc(who, req.name, req.price, req.data));
+      case 'getGiftBoxes': return json({ ok: true, boxes: getGiftBoxes(who), canMake: canMakeBox(who) });
+      case 'openGiftBox': return json(openGiftBox(who, String(req.id || '')));
+      case 'createGiftBox': return json(createGiftBox(who, req.data));
       case 'getLunch': return json(getLunch(who));
       case 'setLunch': return json(setLunch(who, String(req.choice || '')));
       case 'setLunchPaid': return json(setLunchPaid(who, String(req.key || ''), !!req.paid));
@@ -1079,6 +1087,80 @@ function minusOf(key) {
   return m;
 }
 // ── 值日生：班長、副班長（或導師）每天登記兩位 ──
+// ── 禮物盒：導師、班長、副班長每週可以放一個；大家打開座位時從天而降、爆開、看到圖片，關掉後隨機得到煙火／小太陽卡／小雨傘卡 ──
+const BOX_REWARDS = ['煙火', '小太陽卡', '小雨傘卡'];
+const boxWho = who => (who.teacher ? CONFIG.TEACHER_NAME : who.role === 'G' ? '任課老師' : who.key);
+function boxFolder() {
+  const root = getRootFolder(), it = root.getFoldersByName('禮物盒');
+  return it.hasNext() ? it.next() : root.createFolder('禮物盒');
+}
+function boxRows() {
+  const sh = getSS().getSheetByName(SHEET_BOX);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_BOX.length).getValues().map(r => ({
+    t: r[0] instanceof Date ? r[0].getTime() : 0, time: r[0] instanceof Date ? Utilities.formatDate(r[0], CONFIG.TIMEZONE, 'MM/dd HH:mm') : '',
+    by: String(r[1]), file: String(r[2]), id: String(r[3]), week: String(r[4]),
+  }));
+}
+function boxOpens() {
+  const sh = getSS().getSheetByName(SHEET_BOXOPEN);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_BOXOPEN.length).getValues().map(r => ({ who: String(r[1]), id: String(r[2]), got: String(r[3]) }));
+}
+/** 導師、班長、副班長；每人每週一個 */
+function canMakeBox(who) {
+  if (!who.teacher && !(who.role === 'C' && isMonitor(who.key))) return false;
+  const me = boxWho(who), week = lunchNow().week;
+  return !boxRows().some(b => b.by === me && b.week === week);
+}
+function getGiftBoxes(who) {
+  const me = boxWho(who), since = Date.now() - BOX_DAYS * 86400e3;
+  const opened = {};
+  boxOpens().filter(o => o.who === me).forEach(o => { opened[o.id] = o.got || '已打開'; });
+  return boxRows().filter(b => b.t >= since).map(b => ({ id: b.id, by: b.by, time: b.time, opened: !!opened[b.id], got: opened[b.id] || '' }));
+}
+function createGiftBox(who, data) {
+  if (!who.teacher && !(who.role === 'C' && isMonitor(who.key))) throw new Error('只有導師、班長、副班長可以放禮物盒');
+  const m = String(data || '').match(/^data:image\/(jpeg|png);base64,(.+)$/);
+  if (!m) throw new Error('請選一張圖片');
+  const bytes = Utilities.base64Decode(m[2]);
+  if (bytes.length > 400000) throw new Error('圖片太大了');
+  const me = boxWho(who), week = lunchNow().week;
+  withLock(() => {
+    if (boxRows().some(b => b.by === me && b.week === week)) throw new Error('你這週已經放過禮物盒了，下週再來');
+    const id = Utilities.getUuid().slice(0, 8);
+    const f = boxFolder().createFile(Utilities.newBlob(bytes, 'image/' + m[1], '禮物盒_' + id + (m[1] === 'png' ? '.png' : '.jpg')));
+    const sh = getSheet(SHEET_BOX, HEAD_BOX);
+    const row = sh.getLastRow() + 1;
+    sh.getRange(row, 1, 1, HEAD_BOX.length).setValues([[new Date(), me, f.getId(), id, week]]);
+    sh.getRange(row, 5).setNumberFormat('@').setValue(week);
+  });
+  return { ok: true, boxes: getGiftBoxes(who), canMake: false };
+}
+/** 打開禮物盒：回傳圖片；學生／幹部第一次打開會隨機得到一張道具卡（煙火、小太陽卡、小雨傘卡） */
+function openGiftBox(who, id) {
+  const b = boxRows().find(x => x.id === id);
+  if (!b) throw new Error('找不到這個禮物盒');
+  let img = '';
+  try { const blob = DriveApp.getFileById(b.file).getBlob(); img = 'data:' + blob.getContentType() + ';base64,' + Utilities.base64Encode(blob.getBytes()); } catch (e) { /* 圖片被刪了 */ }
+  const me = boxWho(who);
+  let got = '';
+  withLock(() => {
+    const old = boxOpens().find(o => o.who === me && o.id === id);
+    if (old) { got = ''; return; }                           // 已經拿過了：只看圖片
+    const student = !who.teacher && who.role !== 'G';
+    got = student ? BOX_REWARDS[Math.floor(Math.random() * BOX_REWARDS.length)] : '';
+    const now = new Date();
+    const sh = getSheet(SHEET_BOXOPEN, HEAD_BOXOPEN);
+    sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_BOXOPEN.length).setValues([[now, me, id, got]]);
+    if (got) {
+      const cs = getSheet(SHEET_CARDS, HEAD_CARDS);
+      cs.getRange(cs.getLastRow() + 1, 1, 1, HEAD_CARDS.length).setValues([[now, me, got, 1, '禮物盒（' + b.by + ' 放的）']]);
+    }
+  });
+  return { ok: true, img: img, by: b.by, got: got };
+}
+
 // ── 訂便當：週一～週五中午 12 點登記下週的便當；週四 12 點第一次統計、17 點提醒還沒登記的人；週五 12 點截止並通知 ──
 /** 現在是第幾週、登記開不開放、哪些定時工作到期了 */
 function lunchNow() {

@@ -112,6 +112,7 @@
       ${sp('rain', '小雨傘卡', 'wx', '☂️', '小雨傘卡', `放在一位同學的座位上方，維持 ${S.weatherDays || 10} 個上課日`, `💰 ${S.weatherPrice || 5} 點`, S.coins >= (S.weatherPrice || 5))}
       ${sp('transfer', '抽籤轉移卡', 'drawc', '🔄', '抽籤轉移卡', `設定一位替身：${S.transferDays || 10} 天內抽籤抽到你，會立刻換成替身上場（次數不限）`, `💰 ${S.transferPrice || 20} 點`, S.coins >= (S.transferPrice || 20))}
       ${sp('sure', '抽籤必中卡', 'drawc', '🎯', '抽籤必中卡', '指定一位同學：下一次抽籤，第一位一定會變成他（只有一次）', `💰 ${S.surePrice || 30} 點`, S.coins >= (S.surePrice || 30))}
+      ${A.isGiftBoxMaker?.() ? sp('giftbox', '禮物盒', 'gbox', '🎁', '禮物盒（導師、班長、副班長專屬）', '每週一次：上傳一張圖片變成驚喜盒，放在教室正中間；大家打開會隨機得到煙火、小太陽卡或小雨傘卡', '每週 1 個', true) : ''}
       ${sp('mail', '信紙', 'mail', '🕊', '信紙（飛鴿傳書）', '寫一封信給同學或導師，對方下次打開 App 就會看到，3 天後自動消失', '免費', true)}
       ${sp('create', '創造卡', 'create', '🎨', '創造卡', '上傳自己畫的 PNG 變成新商品；別人買了，點數算給你', '免費建立', true)}
     </div></div>`;
@@ -175,6 +176,8 @@
       openSwap();
     } else if (act === 'create') {
       openCreate();
+    } else if (act === 'giftbox') {
+      A.openGiftBoxMaker?.();
     } else if (act === 'giftCard') {
       openCardGift(b.dataset.card, b.dataset.ico);
     } else if (act === 'mail') {
