@@ -1423,3 +1423,10 @@ body.ww-open { overflow: hidden; }
 .ww-seg4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 8px; }
 .ww-seg4 button { border: 1px solid var(--line); background: var(--bg); color: var(--text); border-radius: 10px; padding: 7px 2px; font: inherit; font-size: 13px; white-space: nowrap; }
 .ww-seg4 button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+
+/* 標題「商?甲」：導師可以點（改年級） */
+#appTitle.can-edit { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+.grade-pick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 8px 0 4px; }
+.grade-pick .btn { font-size: 17px; padding: 12px 0; }
+/* 切換視角在第二行（公布欄右邊） */
+.duty-row .view-toggle { flex: none; }

@@ -146,7 +146,14 @@ function doPost(e) {
     }
     switch (req.action) {
       case 'ping': return json(ping());
-      case 'getRoster': return json({ ok: true, roster: rosterWithOutdoor() });
+      case 'getRoster': return json({ ok: true, roster: rosterWithOutdoor(), grade: PropertiesService.getScriptProperties().getProperty('CLASS_GRADE') || '' });
+      case 'setGrade': {   // 導師改「商?甲」的年級（1、2、3；空白＝?）
+        if (!who.teacher) throw new Error('只有導師可以改年級');
+        const g = String(req.grade || '');
+        if (!/^[123]?$/.test(g)) throw new Error('年級要是 1、2、3');
+        PropertiesService.getScriptProperties().setProperty('CLASS_GRADE', g);
+        return json({ ok: true, grade: g });
+      }
       case 'saveRoster':
         if (!who.teacher && !canEditRoster(who.key)) throw new Error('只有導師、班長、副班長、環保股長可以修改工作分配');
         if (!who.teacher && req.roster) req.roster.inspectors = getRoster().inspectors; // 幹部名單只有導師能改

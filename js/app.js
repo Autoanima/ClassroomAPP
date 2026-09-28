@@ -488,6 +488,33 @@
     $('#viewBtn').setAttribute('aria-label', t ? '目前是老師視角，按一下切換為學生視角' : '目前是學生視角，按一下切換為老師視角');
     document.querySelectorAll('.orient').forEach(el => { el.textContent = t ? '⬇ 黑板在下' : '⬆ 黑板在上'; el.title = t ? '老師視角：從講台往學生看' : '學生視角：學生面向黑板'; });
   }
+  // ── 班級名稱「商?甲」的年級：導師點標題可以改成 1、2、3（存在雲端，大家都一樣）──
+  const GRADE_KEY = 'indoor.grade.v1' + SFX;
+  function paintTitle(g) {
+    const t = '商' + (g || '?') + '甲';
+    $('#appTitle').textContent = t;
+    document.title = t;
+    $('#appTitle').classList.toggle('can-edit', isTeacher());
+    $('#appTitle').title = isTeacher() ? '點一下可以改年級' : '';
+  }
+  paintTitle(store.get(GRADE_KEY, ''));
+  $('#appTitle').addEventListener('click', () => {
+    if (!isTeacher()) return;
+    const cur = store.get(GRADE_KEY, '');
+    let h = sheetHead('改年級', '「商?甲」中間的字；大家的 App 都會一起改');
+    h += `<div class="grade-pick">${['1', '2', '3', ''].map(g => `<button type="button" class="btn${g === cur ? ' btn--primary' : ''}" data-act="grade" data-g="${g}">商${g || '?'}甲</button>`).join('')}</div>`;
+    // sheetHandlers 在後面才宣告，所以第一次點的時候才登記
+    sheetHandlers.grade ||= async (act, b) => {
+      if (act !== 'grade') return;
+      b.disabled = true;
+      try {
+        const r = await api('setGrade', { grade: b.dataset.g });
+        store.set(GRADE_KEY, r.grade || ''); paintTitle(r.grade || '');
+        closeSheet(); toast(`✓ 已改成「商${r.grade || '?'}甲」`);
+      } catch (err) { toast(err.message); b.disabled = false; }
+    };
+    openSheet({ kind: 'grade' }, h);
+  });
   $('#viewBtn').addEventListener('click', () => {
     ui.view = flipOn() ? 'student' : 'teacher';
     saveUi();
@@ -1027,7 +1054,8 @@
   async function testApi(action, payload) {
     await new Promise(r => setTimeout(r, 250));
     if (action === 'getStudents') return { ok: true, source: '商一甲名單（測試・去識別化）', className: '商一甲', students: DEMO_STUDENTS };
-    if (action === 'getRoster') return { ok: true, roster: demoRoster() };
+    if (action === 'getRoster') return { ok: true, roster: demoRoster(), grade: store.get(GRADE_KEY, '') };
+    if (action === 'setGrade') return { ok: true, grade: String(payload.grade || '') };
     if (action === 'saveRoster') {
       const r = payload.roster, old = demoRoster();
       const next = { jobs: r.jobs, inspectors: r.inspectors, outdoor: r.outdoor ? { ...old.outdoor, jobs: r.outdoor.jobs, inspectors: r.outdoor.inspectors } : old.outdoor };
@@ -1914,6 +1942,7 @@
     rosterSyncing = true; lastRosterSync = Date.now();
     try {
       const r = await api('getRoster');
+      if (r.grade !== undefined) { store.set(GRADE_KEY, r.grade); paintTitle(r.grade); }
       if (applyRoster(r.roster)) {
         renderMap('clean'); renderJobs();
         if (sheetMode?.kind === 'item') rerenderItem(sheetMode.id);
