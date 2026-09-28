@@ -67,10 +67,13 @@
     const top = `<div class="shop-top"><span class="muted small">${loadedAt ? `更新於 ${A.fmtTime(new Date(loadedAt))}` : ''}</span>
       <button type="button" class="btn shop-refresh" data-s="refresh"${loading ? ' disabled' : ''}>${loading ? '讀取中…' : '🔄 重新整理'}</button></div>`;
     let h = '';
+    // 最上面：我的加分紀錄（誰送了什麼改用飛鴿傳書通知，這裡不再列「你手上有…」）
+    if (S.plus?.length) {
+      h += `<details class="panel shop-plus"><summary><b>⭐ 我的加分紀錄</b><span class="muted small">（${S.plus.length} 筆）</span></summary><ul class="pt-list">${S.plus.map(p =>
+        `<li><span class="pt-v plus">+${p.points}</span><div class="pt-what">${esc(p.reason)}<div class="muted small">${esc(p.date)}</div></div></li>`).join('')}</ul></details>`;
+    }
     h += (S.stolen || []).map(x => `<div class="banner warn"><div class="bn-sub">⚠ 你的「${esc(x.name)}」被 ${esc(x.thief)} 用竊盜卡奪走了（${esc(x.time)}）</div></div>`).join('');
     const banned = S.swapBan != null && S.minus > S.swapBan;
-    const heldList = Object.entries(S.held || {});
-    if (heldList.length) h += `<div class="banner ok"><div class="bn-main">🎁 你手上有：${heldList.map(([n, c]) => `${esc(n)} ×${c}`).join('、')}</div><div class="bn-sub">${esc((S.rankCards || []).map(x => x.from).join('、'))}｜使用時不會扣點數</div></div>`;
     h += (S.swapped || []).map(x => `<div class="banner warn"><div class="bn-sub">🔀 ${esc(x.by)} 用交換位置卡和你對調了座位（${esc(x.time)}）</div></div>`).join('');
     h += `<div class="panel shop-me">${top}
       <div class="shop-face"><span class="photo">${A.faceHtml(me)}</span></div>
@@ -115,10 +118,6 @@
         <button type="button" class="btn${can ? ' btn--primary' : ''}" data-s="buy" data-acc="${esc(a.id)}"${can ? '' : ' disabled'}>💰 ${a.price} 點</button></div>`;
     });
     h += `</div></div>`;
-    if (S.plus?.length) {
-      h += `<details class="panel"><summary><b>我的加分紀錄</b></summary><ul class="pt-list">${S.plus.map(p =>
-        `<li><span class="pt-v plus">+${p.points}</span><div class="pt-what">${esc(p.reason)}<div class="muted small">${esc(p.date)}</div></div></li>`).join('')}</ul></details>`;
-    }
     // 特殊道具放在商店最下面；可以送人的道具多一個「🎁 送人」按鈕；手上有卡（別人送的、段考獎勵）就免費用
     const held = S.held || {};
     const sp = (key, card, cls, ico, title, desc, price, can, extra = '') => {

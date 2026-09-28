@@ -76,6 +76,7 @@ const BOX_DAYS = 7;
 const SHEET_LUNCH = '訂便當';            // 每週一開放登記，週五中午 12 點截止（登記的是下一週的便當）
 const HEAD_LUNCH = ['週次', '同學', '要不要', '登記時間', '已繳費', '繳費登記'];
 const LUNCH_BOT = '🍱 訂便當小幫手';
+const GIFT_BOT = '🎁 禮物通知';       // 有人送你配件、道具卡時的通知信
 const SHEET_DRAW = '抽籤紀錄';          // 大家都看得到最近的抽籤結果；「清空」只是從 App 上藏起來，試算表保留
 const HEAD_DRAW = ['時間', '抽籤人', '結果', '抽籤卡事件', '編號'];
 const DRAW_DAYS = 30;
@@ -968,6 +969,7 @@ function buyAcc(who, acc) {
 function giftAcc(who, invId, to) {
   const students = getStudents().students;
   if (students.indexOf(to) < 0 || to === who.key) throw new Error('請選擇要送的同學');
+  let gift = null;
   withLock(() => {
     const x = invRows().find(r => r.id === invId);
     if (!x || x.owner !== who.key) throw new Error('這個配件不是你的');
@@ -975,7 +977,10 @@ function giftAcc(who, invId, to) {
     const sh = getSheet(SHEET_INV, HEAD_INV);
     sh.getRange(x.row, 2).setValue(to);
     sh.getRange(x.row, 9).setValue('由 ' + who.key + ' 贈送');
+    gift = x;
   });
+  // 用飛鴿傳書通知收到禮物的人（信裡有「前往商店」按鈕）
+  botMail([[to, '🎁 ' + who.key + ' 送你一個配件「' + gift.name + '」！\n有效到 ' + gift.exp + '，到「🛍 商店 → 我的配件」按「裝扮大頭照」就可以戴上。\n' + CONFIG.SITE_URL + '#tab=shop']], GIFT_BOT);
   return shopState(who);
 }
 function spendRows() {
@@ -1733,6 +1738,7 @@ function giftCard(who, card, to) {
     const sh = getSheet(SHEET_CARDS, HEAD_CARDS);
     sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_CARDS.length).setValues([[new Date(), to, card, 1, giver + ' 送的']]);
   });
+  botMail([[to, '🎁 ' + giver + ' 送你一張「' + card + '」！\n到「🛍 商店 → 特殊道具」就可以免費使用（會顯示「🎟 你有 1 張」）。\n' + CONFIG.SITE_URL + '#tab=shop']], GIFT_BOT);
   return shopState(who);
 }
 /** 有新的排名檔（或排名前五名變了）就發卡；同一份排名只發一次。10 分鐘內只檢查一次 */
