@@ -2648,7 +2648,7 @@ function addLeave(who, r) {
   if (LEAVE_TYPES.indexOf(type) < 0) throw new Error('請選擇假別');
   const okDate = s => /^\d{4}\/\d\d\/\d\d$/.test(s);
   const from = String(r.from || ''), to = String(r.to || from);
-  const fromP = Math.max(0, Math.min(8, Number(r.fromP) || 0)), toP = Math.max(0, Math.min(8, Number(r.toP) || 0));
+  const fromP = Math.max(0, Math.min(7, Number(r.fromP) || 0)), toP = Math.max(0, Math.min(7, Number(r.toP) || 0));   // 早自習＝0，第 1～7 節（沒有第 8 節）
   if (!okDate(from) || !okDate(to)) throw new Error('請選擇日期');
   if (to < from || (to === from && toP < fromP)) throw new Error('結束的時間要在開始之後');
   const note = String(r.note || '').trim().slice(0, 200), id = Utilities.getUuid().slice(0, 8), by = who.teacher ? CONFIG.TEACHER_NAME : who.key;

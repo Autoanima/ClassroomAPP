@@ -7,7 +7,7 @@
   const { $, esc, toast, store } = A;
   const TYPES = ['事假', '病假', '公假', '喪假', '生理假', '身心調適假'];
   const TYPE_CLS = { 事假: 't-a', 病假: 't-b', 公假: 't-c', 喪假: 't-d', 生理假: 't-e', 身心調適假: 't-f' };
-  const PERIODS = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+  const PERIODS = [0, 1, 2, 3, 4, 5, 6, 7];   // 早自習、第 1～7 節（這個班沒有第 8 節）
   const pName = p => (Number(p) === 0 ? '早自習' : `第${p}節`);
   const STEP = ['已登記', '已上傳假卡', '已確認'];
   let L = null, lAt = 0, view = 'todo', rulesEdit = false;
@@ -20,13 +20,13 @@
     if (!quiet || A.currentTab() === 'leave') render();
   }
   const when = x => `${x.from.slice(5)} ${pName(x.fromP)}${x.from === x.to ? (x.fromP === x.toP ? '' : `～${pName(x.toP)}`) : ` ～ ${x.to.slice(5)} ${pName(x.toP)}`}`;
-  // 節數：每天第 1～8 節（早自習不算），跨天的中間每天 8 節
+  // 節數：每天第 1～7 節（早自習不算），跨天的中間每天 7 節
   function periods(x) {
     const d0 = new Date(x.from.replace(/\//g, '-') + 'T12:00'), d1 = new Date(x.to.replace(/\//g, '-') + 'T12:00');
     const days = Math.round((d1 - d0) / 86400e3);
-    const one = (a, b) => Math.max(0, Math.min(b, 8) - Math.max(a, 1) + 1);
+    const one = (a, b) => Math.max(0, Math.min(b, 7) - Math.max(a, 1) + 1);
     if (days <= 0) return one(x.fromP, x.toP);
-    return one(x.fromP, 8) + one(1, x.toP) + Math.max(0, days - 1) * 8;
+    return one(x.fromP, 7) + one(1, x.toP) + Math.max(0, days - 1) * 7;
   }
 
   function render() {
@@ -58,7 +58,7 @@
         <label class="lv-f"><span>從</span><input type="date" id="lvFrom" value="${today().replace(/\//g, '-')}"></label>
         <label class="lv-f"><span>&nbsp;</span><select id="lvFromP">${pOpt(1)}</select></label>
         <label class="lv-f"><span>到</span><input type="date" id="lvTo" value="${today().replace(/\//g, '-')}"></label>
-        <label class="lv-f"><span>&nbsp;</span><select id="lvToP">${pOpt(8)}</select></label>
+        <label class="lv-f"><span>&nbsp;</span><select id="lvToP">${pOpt(7)}</select></label>
       </div>
       <label class="lv-f"><span>說明（可不填）</span><input type="text" id="lvNote" maxlength="200" placeholder="例如：看醫生、家裡有事"></label>
       <p class="muted small">假卡流程：家長簽名 → 導師簽名 → 教官室（特殊情形再送學務處、校長室）。全部簽完後，在下面按「📷 上傳假卡」。</p>
@@ -110,7 +110,7 @@
     if (keys.length) {
       h += `<details class="panel"><summary><b>📊 請假統計（節數）</b></summary><div class="admin-wrap"><table class="admin lv-stat"><thead><tr><th>同學</th>${TYPES.map(t => `<th>${t}</th>`).join('')}<th>合計</th></tr></thead><tbody>
         ${keys.map(k => `<tr><td>${esc(nm(k))}</td>${TYPES.map(t => `<td>${stat[k][t] || ''}</td>`).join('')}<td><b>${Object.values(stat[k]).reduce((a, b) => a + b, 0)}</b></td></tr>`).join('')}
-        </tbody></table></div><p class="muted small">節數以第 1～8 節計算（早自習不算），跨天的中間每天算 8 節。</p></details>`;
+        </tbody></table></div><p class="muted small">節數以第 1～7 節計算（早自習不算），跨天的中間每天算 7 節。</p></details>`;
     }
     return h;
   }
