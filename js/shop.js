@@ -52,14 +52,16 @@
     const active = S.inv.filter(x => !x.expired);
     const used = new Set((S.deco || []).map(l => l.inv));
     // 最上面：重新整理（同學剛上架的商品、剛收到的點數，按一下就看得到）
-    let h = `<div class="shop-top"><span class="muted small">${loadedAt ? `更新於 ${A.fmtTime(new Date(loadedAt))}` : ''}</span>
+    // 更新時間＋重新整理：放在點數卡片的右上角（省一行）
+    const top = `<div class="shop-top"><span class="muted small">${loadedAt ? `更新於 ${A.fmtTime(new Date(loadedAt))}` : ''}</span>
       <button type="button" class="btn shop-refresh" data-s="refresh"${loading ? ' disabled' : ''}>${loading ? '讀取中…' : '🔄 重新整理'}</button></div>`;
+    let h = '';
     h += (S.stolen || []).map(x => `<div class="banner warn"><div class="bn-sub">⚠ 你的「${esc(x.name)}」被 ${esc(x.thief)} 用竊盜卡奪走了（${esc(x.time)}）</div></div>`).join('');
     const banned = S.swapBan != null && S.minus > S.swapBan;
     const heldList = Object.entries(S.held || {});
     if (heldList.length) h += `<div class="banner ok"><div class="bn-main">🎁 你手上有：${heldList.map(([n, c]) => `${esc(n)} ×${c}`).join('、')}</div><div class="bn-sub">${esc((S.rankCards || []).map(x => x.from).join('、'))}｜使用時不會扣點數</div></div>`;
     h += (S.swapped || []).map(x => `<div class="banner warn"><div class="bn-sub">🔀 ${esc(x.by)} 用交換位置卡和你對調了座位（${esc(x.time)}）</div></div>`).join('');
-    h += `<div class="panel shop-me">
+    h += `<div class="panel shop-me">${top}
       <div class="shop-face"><span class="photo">${A.faceHtml(me)}</span></div>
       <div class="shop-wallet"><div class="coins">💰 <b>${coinTxt}</b> 點</div>
         <div class="muted small">${S.unlimited ? '導師點數無限，可以試用所有商品' : `加分累計 ${S.earned} 點${S.income ? `（含作品收入 ${S.income} 點）` : ''}・已使用 ${S.spent} 點${S.penalty ? `・扣分扣掉 ${S.penalty} 點` : ''}`}</div>

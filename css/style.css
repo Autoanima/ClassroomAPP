@@ -1302,3 +1302,8 @@ body.ww-open { overflow: hidden; }
 
 .gb-card { position: relative; }
 .gb-x { position: absolute; top: -12px; right: -12px; width: 36px; height: 36px; border-radius: 50%; border: 0; background: var(--surface); color: var(--text); font-size: 18px; box-shadow: 0 2px 8px rgba(0,0,0,.35); z-index: 1; }
+
+/* 商店：更新時間＋重新整理放在點數卡片右上角 */
+.shop-me { position: relative; }
+.shop-me .shop-top { position: absolute; top: 10px; right: 12px; margin: 0; }
+.shop-me .shop-wallet { padding-top: 52px; }
