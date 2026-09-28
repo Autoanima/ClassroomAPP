@@ -527,16 +527,19 @@
     toast(flipOn() ? '老師視角：黑板在下方' : '學生視角：黑板在上方');
   });
 
-  // ── 除霧模式（只有導師）：暫時隱藏大家大頭照上的配件，只影響這台裝置，不影響同學看到的樣子 ──
+  // ── 除霧模式（導師、任課老師）：暫時隱藏大家大頭照上的配件，只影響這台裝置，不影響同學看到的樣子 ──
+  // 任課老師預設就是除霧（看不到配件），按 🌫️ 才會顯示
+  const defogOn = () => (isTeacher() ? !!ui.defog : isGuest() ? ui.defogGuest !== false : false);
   function paintDefog() {
-    const on = isTeacher() && !!ui.defog;
-    $('#defogBtn').hidden = !isTeacher();
+    const on = defogOn();
+    $('#defogBtn').hidden = !isTeacher() && !isGuest();
     $('#defogBtn').setAttribute('aria-pressed', on);
     document.body.classList.toggle('defog', on);
   }
   $('#defogBtn').addEventListener('click', () => {
-    ui.defog = !ui.defog; saveUi(); paintDefog();
-    toast(ui.defog ? '🌫️ 除霧模式：已暫時拿掉大家的配件（只有你看得到）' : '已恢復顯示配件');
+    if (isGuest()) ui.defogGuest = !defogOn(); else ui.defog = !ui.defog;
+    saveUi(); paintDefog();
+    toast(defogOn() ? '🌫️ 除霧模式：已暫時拿掉大家的配件（只有你看得到）' : '已顯示同學大頭照上的配件');
   });
 
   // ── 夜間模式：按月亮／太陽切換，記在這台裝置；沒選過就跟著手機設定 ──
