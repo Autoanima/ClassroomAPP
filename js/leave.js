@@ -37,6 +37,9 @@
     h += formHtml();
     // 導師：總表（可以確認、退回）；班長、副班長：自己的請假＋唯讀的總表；其他同學：自己的請假
     h += isT() ? teacherHtml() : L.monitor ? mineHtml() + teacherHtml(true) : mineHtml();
+    // 月曆放在請假列表的下面
+    const cal = calendarHtml(), stat = h.indexOf('<details class="panel"><summary><b>📊');
+    h = stat >= 0 ? h.slice(0, stat) + cal + h.slice(stat) : h + cal;
     root.innerHTML = h;
   }
   // 請假規則：預設收起來；導師可以編輯
@@ -78,10 +81,14 @@
     }
     const btns = [];
     if (x.cards.length) btns.push(`<button type="button" class="btn" data-lv="cards" data-id="${esc(x.id)}">🖼 假卡 ${x.cards.length}</button>`);
-    if (x.status !== '已確認') btns.push(`<button type="button" class="btn${!teacher && !x.cards.length ? ' btn--primary' : ''}" data-lv="upload" data-id="${esc(x.id)}">📷 上傳假卡</button>`);
+    // 順序：確認 → 上傳假卡 → 退回 → 取消 → 編輯
     if (teacher && x.status !== '已確認') btns.push(`<button type="button" class="btn btn--primary" data-lv="ok" data-id="${esc(x.id)}">✓ 確認</button>`);
+    if (x.status !== '已確認') btns.push(`<button type="button" class="btn${!teacher && !x.cards.length ? ' btn--primary' : ''}" data-lv="upload" data-id="${esc(x.id)}">📷 上傳假卡</button>`);
     if (teacher && x.status !== '退回' && x.status !== '已確認') btns.push(`<button type="button" class="btn" data-lv="back" data-id="${esc(x.id)}">↩ 退回</button>`);
-    if (x.status !== '已確認' || teacher) btns.push(`<button type="button" class="link-btn" data-lv="cancel" data-id="${esc(x.id)}">取消這筆</button>`);
+    if (x.status !== '已確認' || teacher) {
+      btns.push(`<button type="button" class="link-btn" data-lv="cancel" data-id="${esc(x.id)}">取消</button>`);
+      btns.push(`<button type="button" class="link-btn" data-lv="edit" data-id="${esc(x.id)}">✏️ 編輯</button>`);
+    }
     return `<div class="lv-item${x.status === '已確認' ? ' done' : ''}">
       <div class="lv-top"><span class="lv-type ${TYPE_CLS[x.type] || ''}">${esc(x.type)}</span><b>${esc(when(x))}</b>${teacher ? `<span class="lv-who">${esc(nm(x.key))}</span>` : ''}</div>
       ${x.note ? `<div class="small">${esc(x.note)}</div>` : ''}
@@ -94,6 +101,69 @@
     const rows = L.rows.filter(x => !x.other && (!L.me || x.key === L.me));
     return `<div class="panel"><h3>我的請假</h3>${rows.length ? rows.map(x => itemHtml(x, false)).join('') : '<p class="muted small">還沒有請假紀錄。</p>'}</div>`;
   }
+
+  // ── 月曆：這個月每一天誰請了什麼假（點名字看那天是第幾節到第幾節）──
+  let calMonth = '';
+  const ymdStr = d => `${d.getFullYear()}/${A.pad2(d.getMonth() + 1)}/${A.pad2(d.getDate())}`;
+  // 某一筆請假在某一天請的節次
+  function dayRange(x, d) {
+    if (d < x.from || d > x.to) return null;
+    const a = d === x.from ? x.fromP : 1, b = d === x.to ? x.toP : 7;
+    return { a, b, all: a <= 1 && b >= 7 };
+  }
+  const rangeText = r => (r.all ? '全天' : r.a === r.b ? pName(r.a) : `${pName(r.a)}～${pName(r.b)}`);
+  function calendarHtml() {
+    calMonth ||= today().slice(0, 7);
+    const [y, m] = calMonth.split('/').map(Number);
+    const first = new Date(y, m - 1, 1), days = new Date(y, m, 0).getDate(), lead = first.getDay();
+    const cells = [];
+    for (let i = 0; i < lead; i++) cells.push('<div class="cal-cell empty"></div>');
+    const td = today();
+    for (let dd = 1; dd <= days; dd++) {
+      const d = ymdStr(new Date(y, m - 1, dd)), wd = new Date(y, m - 1, dd).getDay();
+      const on = L.rows.filter(x => dayRange(x, d));
+      cells.push(`<div class="cal-cell${d === td ? ' today' : ''}${wd % 6 === 0 ? ' wkend' : ''}"><span class="cal-d">${dd}</span>
+        ${on.map(x => `<button type="button" class="cal-nm ${TYPE_CLS[x.type] || ''}" data-lv="calItem" data-id="${esc(x.id)}" data-d="${d}" title="${esc(x.type)}">${esc(A.parseKey(x.key).name || x.key)}</button>`).join('')}</div>`);
+    }
+    return `<div class="panel lv-cal"><div class="cal-head"><button type="button" class="btn" data-lv="calPrev" aria-label="上個月">‹</button>
+        <b>📅 ${y} 年 ${m} 月</b><button type="button" class="btn" data-lv="calNext" aria-label="下個月">›</button></div>
+      <div class="cal-grid">${'日一二三四五六'.split('').map(w => `<div class="cal-w">${w}</div>`).join('')}${cells.join('')}</div>
+      <div class="cal-legend">${TYPES.map(t => `<span class="lv-type ${TYPE_CLS[t]}">${t}</span>`).join('')}</div>
+      <p class="muted small">點名字可以看那一天請了第幾節到第幾節。</p></div>`;
+  }
+  function openCalItem(x, d) {
+    const r = dayRange(x, d) || { a: x.fromP, b: x.toP };
+    let h = A.sheetHead(`${nm(x.key)}｜${x.type}`, `${d.slice(5)}（週${'日一二三四五六'[new Date(d.replace(/\//g, '-') + 'T12:00').getDay()]}）`);
+    h += `<div class="cal-detail"><p class="cal-big">這一天：<b>${rangeText(r)}</b></p>
+      <p>整筆請假：${esc(when(x))}（共 ${periods(x)} 節）</p>
+      <p>進度：${esc(x.status)}</p>${x.note ? `<p>說明：${esc(x.note)}</p>` : ''}</div>`;
+    A.openSheet({ kind: 'leaveCal' }, h);
+  }
+
+  // ── 編輯（假別、日期、節次、說明）──
+  function openEdit(x) {
+    const pOpt = sel => PERIODS.map(p => `<option value="${p}"${p === sel ? ' selected' : ''}>${pName(p)}</option>`).join('');
+    let h = A.sheetHead('✏️ 修改請假', isT() ? nm(x.key) : '');
+    h += `<div class="lv-types" id="edTypes">${TYPES.map(t => `<button type="button" data-act="edType" data-v="${t}" aria-pressed="${t === x.type}">${t}</button>`).join('')}</div>
+      <div class="lv-grid">
+        <label class="lv-f"><span>從</span><input type="date" id="edFrom" value="${x.from.replace(/\//g, '-')}"></label>
+        <label class="lv-f"><span>&nbsp;</span><select id="edFromP">${pOpt(x.fromP)}</select></label>
+        <label class="lv-f"><span>到</span><input type="date" id="edTo" value="${x.to.replace(/\//g, '-')}"></label>
+        <label class="lv-f"><span>&nbsp;</span><select id="edToP">${pOpt(x.toP)}</select></label>
+      </div>
+      <label class="lv-f"><span>說明</span><input type="text" id="edNote" maxlength="200" value="${esc(x.note || '')}"></label>
+      <div class="actions"><button type="button" class="btn btn--primary wide" data-act="edSave" data-id="${esc(x.id)}">儲存修改</button></div>`;
+    A.openSheet({ kind: 'leaveEdit' }, h);
+  }
+  A.sheetHandlers.leaveEdit = async (act, b) => {
+    if (act === 'edType') { b.parentElement.querySelectorAll('button').forEach(y => y.setAttribute('aria-pressed', y === b)); return; }
+    if (act !== 'edSave') return;
+    const row = { type: $('#edTypes [aria-pressed="true"]')?.dataset.v, from: $('#edFrom').value.replace(/-/g, '/'), fromP: Number($('#edFromP').value), to: $('#edTo').value.replace(/-/g, '/'), toP: Number($('#edToP').value), note: $('#edNote').value.trim() };
+    if (!row.from || !row.to) return toast('請選擇日期');
+    if (row.to < row.from || (row.to === row.from && row.toP < row.fromP)) return toast('結束的時間要在開始之後');
+    b.disabled = true;
+    try { L = await A.api('editLeave', { id: b.dataset.id, row }); A.closeSheet(); toast('✓ 已修改'); render(); } catch (err) { toast(err.message); b.disabled = false; }
+  };
   // 導師總表：篩選（待處理／本月／全部）＋每個人的統計
   function teacherHtml(ro) {
     const month = today().slice(0, 7);
@@ -165,6 +235,10 @@
     const act = b.dataset.lv, x = L?.rows.find(r => r.id === b.dataset.id);
     if (act === 'type') { lvType = b.dataset.v; b.parentElement.querySelectorAll('button').forEach(y => y.setAttribute('aria-pressed', y === b)); return; }
     if (act === 'view') { view = b.dataset.v; render(); return; }
+    if (act === 'calPrev' || act === 'calNext') {
+      const [y, m] = calMonth.split('/').map(Number), d = new Date(y, m - 1 + (act === 'calNext' ? 1 : -1), 1);
+      calMonth = `${d.getFullYear()}/${A.pad2(d.getMonth() + 1)}`; render(); return;
+    }
     if (act === 'rulesEdit') { rulesEdit = true; render(); return; }
     if (act === 'rulesCancel') { rulesEdit = false; render(); return; }
     if (act === 'rulesSave') {
@@ -185,6 +259,8 @@
     }
     if (!x) return;
     if (act === 'cards') return openCards(x);
+    if (act === 'calItem') return openCalItem(x, b.dataset.d);
+    if (act === 'edit') return openEdit(x);
     if (act === 'upload') { upId = x.id; fileInput().click(); return; }
     if (act === 'ok' || act === 'back') {
       let reply = '';
@@ -208,7 +284,7 @@
   const prevTest = A.testSeatApi;
   A.testSeatApi = async (action, p = {}) => {
     const KEY = 'indoor.leave.v1.test', RK = 'indoor.leaverules.v1.test', CK = 'indoor.leavecard.v1.test';
-    if (!['getLeave', 'addLeave', 'leaveCard', 'getLeaveCard', 'setLeaveStatus', 'cancelLeave', 'setLeaveRules'].includes(action)) return prevTest ? prevTest(action, p) : null;
+    if (!['getLeave', 'addLeave', 'editLeave', 'leaveCard', 'getLeaveCard', 'setLeaveStatus', 'cancelLeave', 'setLeaveRules'].includes(action)) return prevTest ? prevTest(action, p) : null;
     const me = A.isTeacher() ? '導師' : A.me();
     const all = store.get(KEY, []);
     const find = id => all.find(x => x.id === id);
@@ -218,6 +294,7 @@
     if (action === 'getLeaveCard') { const d = store.get(CK, {})[p.fid]; if (!d) throw new Error('找不到這張假卡'); return { ok: true, d }; }
     if (action === 'setLeaveStatus') { const x = find(p.id); x.status = p.status; x.reply = p.reply || ''; }
     if (action === 'cancelLeave') { const x = find(p.id); x.status = '已取消'; }
+    if (action === 'editLeave') { const x = find(p.id); Object.assign(x, { type: p.row.type, from: p.row.from, fromP: p.row.fromP, to: p.row.to, toP: p.row.toP, note: p.row.note || '' }); }
     if (action === 'setLeaveRules') store.set(RK, p.text || '');
     store.set(KEY, all);
     const monitor = !A.isTeacher() && A.jobsOf(me || '').roles.some(r => /^副?班長$/.test(String(r).trim()));
