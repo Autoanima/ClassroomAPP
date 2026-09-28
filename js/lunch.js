@@ -8,9 +8,10 @@
   const canChoose = () => !A.isTeacher() && !A.isGuest() && !!A.me();
   const nm = k => { const p = A.parseKey(k); return `${p.code.replace(/(\d+)$/, ' $1')} ${p.name}`; };
 
-  async function load() {
-    try { L = await A.api('getLunch'); } catch (e) { toast('便當資料讀取失敗：' + e.message); }
-    render();
+  let lAt = 0;
+  async function load(quiet) {
+    try { L = await A.api('getLunch'); lAt = Date.now(); } catch (e) { if (!quiet) toast('便當資料讀取失敗：' + e.message); }
+    if (!quiet || A.currentTab() === 'lunch') render();
   }
   function render() {
     const root = $('#lunchRoot');
@@ -54,7 +55,8 @@
     try { L = await A.api('setLunchPaid', { key: k, paid: e.target.checked }); toast(e.target.checked ? `💰 ${nm(k)} 已繳費` : `已取消 ${nm(k)} 的繳費`); } catch (err) { toast(err.message); e.target.checked = !e.target.checked; }
     render();
   });
-  A.tabHooks.lunch = () => { render(); load(); };
+  A.tabHooks.lunch = () => { render(); if (Date.now() - lAt > 30e3) load(); };   // 剛預先載入過就不用再載
+  A.addPrefetch('lunch', () => load(true));
 
   // ── 測試模式：存在這台裝置；時間規則和正式版一樣 ──
   const prevTest = A.testSeatApi;

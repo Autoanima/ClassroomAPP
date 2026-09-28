@@ -1114,6 +1114,11 @@
     });
   }, 500);
 
+  // 預先載入：座位表＋大頭照（最花時間的部分）
+  A.addPrefetch('seats', async () => {
+    const res = await Promise.all([loadChart().catch(() => false), Date.now() - facesLoaded > 10 * 60e3 ? loadFaces().then(c => { facesLoaded = Date.now(); return c; }).catch(() => false) : false]);
+    if (res.some(Boolean)) A.emit('faces');
+  });
   A.tabHooks.seats = () => {
     discardDraft();
     renderAll();

@@ -26,10 +26,10 @@
   }
 
   // ── 班費 ──
-  let F = null;
-  async function loadFund() {
-    try { F = await A.api('getFund'); } catch (e) { toast('班費讀取失敗：' + e.message); }
-    renderFund();
+  let F = null, fAt = 0;
+  async function loadFund(quiet) {
+    try { F = await A.api('getFund'); fAt = Date.now(); } catch (e) { if (!quiet) toast('班費讀取失敗：' + e.message); }
+    if (!quiet || A.currentTab() === 'fund') renderFund();
   }
   function renderFund() {
     const root = $('#fundRoot');
@@ -164,7 +164,9 @@
     const v = calc(e.target.value);
     $('#fCalc').textContent = e.target.value && /[+\-*/×÷()]/.test(e.target.value) ? (isNaN(v) ? '算式看不懂' : `＝ ${money(v)} 元`) : '金額可以直接打算式，例如 50*44、1200-350、(30+20)*2。';
   });
-  A.tabHooks.fund = () => { renderFund(); loadFund(); };
+  A.tabHooks.fund = () => { renderFund(); if (Date.now() - fAt > 30e3) loadFund(); };   // 剛預先載入過就不用再載
+  A.addPrefetch('fund', () => loadFund(true));
+  A.addPrefetch('points', () => (A.isGuest() ? null : loadPacks()));
 
   // ── 發紅包（放在「加扣分」頁最下面）──
   let packs = [];

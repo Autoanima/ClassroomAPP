@@ -59,9 +59,7 @@
       </button>
       <button id="defogBtn" class="icon-btn" type="button" aria-pressed="false" aria-label="除霧模式：暫時拿掉大家大頭照上的配件" title="除霧模式" hidden>🌫️</button>
       <button id="themeBtn" class="icon-btn" type="button" aria-label="切換夜間模式">🌙</button>
-      <button id="syncBtn" class="icon-btn" type="button" aria-label="雲端同步狀態">
-        <span id="syncDot" class="sync-dot"></span>
-      </button>
+      <button id="pfBtn" class="icon-btn pf-btn" type="button" aria-pressed="true" aria-label="自動預先載入" title="自動預先載入（開／關）">⚡<span id="syncDot" class="sync-dot"></span></button>
       <button id="settingsBtn" class="icon-btn" type="button" aria-label="設定">
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.7 7.7 0 0 0 0-2l2-1.6a.5.5 0 0 0 .1-.6l-1.9-3.3a.5.5 0 0 0-.6-.2l-2.4 1a7.3 7.3 0 0 0-1.7-1l-.4-2.6a.5.5 0 0 0-.5-.4h-3.8a.5.5 0 0 0-.5.4l-.4 2.6a7.3 7.3 0 0 0-1.7 1l-2.4-1a.5.5 0 0 0-.6.2L2.5 8.8a.5.5 0 0 0 .1.6l2 1.6a7.7 7.7 0 0 0 0 2l-2 1.6a.5.5 0 0 0-.1.6l1.9 3.3c.1.2.4.3.6.2l2.4-1c.5.4 1.1.7 1.7 1l.4 2.6c0 .2.2.4.5.4h3.8c.3 0 .5-.2.5-.4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.4 1c.2.1.5 0 .6-.2l1.9-3.3a.5.5 0 0 0-.1-.6zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>
       </button>
@@ -190,7 +188,7 @@
   <input id="faceInput" type="file" accept="image/*" hidden>
 
   <script>
-    ['config.js', 'js/map-data.js', 'js/sel-engine.js', 'js/app.js', 'js/seats.js', 'js/points.js', 'js/draw.js', 'js/shop.js', 'js/line.js', 'js/board.js', 'js/mail.js', 'js/fund.js', 'js/lunch.js', 'js/giftbox.js', 'js/vocab.js', 'js/invest-engine.js', 'js/invest.js'].forEach(function (s) {
+    ['config.js', 'js/map-data.js', 'js/sel-engine.js', 'js/app.js', 'js/seats.js', 'js/points.js', 'js/draw.js', 'js/shop.js', 'js/line.js', 'js/board.js', 'js/mail.js', 'js/fund.js', 'js/lunch.js', 'js/giftbox.js', 'js/vocab.js', 'js/invest-engine.js', 'js/invest.js', 'js/prefetch.js'].forEach(function (s) {
       document.write('<script src="' + s + '?v=' + __V + '"><\/script>');
     });
     document.write('<script>App.boot();<\/script>');

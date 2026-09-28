@@ -1130,15 +1130,9 @@
     else if (queue.length) dot.classList.add('pending');
     else dot.classList.add('ok');
   }
-  $('#syncBtn').addEventListener('click', () => {
-    if (TEST) return toast('測試模式：資料不會寫入雲端');
-    if (!settings.gasUrl) return toast('尚未設定雲端，紀錄只存在這支手機。');
-    if (isStudent()) return toast('已連線到雲端');
-    if (syncError) toast('同步失敗：' + syncError + '（重試中）');
-    else if (queue.length) toast(`還有 ${queue.length} 筆等待寫入試算表…`);
-    else toast('✓ 所有紀錄都已寫入試算表');
-    flush(); retryPhotos();
-  });
+  // 雲端同步狀態（原本上方的綠燈；現在只在有問題時於 ⚡ 旁邊出現小點，詳細在「設定」）
+  const syncText = () => (TEST ? '測試模式：資料不會寫入雲端' : !settings.gasUrl ? '尚未設定雲端，紀錄只存在這支手機。'
+    : syncError ? '⚠️ 同步失敗：' + syncError + '（重試中）' : queue.length ? `還有 ${queue.length} 筆等待寫入試算表…` : '✓ 已連線到雲端，所有紀錄都已寫入試算表');
   window.addEventListener('online', () => { flush(); retryPhotos(); });
 
   // ── 每 20 小時自動清空掃地紀錄 ──
@@ -1696,6 +1690,8 @@
     if (!isGuest()) h += App.vocabSettingsHtml?.() || '';
     h += `<h3>登入</h3><p class="muted small" style="margin:0">${usesSid() ? '借別人的手機登入時，用完請一定要登出。登入後 30 天內不用再輸入身分證字號。' : '這支手機已記住密碼。借別人用或換手機時可以登出。'}</p>`;
     h += `<div class="actions"><button type="button" class="btn wide" data-act="lock">🔒 登出</button></div>`;
+    h += `<h3>雲端同步</h3><p class="muted small" style="margin:0">${esc(syncText())}</p>`;
+    if (isStaff() && !TEST) h += `<div class="actions"><button type="button" class="btn wide" data-act="syncNow">🔄 立即同步</button></div>`;
     if (isStaff()) {
       h += `<details class="field"><summary class="muted small">進階：雲端網址</summary>
         <input type="url" id="setUrl" value="${esc(settings.gasUrl)}" autocomplete="off" style="margin-top:8px">
@@ -1707,6 +1703,7 @@
   $('#settingsBtn').addEventListener('click', openSettings);
   sheetHandlers.settings = async (act, b) => {
     if (App.vocabSettingsAct?.(act, b)) return;
+    if (act === 'syncNow') { flush(); retryPhotos(); toast(syncText()); return; }
     if (act === 'ping') {
       settings.gasUrl = $('#setUrl').value.trim() || CFG.gasUrl || '';
       saveSettings();
@@ -1886,7 +1883,7 @@
   };
 
   // ── 自動更新：切回 App 或每 10 分鐘檢查 GitHub 上的檔案有沒有變 ──
-  const WATCH = ['index.html', 'sw.js','config.js', 'js/map-data.js', 'js/sel-engine.js', 'js/app.js', 'js/seats.js', 'js/points.js', 'js/draw.js', 'js/shop.js', 'js/line.js', 'js/board.js', 'js/mail.js', 'js/fund.js', 'js/lunch.js', 'js/giftbox.js', 'js/vocab.js', 'js/invest-engine.js', 'js/invest.js', 'css/style.css'];
+  const WATCH = ['index.html', 'sw.js','config.js', 'js/map-data.js', 'js/sel-engine.js', 'js/app.js', 'js/seats.js', 'js/points.js', 'js/draw.js', 'js/shop.js', 'js/line.js', 'js/board.js', 'js/mail.js', 'js/fund.js', 'js/lunch.js', 'js/giftbox.js', 'js/vocab.js', 'js/invest-engine.js', 'js/invest.js', 'js/prefetch.js', 'css/style.css'];
   async function fingerprint() {
     try {
       const tags = await Promise.all(WATCH.map(async u => {
@@ -2147,6 +2144,7 @@
     mountMap, renderMap, sizeMap, maps, flipOn,
     openSheet, closeSheet, sheetHead, sheetHandlers, changeHandlers, sheetMode: () => sheetMode, sheetBody,
     tabHooks, showTab, currentTab: () => ui.tab, started: () => started,
+    prefetch: {}, addPrefetch(tab, fn) { (App.prefetch[tab] ||= []).push(fn); },
     on(ev, fn) { (listeners[ev] ||= []).push(fn); },
     emit(ev, ...a) { (listeners[ev] || []).forEach(fn => fn(...a)); },
   };

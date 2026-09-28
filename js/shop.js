@@ -10,12 +10,18 @@
 
   const code = k => A.parseKey(k).code;
   const accImgStyle = id => `background-image:url('${A.accUrl(id)}')`;
+  // 上課日：週一到週五，扣掉國定假日、補假
+  const holidays = () => new Set(S?.holidays || D.holidays || []);
+  const ymdOf = d => `${d.getFullYear()}/${A.pad2(d.getMonth() + 1)}/${A.pad2(d.getDate())}`;
+  const isSchoolDay = (d, hol) => d.getDay() % 6 !== 0 && !hol.has(ymdOf(d));
   // 今天到到期日還剩幾個上課日（含今天）
   function schoolDaysLeft(exp) {
-    const end = new Date(exp.replace(/\//g, '-') + 'T12:00:00');
+    const [y, m, dd] = exp.split('/').map(Number);
+    const end = new Date(y, m - 1, dd, 12);
     const d = new Date(); d.setHours(12, 0, 0, 0);
+    const hol = holidays();
     let n = 0;
-    for (let i = 0; i < 60 && d <= end; i++) { if (d.getDay() % 6) n++; d.setDate(d.getDate() + 1); }
+    for (let i = 0; i < 90 && d <= end; i++) { if (isSchoolDay(d, hol)) n++; d.setDate(d.getDate() + 1); }
     return n;
   }
 
@@ -720,11 +726,12 @@
     const done = S ? null : A.waitFor?.('商店');
     load().finally(() => done?.());
   };
-  // 登入後過幾秒就偷偷先把商店載好，之後每 5 分鐘更新一次（打開商店就不用等）
+  // 預先載入（⚡）會依序載商店；之後每 5 分鐘更新一次（打開商店就不用等）
+  A.addPrefetch('shop', () => load(true));
   A.on('start', () => {
     if (A.isGuest()) return;
     fromCache();
-    setTimeout(() => load(true), 2500);
+    setTimeout(() => { if (!A.prefetchInfo?.().on) load(true); }, 2500);   // 預先載入關掉時，還是先偷偷載商店
     setInterval(() => { if (A.currentTab() !== 'shop' && !document.hidden && Date.now() - loadedAt > 5 * 60e3) load(true); }, 60e3);
   });
   A.on('start', () => setTimeout(() => A.ensureFaces?.(true), 1200));
@@ -736,7 +743,8 @@
   function schoolDaysLater(n) {
     const d = new Date(); d.setHours(12, 0, 0, 0);
     let c = 0;
-    for (let i = 0; i < 40; i++) { if (d.getDay() % 6 && ++c >= n) break; d.setDate(d.getDate() + 1); }
+    const hol = new Set(D.holidays || []);
+    for (let i = 0; i < 60; i++) { if (isSchoolDay(d, hol) && ++c >= n) break; d.setDate(d.getDate() + 1); }
     return ymd(d);
   }
   async function testState() {

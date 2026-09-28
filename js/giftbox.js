@@ -111,6 +111,7 @@
     load().then(list => { const first = list.find(b => !b.opened); if (first && A.currentTab() === 'seats') setTimeout(() => play(first), 300); });
   };
   window.addEventListener('resize', () => { if (A.currentTab() === 'seats') paintDock(); });
+  A.addPrefetch('seats', () => (A.isGuest() ? null : load()));
   A.on('faces', () => { if (A.currentTab() === 'seats') setTimeout(paintDock, 50); });
 
   // ── 商店：放禮物盒（上傳圖片，自動壓縮）──

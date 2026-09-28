@@ -1322,3 +1322,25 @@ body.ww-open { overflow: hidden; }
 .rcpt-view { display: grid; gap: 10px; }
 .rcpt-view figure { margin: 0; }
 .rcpt-view img { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); background: #fff; }
+
+/* ⚡ 預先載入：分頁下面的細長條＝載入進度 */
+.tabs button { position: relative; }
+.tabs button::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: -3px; height: 3px; border-radius: 2px; background: var(--accent);
+  transform-origin: left; transform: scaleX(0); opacity: 0; transition: transform .5s ease, opacity .4s; pointer-events: none; }
+.tabs button.pf-wait::after { transform: scaleX(1); opacity: .12; }
+.tabs button.pf-loading::after { opacity: .55; animation: pfGrow 6s cubic-bezier(.2,.8,.3,1) forwards; }
+.tabs button.pf-done::after { transform: scaleX(1); opacity: .38; }
+.tabs button[aria-selected="true"]::after { opacity: 0; }
+@keyframes pfGrow { from { transform: scaleX(.08); } to { transform: scaleX(.9); } }
+.pf-btn { position: relative; font-size: 19px; line-height: 1; filter: grayscale(1); opacity: .45; }
+.pf-btn[aria-pressed="true"] { filter: none; opacity: 1; }
+.pf-btn.busy { animation: pfPulse 1.2s ease-in-out infinite; }
+@keyframes pfPulse { 50% { transform: scale(1.15); } }
+.pf-btn .sync-dot { position: absolute; top: 2px; right: 0; width: 9px; height: 9px; display: none; }
+.pf-btn .sync-dot.err, .pf-btn .sync-dot.pending, .pf-btn .sync-dot.busy { display: block; }
+.ww-pf { flex: 0 1 auto; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .tabs button.pf-loading::after { animation: none; transform: scaleX(.6); } .pf-btn.busy { animation: none; } }
+
+.line-alpha { margin-top: 8px; padding: 8px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 14px; line-height: 1.6; }
+.line-alpha ol { margin: 4px 0; padding-left: 1.3em; }
+[data-theme="dark"] .line-alpha { background: #2a2440; }

@@ -6,7 +6,7 @@
   const A = window.App;
   const { $, esc, toast, store } = A;
   const KEY = 'indoor.vocab.v1';   // 這台裝置的偏好（不用上雲端）
-  const pref = Object.assign({ mode: 'en', lvl: 'all', kana: 'hira', jp: 'table', wrong: [], day: '', n: 0, streak: 0 }, store.get(KEY, {}));
+  const pref = Object.assign({ mode: 'en', lvl: 'all', kana: 'hira', jp: 'table', wrong: [], day: '', n: 0, streak: 0, onOpen: false }, store.get(KEY, {}));
   const save = () => store.set(KEY, pref);
   const LVL = { 1: '基礎', 2: '初級', 3: '中級', 4: '進階' };
 
@@ -75,7 +75,7 @@
     return win;
   }
   function headHtml() {
-    if (st.standalone) return `<div class="ww-head"><b>📚 背單字</b><button type="button" class="ww-x" data-w="close" aria-label="關閉">✕</button></div>`;
+    if (st.standalone) return `<div class="ww-head"><b>📚 ${st.onOpen ? '開始前先練習一下' : '背單字'}</b><span class="ww-pf muted small">${pfText()}</span><button type="button" class="ww-x" data-w="close" aria-label="關閉">✕</button></div>`;
     if (st.done) return `<div class="ww-head ok"><b>✓ ${esc(st.what)}載入完成</b><button type="button" class="btn btn--primary" data-w="close">進入${esc(st.what)} →</button></div>`;
     return `<div class="ww-head"><span class="ww-spin" aria-hidden="true"></span><b>目前正在載入中，請稍後</b><button type="button" class="ww-x" data-w="close" aria-label="先關閉">✕</button></div>`;
   }
@@ -213,13 +213,30 @@
       if (st.touched && Date.now() - st.touched < 8000) { st.done = true; paint(); } else close();
     };
   };
-  A.openVocab = () => open({ standalone: true });
+  A.openVocab = extra => open(Object.assign({ standalone: true }, extra));
+  // 背景預先載入的進度（顯示在小練習的標題旁邊）
+  const pfText = () => { const i = A.prefetchInfo?.(); return i?.on && i.total && i.done < i.total ? `⚡ 背景載入中 ${i.done}/${i.total}` : i?.on && i.total ? '⚡ 都載好了' : ''; };
+  A.on('prefetch', () => { const el = win?.querySelector('.ww-pf'); if (el) el.textContent = pfText(); });
+  // 打開 App 時先出現小練習（設定裡可以開關）：等飛鴿傳書、公布欄、禮物盒都看完再出現
+  A.on('start', async () => {
+    if (!pref.onOpen || A.isGuest()) return;
+    await Promise.race([A.mailDone || Promise.resolve(), new Promise(r => setTimeout(r, 60e3))]);
+    await new Promise(r => setTimeout(r, 2500));
+    for (let i = 0; i < 40; i++) {
+      const busy = A.sheetMode() || !($('#giftFx')?.hidden ?? true) || !($('#waitWin')?.hidden ?? true);
+      if (!busy) break;
+      await new Promise(r => setTimeout(r, 1000));
+    }
+    if (!win || win.hidden) A.openVocab({ onOpen: true });
+  });
 
   // ── 設定頁：等待時練習哪一種 ──
   A.vocabSettingsHtml = () => {
     const b = (m, t) => `<button type="button" class="btn" data-act="vocabMode" data-m="${m}" aria-pressed="${pref.mode === m}">${t}</button>`;
     return `<h3>等待時的小練習</h3><p class="muted small" style="margin:0">商店載入比較久時，會跳出視窗讓你背單字（視窗裡也可以直接切換）。</p>
       <div class="ww-set">${b('en', '🔤 英文')}${b('jp', 'あ 日文')}${b('off', '不練習')}</div>
+      <p class="muted small" style="margin:10px 0 0">每次打開 App 時，要不要先出現小練習？</p>
+      <div class="ww-set"><button type="button" class="btn" data-act="vocabOnOpen" data-v="1" aria-pressed="${pref.onOpen}">✅ 要，打開就練習</button><button type="button" class="btn" data-act="vocabOnOpen" data-v="0" aria-pressed="${!pref.onOpen}">不要</button></div>
       <div class="actions"><button type="button" class="btn wide" data-act="vocabOpen">📚 現在就練習</button></div>`;
   };
   A.vocabSettingsAct = (act, b) => {
@@ -230,6 +247,12 @@
       return true;
     }
     if (act === 'vocabOpen') { A.closeSheet(); A.openVocab(); return true; }
+    if (act === 'vocabOnOpen') {
+      pref.onOpen = b.dataset.v === '1'; save();
+      b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+      toast(pref.onOpen ? '下次打開 App 時會先出現小練習' : '打開 App 時不會出現小練習');
+      return true;
+    }
     return false;
   };
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && win && !win.hidden) close(); });

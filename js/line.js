@@ -136,9 +136,13 @@
       <div class="line-row"><span class="pt-lbl">角度</span><input type="range" id="lineRot" min="-180" max="180" value="${Math.round(st.rot || 0)}"></div>
       <div class="line-row"><span class="pt-lbl">位置</span><div class="subsw small-sw">${[['top', '上'], ['middle', '中'], ['bottom', '下']].map(([v, t]) => `<button type="button" data-pos="${v}" aria-selected="false">${t}</button>`).join('')}</div>
         <label class="switch-row small" style="margin-left:auto"><span class="switch"><input type="checkbox" id="lineStroke"${st.stroke ? ' checked' : ''}><span></span></span>外框</label></div>
-      <div class="actions"><button type="button" class="btn btn--line wide" id="lineShare">📤 傳到 LINE</button>
-        <button type="button" class="btn wide" id="lineSave">💾 存成圖片</button></div>
-      <p class="muted small">圖片是<b>透明背景</b>的 PNG（預覽的格子代表透明）。按「傳到 LINE」會打開手機的分享選單，選 LINE → 班級群組；電腦上會改成下載圖片。</p>
+      <div class="actions"><button type="button" class="btn btn--primary wide" id="lineSave">💾 存到相簿（保留透明背景）</button>
+        <button type="button" class="btn btn--line wide" id="lineShare">📤 直接傳到 LINE</button></div>
+      <div class="line-alpha"><b>想要透明背景？</b>「直接傳到 LINE」會被 LINE 壓縮成白底。請改用：
+        <ol><li>按「💾 存到相簿」（iPhone 在選單裡選「<b>儲存影像</b>」）</li>
+        <li>打開 LINE 群組 → 左下角「<b>照片</b>」→ 選這張圖</li>
+        <li>勾選「<b>原圖</b>」（原始畫質）→ 傳送</li></ol>
+        <span class="muted small">預覽的灰白格子代表透明的地方。</span></div>
     </div>`;
     root.innerHTML = h;
     draw();
@@ -178,7 +182,14 @@
         try { await navigator.share({ files: [file] }); } catch (err) { if (err.name !== 'AbortError') toast('無法分享：' + err.message); }
       } else { download(file); toast('這台裝置不能直接分享，已下載圖片，請自己傳到 LINE'); }
     }
-    if (e.target.closest('#lineSave')) { download(await toFile()); toast('✓ 已存成圖片'); }
+    if (e.target.closest('#lineSave')) {
+      const file = await toFile();
+      // 手機：用分享選單的「儲存影像」存進相簿（PNG 保留透明）；電腦：直接下載
+      if (navigator.canShare?.({ files: [file] }) && /iPhone|iPad|Android/i.test(navigator.userAgent)) {
+        toast('請在選單裡選「儲存影像」存到相簿');
+        try { await navigator.share({ files: [file] }); } catch (err) { if (err.name !== 'AbortError') { download(file); toast('已下載圖片'); } }
+      } else { download(file); toast('✓ 已存成圖片'); }
+    }
   });
 
   // ── 在圖上拖曳文字；兩指旋轉、縮放 ──

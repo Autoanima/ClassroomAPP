@@ -35,7 +35,9 @@ const CONFIG = {
   SITE_URL: 'https://autoanima.github.io/ClassroomAPP/',   // 網站網址（讀取內建配件清單 assets/acc/catalog.json）
   ACC_FOLDER: '配件',                 // 「內掃檢查」資料夾裡放配件 PNG 的子資料夾；檔名「名稱_價格.png」
   ACC_DEFAULT_PRICE: 3,               // 檔名沒寫價格時的價格
-  ACC_DAYS: 10,                       // 配件有效天數（只算週一到週五）
+  ACC_DAYS: 10,                       // 配件有效天數（只算上課日：週一到週五，扣掉下面的國定假日）
+  // 國定假日、補假（不算上課日）。颱風假、學校的放假也可以加進來；新的一年記得補上
+  HOLIDAYS: ['2026/01/01', '2026/02/16', '2026/02/17', '2026/02/18', '2026/02/19', '2026/02/20', '2026/02/27', '2026/04/03', '2026/04/06', '2026/05/01', '2026/06/19', '2026/09/25', '2026/09/28', '2026/10/09', '2026/10/26', '2026/12/25', '2027/01/01'],
   STEAL_PRICE: 10,                    // 竊盜卡：奪取別人的配件
   FIREWORK_PRICE: 1,                  // 煙火：放在某位同學的座位上，大家下次打開 App 時會看到
   SWAP_PRICE: 20,                     // 交換位置卡：和另一位同學強制對調座位
@@ -813,12 +815,16 @@ function accImages(have) {
 const ymd = d => Utilities.formatDate(d, CONFIG.TIMEZONE, 'yyyy/MM/dd');
 /** 從今天起算第 n 個上課日（週一到週五；今天是上課日就算第 1 天） */
 function schoolDaysLater(n) {
-  const d = new Date(Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyy-MM-dd'T'12:00:00"));
+  // 從台北時間的「今天中午」開始算（不受 Apps Script 專案時區設定影響）
+  const t = ymd(new Date()).split('/').map(Number);
+  const d = new Date(Date.UTC(t[0], t[1] - 1, t[2], 4));
+  const hol = {};
+  (CONFIG.HOLIDAYS || []).forEach(h => { hol[h] = 1; });
   let count = 0;
-  for (let i = 0; i < 40; i++) {
-    const wd = Number(Utilities.formatDate(d, CONFIG.TIMEZONE, 'u')); // 1＝週一 … 7＝週日
-    if (wd <= 5 && ++count >= n) break;
-    d.setDate(d.getDate() + 1);
+  for (let i = 0; i < 60; i++) {
+    const wd = d.getUTCDay();
+    if (wd >= 1 && wd <= 5 && !hol[ymd(d)] && ++count >= n) break;
+    d.setUTCDate(d.getUTCDate() + 1);
   }
   return ymd(d);
 }
@@ -929,7 +935,7 @@ function shopState(who) {
   const stolen = spendRows().filter(x => x.use === '竊盜卡' && x.target === key && x.t >= since).map(x => ({ time: x.time, thief: x.who, name: x.note }));
   return {
     ok: true, me: key, today: today, coins: c.coins, earned: c.earned, spent: c.spent, catalog: cat, plus: plus, classmates: classmates,
-    stealPrice: CONFIG.STEAL_PRICE, fireworkPrice: CONFIG.FIREWORK_PRICE, swapPrice: CONFIG.SWAP_PRICE, others: others, stolen: stolen,
+    holidays: CONFIG.HOLIDAYS || [], stealPrice: CONFIG.STEAL_PRICE, fireworkPrice: CONFIG.FIREWORK_PRICE, swapPrice: CONFIG.SWAP_PRICE, others: others, stolen: stolen,
     weatherPrice: CONFIG.WEATHER_PRICE, weatherDays: CONFIG.WEATHER_DAYS,
     transferPrice: CONFIG.TRANSFER_PRICE, surePrice: CONFIG.SURE_PRICE, transferDays: CONFIG.TRANSFER_DAYS, myDraw: myDrawCards(key),
     swapped: spendRows().filter(x => x.use === '交換位置卡' && x.target === key && x.t >= since).map(x => ({ time: x.time, by: x.who, note: x.note })),

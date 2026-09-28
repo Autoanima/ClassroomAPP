@@ -291,6 +291,7 @@
     if (e.key === ' ' || e.key === 'Enter' || e.key === 'PageDown') { e.preventDefault(); if (!rolling) go(); }
   });
 
+  A.addPrefetch('draw', () => loadLog(false));
   A.tabHooks.draw = () => { render(); A.ensureFaces?.(); if (canDraw()) loadFx(true); loadLog(false); poll(); };
 
   // ── 測試模式：紀錄存在這台裝置 ──

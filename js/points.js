@@ -66,11 +66,11 @@
     root.innerHTML = h;
   }
 
-  async function loadRecent() {
+  async function loadRecent(quiet) {
     try {
       const r = await A.api('getPoints', { days: 7 }) // 只顯示最近 7 天，免得太亂（完整紀錄在試算表「加扣分紀錄」）;
       recent = r.rows || [];
-    } catch (e) { toast('紀錄讀取失敗：' + e.message); }
+    } catch (e) { if (!quiet) toast('紀錄讀取失敗：' + e.message); }
     if (A.currentTab() === 'points') render();
   }
 
@@ -146,6 +146,7 @@
     A.showTab('points');
   };
   A.tabHooks.points = () => { render(); loadRecent(); A.ensureFaces?.(); };
+  A.addPrefetch('points', () => (A.isStudent() || A.isGuest() ? null : loadRecent(true)));
   A.on('students', () => { if (A.currentTab() === 'points') keepReason(render); });
   A.on('faces', () => { if (A.currentTab() === 'points') keepReason(render); });
 

@@ -302,6 +302,7 @@
     if (!d) return;
     ui.groups[d.dataset.g] = d.open; saveUi();
   }, true);
+  A.addPrefetch('invest', () => load(true));
   A.tabHooks.invest = () => {
     render();
     if (!S || Date.now() - loadedAt > 60e3) load();
