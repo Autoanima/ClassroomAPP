@@ -340,11 +340,14 @@
       const top = Math.min(...seats.map(r => r.top)), bot = Math.max(...seats.map(r => r.bottom));
       const left = Math.min(...seats.map(r => r.left)), right = Math.max(...seats.map(r => r.right));
       const boardAbove = br ? br.top + br.height / 2 < (top + bot) / 2 : true;
-      btn.style.left = ((left + right) / 2 - hr.left) + 'px';
+      const cx = ((left + right) / 2 - hr.left) + 'px';
+      // 教室後方在下面（學生視角）：放在最後一排下面的正中間；
+      // 在上面（老師視角）：靠左放，才不會壓到右邊的縮放按鈕
+      btn.style.left = boardAbove ? cx : (left - hr.left) + 'px';
       btn.style.top = (boardAbove ? bot - hr.top + 6 : top - hr.top - 6) + 'px';
       btn.classList.toggle('above', !boardAbove);
       // 公告打開時貼在按鈕旁邊（往教室裡面展開）
-      pan.style.left = btn.style.left;
+      pan.style.left = cx;
       pan.style.top = btn.style.top;
       pan.classList.toggle('from-top', !boardAbove);
     }
