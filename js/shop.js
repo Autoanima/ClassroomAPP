@@ -483,14 +483,27 @@
         g.scale(dpr, dpr);
         const colors = ['#ff4d6d', '#ffd166', '#06d6a0', '#4cc9f0', '#b388ff', '#ff9f1c'];
         const parts = [];
-        // 三發：中間一發大的，兩邊小的
-        [[cx, cy, 1], [cx - 40, cy - 30, .7], [cx + 40, cy - 20, .7]].forEach(([x, y, k], n) => {
-          for (let i = 0; i < 46 * k; i++) {
-            const a = Math.random() * Math.PI * 2, v = (2 + Math.random() * 4.5) * k;
-            parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, c: colors[(i + n) % colors.length], life: 60 + Math.random() * 30, delay: n * 14 });
+        if (f.kind === 'firecracker') {
+          // 🧨 鞭炮：一串紅色、金色的小爆炸，劈哩啪啦由上往下
+          const red = ['#ff1f1f', '#ff4d2e', '#ffd60a', '#ffb703', '#ff006e'];
+          for (let n = 0; n < 12; n++) {
+            const x = cx + (n % 2 ? 14 : -14) + (Math.random() - .5) * 8, y = cy - 55 + n * 10;
+            for (let i = 0; i < 16; i++) {
+              const a = Math.random() * Math.PI * 2, v = 1.2 + Math.random() * 2.6;
+              parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, c: red[(i + n) % red.length], life: 26 + Math.random() * 18, delay: n * 7 });
+            }
           }
-        });
-        const label = `🎆 ${f.by} 送給 ${f.to}`;
+        } else {
+          // 三發：中間一發大的，兩邊小的
+          [[cx, cy, 1], [cx - 40, cy - 30, .7], [cx + 40, cy - 20, .7]].forEach(([x, y, k], n) => {
+            for (let i = 0; i < 46 * k; i++) {
+              const a = Math.random() * Math.PI * 2, v = (2 + Math.random() * 4.5) * k;
+              parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, c: colors[(i + n) % colors.length], life: 60 + Math.random() * 30, delay: n * 14 });
+            }
+          });
+        }
+        const tEnd = Math.max(...parts.map(p => p.delay + p.life));
+        const label = f.label || `🎆 ${f.by} 送給 ${f.to}`;
         // 文字框：字太長就縮小；位置夾在畫面內（不被上方標題列擋住、不超出左右）
         const top = (document.querySelector('.topbar, header')?.getBoundingClientRect().bottom || 0) + 8;
         let fs = 16;
@@ -522,7 +535,7 @@
           g.fillStyle = 'rgba(25,25,35,.88)';
           g.beginPath(); g.roundRect ? g.roundRect(bx, by, bw, bh, 8) : g.rect(bx, by, bw, bh); g.fill();
           g.fillStyle = '#fff'; g.fillText(label, bx + bw / 2, by + bh / 2, bw - 12);
-          if (e < LABEL_MS || t < 130) requestAnimationFrame(step); else { cv.hidden = true; done(); }
+          if (e < LABEL_MS || t < tEnd) requestAnimationFrame(step); else { cv.hidden = true; done(); }
         };
         step();
       }, 350);
