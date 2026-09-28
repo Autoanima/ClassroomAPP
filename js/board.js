@@ -25,11 +25,10 @@
 
   function html() {
     let h = A.sheetHead('📌 公布欄', `最近 ${KEEP_DAYS} 天的留言${canPost() ? '・你可以發布' : ''}`);
-    if (canPost()) {
-      h += `<div class="board-new"><textarea id="boardText" rows="3" maxlength="300" placeholder="例如：國文習作 P.12–15，明天交"></textarea>
-        <div class="actions"><button type="button" class="btn btn--primary wide" data-act="boardPost">📌 發布</button></div></div>`;
-    }
-    if (!posts.length) return h + `<p class="muted center">目前沒有留言。</p>`;
+    // 發布的地方放在留言的下面
+    const compose = canPost() ? `<div class="board-new"><h3 class="board-day">✏️ 發布新的留言</h3><textarea id="boardText" rows="3" maxlength="300" placeholder="例如：國文習作 P.12–15，明天交"></textarea>
+        <div class="actions"><button type="button" class="btn btn--primary wide" data-act="boardPost">📌 發布</button></div></div>` : '';
+    if (!posts.length) return h + `<p class="muted center">目前沒有留言。</p>` + compose;
     let day = '';
     h += `<div class="board-list">`;
     posts.forEach(p => {
@@ -38,7 +37,7 @@
       h += `<div class="board-post"><div class="bp-text">${esc(p.text)}</div>
         <div class="bp-meta muted small">${esc(p.by)}・${esc(p.time.slice(-5))}${mine ? `<button type="button" class="link-btn" data-act="boardEdit" data-id="${esc(p.id)}">修改</button><button type="button" class="link-btn" data-act="boardDel" data-id="${esc(p.id)}">刪除</button>` : ''}</div></div>`;
     });
-    return h + `</div>`;
+    return h + `</div>` + compose;
   }
   function dayLabel(d) {
     const today = A.fmtDate(new Date());

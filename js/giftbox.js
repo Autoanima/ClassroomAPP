@@ -15,25 +15,38 @@
   }
 
   // 教室正中間的禮物盒（還沒打開的會跳動；打開過的可以再看圖片）
+  function dockAt(id, el, host, list, cls) {
+    let dock = document.getElementById(id);
+    if (!dock) { dock = document.createElement('div'); dock.id = id; dock.className = 'box-dock ' + cls; host.appendChild(dock); }
+    const r = el.getBoundingClientRect(), pr = host.getBoundingClientRect();
+    dock.style.top = (r.top - pr.top + r.height / 2) + 'px';
+    dock.style.left = (r.left - pr.left + r.width / 2) + 'px';
+    dock.innerHTML = list.map(b => `<button type="button" class="box-icon${b.opened ? ' opened' : ''}" data-box="${esc(b.id)}" title="${esc(b.by)} 的禮物盒${b.opened ? '（點一下可以再看一次）' : ''}">🎁</button>`).join('');
+    dock.hidden = !list.length;
+  }
   function paintDock() {
     const wrap = document.querySelector('#tab-seats .map-wrap');
     if (!wrap) return;
-    let dock = $('#boxDock');
-    if (!dock) { dock = document.createElement('div'); dock.id = 'boxDock'; wrap.parentElement.style.position = 'relative'; wrap.parentElement.appendChild(dock); }
-    const r = wrap.getBoundingClientRect(), pr = wrap.parentElement.getBoundingClientRect();
-    dock.style.top = (r.top - pr.top + r.height / 2) + 'px';
-    dock.style.left = (r.left - pr.left + r.width / 2) + 'px';
-    dock.innerHTML = boxes.map(b => `<button type="button" class="box-icon${b.opened ? ' opened' : ''}" data-box="${esc(b.id)}" title="${esc(b.by)} 的禮物盒">🎁</button>`).join('');
-    dock.hidden = !boxes.length;
+    const host = wrap.parentElement;
+    host.style.position = 'relative';
+    dockAt('boxDock', wrap, host, boxes.filter(b => !b.opened), 'center');
+    // 打開過的：放在講桌上（找不到講桌就放正中間）
+    const desk = wrap.querySelector('.it.desk') || wrap;
+    dockAt('boxDesk', desk, host, boxes.filter(b => b.opened), 'desk');
   }
   $('#tab-seats').addEventListener('click', e => {
     const b = e.target.closest('[data-box]');
-    if (b) { e.stopPropagation(); play(boxes.find(x => x.id === b.dataset.box)); }
+    if (!b) return;
+    e.stopPropagation();
+    const box = boxes.find(x => x.id === b.dataset.box);
+    if (!box?.opened) return play(box);
+    // 已經打開過：問要不要再看一次
+    A.ask(`🎁 ${box.by} 的禮物盒（已經打開過）\n要再看一次嗎？`, '再看一次').then(ok => { if (ok) play(box, true); });
   }, true);
 
   // ── 動畫：從天而降 → 一秒後爆開 → 圖片 → 點一下關閉 → 得到道具 ──
   const wait = ms => new Promise(r => setTimeout(r, ms));
-  async function play(box) {
+  async function play(box, again) {
     if (!box || playing) return;
     playing = true;
     let fx = $('#giftFx');
@@ -41,14 +54,14 @@
     fx.innerHTML = `<div class="gb-from">🎁 ${esc(box.by)} 送來一個禮物盒</div><div class="gb-box">🎁</div>`;
     fx.hidden = false; fx.className = 'falling';
     const opening = A.api('openGiftBox', { id: box.id }).catch(err => ({ error: err.message }));
-    await wait(900);                 // 落地
+    await wait(420);                 // 落地（動畫縮短一半以上）
     fx.className = 'landed';
-    await wait(1000);                // 一秒後爆開
+    await wait(450);                 // 抖一下就爆開
     const r = await opening;
     fx.className = 'burst';
     const bits = ['✨', '🎉', '⭐', '💥', '🎊', '✨', '⭐', '🎉'];
     fx.insertAdjacentHTML('beforeend', bits.map((b, i) => `<span class="gb-bit" style="--a:${i * 45}deg">${b}</span>`).join(''));
-    await wait(450);
+    await wait(220);
     if (r.error) { fx.hidden = true; playing = false; return toast('禮物盒打不開：' + r.error); }
     fx.innerHTML = `<div class="gb-card">${r.img ? `<img src="${r.img}" alt="禮物盒的圖片">` : '<div class="gb-noimg">（圖片不見了）</div>'}
       <div class="gb-note">來自 ${esc(r.by)} 的禮物・點一下關閉</div></div>`;
@@ -63,7 +76,7 @@
     fx.hidden = true; playing = false;
     paintDock();
     const next = boxes.find(b => !b.opened);
-    if (next && A.currentTab() === 'seats') { await wait(400); play(next); }
+    if (next && A.currentTab() === 'seats') { await wait(200); play(next); }
   }
 
   // 打開「座位」：有還沒打開的禮物盒就自動播放
@@ -71,7 +84,7 @@
   A.tabHooks.seats = () => {
     prevHook?.();
     if (Date.now() - loadedAt < 20e3) { paintDock(); return; }
-    load().then(list => { const first = list.find(b => !b.opened); if (first && A.currentTab() === 'seats') setTimeout(() => play(first), 600); });
+    load().then(list => { const first = list.find(b => !b.opened); if (first && A.currentTab() === 'seats') setTimeout(() => play(first), 300); });
   };
   window.addEventListener('resize', () => { if (A.currentTab() === 'seats') paintDock(); });
   A.on('faces', () => { if (A.currentTab() === 'seats') setTimeout(paintDock, 50); });
