@@ -7,6 +7,7 @@
   let S = null;          // 雲端回傳的商店狀態
   let loading = false;
   let loadedAt = 0;      // 上次從雲端讀取的時間
+  let loadErr = '';      // 上次讀取失敗的原因
 
   const code = k => A.parseKey(k).code;
   const accImgStyle = id => `background-image:url('${A.accUrl(id)}')`;
@@ -36,7 +37,8 @@
         if (S.catalog.some(a => a.id.startsWith('d:') && !A.accUrl(a.id))) await A.loadAccImages().catch(() => {});
         loadedAt = Date.now();
         store.set(CACHE, { who: who(), t: loadedAt, S });
-      } catch (e) { if (!quiet) toast('商店讀取失敗：' + e.message); }
+        loadErr = '';
+      } catch (e) { loadErr = e.message; if (!quiet) toast('商店讀取失敗：' + e.message); }
       loading = false;
       render();
     })().finally(() => { loadP = null; });
@@ -49,7 +51,13 @@
 
   function render() {
     const root = $('#shopRoot');
-    if (!S) { root.innerHTML = `<div class="panel"><p class="muted">商店載入中…</p></div>`; return; }
+    if (!S) {
+      // 讀取失敗（例如背景預先載入時網路不通）：顯示原因和「再試一次」，不要一直停在「載入中」
+      root.innerHTML = loadErr && !loading
+        ? `<div class="panel"><p class="lock-msg">商店讀取失敗：${esc(loadErr)}</p><div class="actions"><button type="button" class="btn btn--primary wide" data-s="refresh">🔄 再試一次</button></div></div>`
+        : `<div class="panel"><p class="muted">商店載入中…</p></div>`;
+      return;
+    }
     const me = S.me || A.me();
     const coinTxt = S.unlimited ? '∞' : S.coins;
     const active = S.inv.filter(x => !x.expired);
