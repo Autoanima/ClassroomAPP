@@ -29,7 +29,7 @@
   async function loadLevel(n) {
     if (words[n]) return words[n];
     const txt = await fetch(`data/en${n}.txt`).then(r => { if (!r.ok) throw new Error(r.status); return r.text(); });
-    return words[n] = txt.split('\n').filter(Boolean).map(l => { const [w, p, zh] = l.split('\t'); return { w, p, zh, lv: n }; });
+    return words[n] = txt.split(/\r?\n/).filter(Boolean).map(l => { const [w, p, zh] = l.split('\t'); return { w, p, zh, lv: n }; });
   }
   async function pool() {
     const lv = pref.lvl === 'all' ? [1, 2, 3, 4] : [+pref.lvl];
