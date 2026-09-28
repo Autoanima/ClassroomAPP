@@ -34,13 +34,25 @@
     const seen = new Set(store.get(SEEN, []));
     mails.forEach(m => {
       h += `<div class="mail-card${seen.has(m.id) ? '' : ' new'}"><div class="mail-head"><b>來自 ${esc(m.from)}</b><span class="muted small">${esc(m.time)}</span></div>
-        <div class="mail-text">${esc(m.text)}</div>
+        ${mailBody(m.text)}
         <div class="mail-foot muted small">${esc(leftText(m.t))}${(A.students().includes(m.from) || m.from === A.D.teacherLabel) && canMail() ? `<button type="button" class="link-btn" data-act="mailReply" data-to="${esc(m.from)}">↩ 回信</button>` : `<button type="button" class="link-btn" data-act="mailCopy" data-id="${esc(m.id)}">📋 複製</button>`}</div></div>`;
     });
     h += `<div class="actions"><button type="button" class="btn wide" data-act="mailNew">✉️ 寫一封信</button></div>`;
     A.openSheet({ kind: 'mail' }, h);
     store.set(SEEN, [...new Set([...store.get(SEEN, []), ...mails.map(m => m.id)])].slice(-300));
     paintBtn();
+  }
+  // 信件內容：App 的分頁連結（…#tab=lunch）變成「前往」按鈕，其他網址可以點
+  const GO = { lunch: '🍱 前往訂便當', shop: '🛍 前往商店', invest: '📈 前往投資', fund: '💰 前往班費', draw: '🎲 前往抽籤', seats: '🪑 前往座位' };
+  function mailBody(text) {
+    const go = [];
+    const rest = String(text).split('\n').filter(line => {
+      const m = line.match(/https?:\/\/\S+#tab=(\w+)/);
+      if (m && GO[m[1]]) { go.push(m[1]); return false; }
+      return true;
+    }).join('\n').trim();
+    const html = esc(rest).replace(/https?:\/\/[^\s<]+/g, u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
+    return `<div class="mail-text">${html}</div>${go.map(t => `<button type="button" class="btn btn--primary wide mail-go" data-act="mailGo" data-tab="${t}">${GO[t]}</button>`).join('')}`;
   }
   const leftText = t => {
     const h = Math.max(0, Math.ceil((t + KEEP_DAYS * 86400e3 - Date.now()) / 3600e3));
@@ -61,6 +73,7 @@
   }
   A.openMailCompose = openCompose;
   A.sheetHandlers.mail = async (act, b) => {
+    if (act === 'mailGo') { A.closeSheet(); A.showTab(b.dataset.tab); return; }
     if (act === 'mailNew') return openCompose();
     if (act === 'mailReply') return openCompose(b.dataset.to);
     if (act === 'mailCopy') { const m = mails.find(x => x.id === b.dataset.id); toast(m && await A.copyText(m.text.replace(/^[^\n]*\n\n/, '')) ? '✓ 已複製，可以貼到 LINE 群組' : '複製失敗'); return; }
@@ -73,6 +86,15 @@
   };
 
   $('#mailBtn').addEventListener('click', openInbox);
+  // 從外面的連結打開（例如貼到 LINE 的 …#tab=lunch）：登入後直接到那個分頁
+  function hashTab() {
+    const m = location.hash.match(/tab=(\w+)/);
+    if (!m || !A.started()) return;
+    history.replaceState(null, '', location.pathname + location.search);
+    A.showTab(m[1]);
+  }
+  A.on('start', () => setTimeout(hashTab, 0));
+  window.addEventListener('hashchange', hashTab);
   // 打開 App：有沒看過的信就顯示（公布欄開著的話，等它關掉再顯示）
   // 打開 App 的順序：先飛鴿傳書，關掉之後才輪到公布欄（A.mailDone 讓公布欄等）
   let mailDone;

@@ -1234,7 +1234,7 @@ function lunchTick() {
       props.setProperty(k1, JSON.stringify({ time: Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'MM/dd HH:mm'), yes: yes.length, no: no.length, none: none.length }));
     }
     if (L.t2 && !L.locked && !props.getProperty(k2)) { // 週四 17:00：提醒還沒登記的人
-      botMail(none.map(k => [k, '🍱 你還沒登記下週（' + L.meal + '）要不要訂便當！\n請在週五中午 12 點前，到 App 的「🍱 便當」登記「要」或「不要」。']));
+      botMail(none.map(k => [k, '🍱 你還沒登記下週（' + L.meal + '）要不要訂便當！\n請在週五中午 12 點前，到 App 的「🍱 便當」登記「要」或「不要」。\n' + CONFIG.SITE_URL + '#tab=lunch']));   // 最後一行是連結：信裡會變成「前往訂便當」按鈕
       props.setProperty(k2, '1');
     }
     if (L.locked && !props.getProperty(k3)) { // 週五 12:00：截止，通知總務和有訂的同學
