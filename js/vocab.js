@@ -75,13 +75,15 @@
     return win;
   }
   function headHtml() {
-    if (st.standalone) return `<div class="ww-head"><b>📚 ${st.onOpen ? '開始前先練習一下' : '背單字'}</b><span class="ww-pf muted small">${pfText()}</span><button type="button" class="ww-x" data-w="close" aria-label="關閉">✕</button></div>`;
+    if (st.standalone) return `<div class="ww-head"><b>📚 ${st.onOpen ? '開始前先練習一下' : '小練習'}</b><span class="ww-pf muted small">${pfText()}</span><button type="button" class="ww-x" data-w="close" aria-label="關閉">✕</button></div>`;
     if (st.done) return `<div class="ww-prog done"><i></i></div><div class="ww-head ok"><b>✓ ${st.work ? '處理完成' : esc(st.what) + '載入完成'}</b><button type="button" class="btn btn--primary" data-w="close">${st.work ? '好' : '進入' + esc(st.what) + ' →'}</button></div>`;
     return `<div class="ww-prog"><i></i></div><div class="ww-head"><span class="ww-spin" aria-hidden="true"></span><b>${esc(st.msg || '目前正在載入中，請稍後')}</b><button type="button" class="ww-x" data-w="close" aria-label="先關閉">✕</button></div>`;
   }
+  // 最上面的設定：練哪一種（等待時也練這一種，會記住）＋ 打開 App 時要不要先出現
   function switchHtml() {
     const b = (m, t) => `<button type="button" data-w="mode" data-m="${m}" aria-pressed="${pref.mode === m}">${t}</button>`;
-    return `<div class="ww-switch">${b('en', '🔤 英文單字')}${b('jp', 'あ 日文五十音')}${b('off', '休息')}</div>`;
+    return `<div class="ww-settings"><div class="ww-switch">${b('en', '英文單字')}${b('jp', '日文五十音')}${b('off', '休息')}</div>
+      <label class="ww-toggle"><span>打開 App 時先出現這個視窗</span><input type="checkbox" data-w="onOpen"${pref.onOpen ? ' checked' : ''}><i aria-hidden="true"></i></label></div>`;
   }
   async function paint() {
     if (!win || win.hidden) return;
@@ -134,8 +136,8 @@
   }
   function jpHtml() {
     const tg = (k, v, t, cur) => `<button type="button" data-w="${k}" data-v="${v}" aria-pressed="${cur === v}">${t}</button>`;
-    let h = `<div class="ww-tools"><div class="ww-seg">${tg('kana', 'hira', '平假名', pref.kana)}${tg('kana', 'kata', '片假名', pref.kana)}</div>
-      <div class="ww-seg">${tg('jpv', 'table', '📋 五十音表', pref.jp)}${tg('jpv', 'quiz', '✏️ 練習', pref.jp)}</div></div>`;
+    // 一排四個：平假名、片假名、五十音表、練習
+    let h = `<div class="ww-seg4">${tg('kana', 'hira', '平假名', pref.kana)}${tg('kana', 'kata', '片假名', pref.kana)}${tg('jpv', 'table', '五十音表', pref.jp)}${tg('jpv', 'quiz', '練習', pref.jp)}</div>`;
     const kata = pref.kana === 'kata';
     if (pref.jp === 'table') {
       const grid = rows => `<div class="kana-grid${rows[0][0].includes(' ') ? ' k3' : ''}">${rows.flatMap(r => cells(r, kata)).map(([k, r]) =>
@@ -181,6 +183,12 @@
     else return;
     paint();
   }
+  // 「打開 App 時先出現這個視窗」開關
+  document.addEventListener('change', e => {
+    if (e.target.dataset?.w !== 'onOpen' || !win?.contains(e.target)) return;
+    pref.onOpen = e.target.checked; save();
+    toast(pref.onOpen ? '下次打開 App 時會先出現小練習' : '打開 App 時不會出現小練習');
+  });
   // 程度下拉選單
   document.addEventListener('change', e => {
     if (e.target.dataset?.w !== 'lvl' || !win?.contains(e.target) || !st) return;
@@ -232,30 +240,6 @@
     if (!win || win.hidden) A.openVocab({ onOpen: true });
   });
 
-  // ── 設定頁：等待時練習哪一種 ──
-  A.vocabSettingsHtml = () => {
-    const b = (m, t) => `<button type="button" class="btn" data-act="vocabMode" data-m="${m}" aria-pressed="${pref.mode === m}">${t}</button>`;
-    return `<h3>等待時的小練習</h3><p class="muted small" style="margin:0">商店載入比較久時，會跳出視窗讓你背單字（視窗裡也可以直接切換）。</p>
-      <div class="ww-set">${b('en', '🔤 英文')}${b('jp', 'あ 日文')}${b('off', '不練習')}</div>
-      <p class="muted small" style="margin:10px 0 0">每次打開 App 時，要不要先出現小練習？</p>
-      <div class="ww-set"><button type="button" class="btn" data-act="vocabOnOpen" data-v="1" aria-pressed="${pref.onOpen}">✅ 要，打開就練習</button><button type="button" class="btn" data-act="vocabOnOpen" data-v="0" aria-pressed="${!pref.onOpen}">不要</button></div>
-      <div class="actions"><button type="button" class="btn wide" data-act="vocabOpen">📚 現在就練習</button></div>`;
-  };
-  A.vocabSettingsAct = (act, b) => {
-    if (act === 'vocabMode') {
-      pref.mode = b.dataset.m; save();
-      b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
-      toast(pref.mode === 'en' ? '等待時練習英文單字' : pref.mode === 'jp' ? '等待時練習日文五十音' : '等待時不練習');
-      return true;
-    }
-    if (act === 'vocabOpen') { A.closeSheet(); A.openVocab(); return true; }
-    if (act === 'vocabOnOpen') {
-      pref.onOpen = b.dataset.v === '1'; save();
-      b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
-      toast(pref.onOpen ? '下次打開 App 時會先出現小練習' : '打開 App 時不會出現小練習');
-      return true;
-    }
-    return false;
-  };
+  // 小練習的設定都在視窗最上面（設定頁不再有這一區）
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && win && !win.hidden) close(); });
 })();

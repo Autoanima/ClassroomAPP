@@ -1686,7 +1686,6 @@
         : '尚未開始。第一次標記時開始計時。'}<br>等待寫入試算表：${queue.length} 筆</p>`;
       h += `<div class="actions"><button type="button" class="btn btn--danger wide" data-act="reset">立即清空本次紀錄</button></div>`;
     }
-    if (!isGuest()) h += App.vocabSettingsHtml?.() || '';
     h += `<h3>登入</h3><p class="muted small" style="margin:0">${usesSid() ? '借別人的手機登入時，用完請一定要登出。登入後 30 天內不用再輸入身分證字號。' : '這支手機已記住密碼。借別人用或換手機時可以登出。'}</p>`;
     h += `<div class="actions"><button type="button" class="btn wide" data-act="lock">🔒 登出</button></div>`;
     h += `<h3>雲端同步</h3><p class="muted small" style="margin:0">${esc(syncText())}</p>`;
@@ -1701,7 +1700,6 @@
   }
   $('#settingsBtn').addEventListener('click', openSettings);
   sheetHandlers.settings = async (act, b) => {
-    if (App.vocabSettingsAct?.(act, b)) return;
     if (act === 'syncNow') { flush(); retryPhotos(); toast(syncText()); return; }
     if (act === 'ping') {
       settings.gasUrl = $('#setUrl').value.trim() || CFG.gasUrl || '';
