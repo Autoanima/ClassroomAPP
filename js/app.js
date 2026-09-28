@@ -524,7 +524,7 @@
       renderMap(m.name);
       w.scrollLeft = maxX - sx; // 轉 180 度後，原本看的位置在另一邊
     });
-    toast(flipOn() ? '老師視角：黑板在下方' : '學生視角：黑板在上方');
+    toast(flipOn() ? '老師視角：黑板在下方' : '學生視角：黑板在上方', { top: true });
   });
 
   // ── 除霧模式（導師、任課老師）：暫時隱藏大家大頭照上的配件，只影響這台裝置，不影響同學看到的樣子 ──
@@ -1059,6 +1059,8 @@
     if (action === 'getStudents') return { ok: true, source: '商一甲名單（測試・去識別化）', className: '商一甲', students: DEMO_STUDENTS };
     if (action === 'getRoster') return { ok: true, roster: demoRoster(), grade: store.get(GRADE_KEY, '') };
     if (action === 'setGrade') return { ok: true, grade: String(payload.grade || '') };
+    if (action === 'getGuestCode') return { ok: true, code: store.get('indoor.guestcode.test', '') };
+    if (action === 'setGuestCode') { store.set('indoor.guestcode.test', String(payload.code || '')); return { ok: true, code: String(payload.code || '') }; }
     if (action === 'saveRoster') {
       const r = payload.roster, old = demoRoster();
       const next = { jobs: r.jobs, inspectors: r.inspectors, outdoor: r.outdoor ? { ...old.outdoor, jobs: r.outdoor.jobs, inspectors: r.outdoor.inspectors } : old.outdoor };
@@ -1719,6 +1721,12 @@
     }
     h += `<h3>登入</h3><p class="muted small" style="margin:0">${usesSid() ? '借別人的手機登入時，用完請一定要登出。登入後 30 天內不用再輸入身分證字號。' : '這支手機已記住密碼。借別人用或換手機時可以登出。'}</p>`;
     h += `<div class="actions"><button type="button" class="btn wide" data-act="lock">🔒 登出</button></div>`;
+    // 導師：任課老師登入碼（存在雲端的設定裡，重新貼上 Code.gs 也不會不見）
+    if (isTeacher()) {
+      h += `<h3>任課老師登入碼</h3><p class="muted small" style="margin:0">任課老師要輸入這組碼才能登入（只能抽籤、看座位表）。留空＝不用碼，任何人都能進入。</p>
+        <div class="guest-code"><input type="text" id="guestCode" maxlength="30" autocomplete="off" placeholder="讀取中…" disabled>
+        <button type="button" class="btn btn--primary" data-act="guestCode" disabled>儲存</button></div>`;
+    }
     h += `<h3>雲端同步</h3><p class="muted small" style="margin:0">${esc(syncText())}</p>`;
     if (isStaff() && !TEST) h += `<div class="actions"><button type="button" class="btn wide" data-act="syncNow">🔄 立即同步</button></div>`;
     if (isStaff()) {
@@ -1728,10 +1736,26 @@
         <p id="pingResult" class="muted small"></p></details>`;
     }
     openSheet({ kind: 'settings' }, h);
+    if (isTeacher()) {
+      api('getGuestCode').then(r => {
+        const i = $('#guestCode');
+        if (!i) return;
+        i.value = r.code || ''; i.placeholder = '（沒有設定：任何人都能進入）'; i.disabled = false;
+        $('[data-act="guestCode"]').disabled = false;
+      }).catch(e => { const i = $('#guestCode'); if (i) i.placeholder = '讀不到：' + e.message; });
+    }
   }
   $('#settingsBtn').addEventListener('click', openSettings);
   sheetHandlers.settings = async (act, b) => {
     if (act === 'syncNow') { flush(); retryPhotos(); toast(syncText()); return; }
+    if (act === 'guestCode') {
+      const code = $('#guestCode').value.trim();
+      if (!code && !await ask('登入碼留空，任何拿到網址的人都能用「任課老師」進入，看到全班的照片。\n確定要留空嗎？', '留空', true)) return;
+      b.disabled = true;
+      try { const r = await api('setGuestCode', { code }); $('#guestCode').value = r.code; toast(r.code ? '✓ 已儲存任課老師登入碼' : '已取消登入碼'); } catch (err) { toast(err.message); }
+      b.disabled = false;
+      return;
+    }
     if (act === 'ping') {
       settings.gasUrl = $('#setUrl').value.trim() || CFG.gasUrl || '';
       saveSettings();
@@ -1979,9 +2003,12 @@
 
   // ── Toast ──
   let toastTimer;
-  function toast(msg) {
+  // toast(訊息, { top: true })：出現在上方按鈕的正下方（跟按鈕有關的提示，才看得到）
+  function toast(msg, opts = {}) {
     const t = $('#toast');
     t.textContent = msg;
+    t.classList.toggle('top', !!opts.top);
+    t.style.top = opts.top ? (($('.topbar')?.getBoundingClientRect().bottom || 0) + 8) + 'px' : '';
     t.classList.add('show');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => t.classList.remove('show'), 2800);

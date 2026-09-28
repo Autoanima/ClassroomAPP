@@ -29,7 +29,7 @@ const CONFIG = {
   TIMEZONE: 'Asia/Taipei',
   SESSION_DAYS: 30,                    // 學生、幹部登入後幾天內有效（試算表選單「內掃檢查 → 讓所有人重新登入」可以提早全部失效）
   TEACHER_NAME: '導師',
-  GUEST_CODE: '',                      // 任課老師登入碼（留空＝在登入畫面直接按「任課老師登入」就能進入；只能用抽籤、看座位表）
+  GUEST_CODE: '',                      // 任課老師登入碼：請改在 App「設定 → 任課老師登入碼」設定（重新貼上程式也不會不見）；這裡只有在 App 從來沒設定過時才會用到
   TEACHER_PHOTO: '',                   // 導師大頭照的檔名（不含 .png），放在大頭照資料夾；只有在座位表點「講桌／講台」時才會顯示
   OUTDOOR_SHEET_ID: '',                // 舊的「外掃區檢查」App 試算表 ID：只用來第一次匯入外掃工作分配，以及選單「同步到外掃 App」
   SITE_URL: 'https://autoanima.github.io/ClassroomAPP/',   // 網站網址（讀取內建配件清單 assets/acc/catalog.json）
@@ -148,6 +148,12 @@ function doPost(e) {
     switch (req.action) {
       case 'ping': return json(ping());
       case 'getRoster': return json({ ok: true, roster: rosterWithOutdoor(), grade: PropertiesService.getScriptProperties().getProperty('CLASS_GRADE') || '' });
+      case 'getGuestCode':   // 導師在設定頁看／改任課老師登入碼
+        if (!who.teacher) throw new Error('只有導師可以看登入碼');
+        return json({ ok: true, code: guestCode() });
+      case 'setGuestCode':
+        if (!who.teacher) throw new Error('只有導師可以改登入碼');
+        return json(setGuestCode(req.code));
       case 'setGrade': {   // 導師改「商?甲」的年級（1、2、3；空白＝?）
         if (!who.teacher) throw new Error('只有導師可以改年級');
         const g = String(req.grade || '');
@@ -657,8 +663,19 @@ function readSession(sid) {
   return m[1] + '|' + m[2];
 }
 /** 任課老師登入：不用密碼（或輸入 GUEST_CODE），只能抽籤、看座位表 */
+/** 任課老師登入碼：導師在 App「設定」裡改的（存在指令碼屬性，重新貼上 Code.gs 也不會不見）；沒改過才用 CONFIG.GUEST_CODE */
+function guestCode() {
+  const p = PropertiesService.getScriptProperties().getProperty('GUEST_CODE');
+  return p !== null ? p : CONFIG.GUEST_CODE;
+}
+function setGuestCode(code) {
+  code = String(code || '').trim().slice(0, 30);
+  PropertiesService.getScriptProperties().setProperty('GUEST_CODE', code);
+  return { ok: true, code: code };
+}
 function guestLogin(code) {
-  if (CONFIG.GUEST_CODE && normPw(code) !== normPw(CONFIG.GUEST_CODE)) {
+  const need = guestCode();
+  if (need && normPw(code) !== normPw(need)) {
     return { ok: false, error: code ? '登入碼錯誤' : '請輸入任課老師登入碼', code: 'guestcode' };
   }
   return { ok: true, sid: newSession('G', '任課老師'), className: CONFIG.CLASS_NAME };
