@@ -1439,3 +1439,19 @@ body.ww-open { overflow: hidden; }
 .toast.top.show { transform: translate(-50%, 0); }
 .guest-code { display: flex; gap: 8px; margin: 8px 0 4px; }
 .guest-code input { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 8px 10px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); }
+
+/* 🎡 禮物盒轉盤 */
+.gb-spin-card { max-height: 92vh; overflow-y: auto; width: min(90vw, 380px); }
+.gb-spin-card img { max-height: 36vh; margin: 0 auto; }
+.gbw { margin-top: 8px; text-align: center; }
+.gbw-wrap { position: relative; width: 180px; height: 180px; margin: 6px auto 4px; }
+.gbw-ptr { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); z-index: 2; font-size: 20px; color: var(--text); text-shadow: 0 1px 2px rgba(0,0,0,.4); }
+.gbw-wheel { width: 100%; height: 100%; border-radius: 50%; position: relative; border: 3px solid var(--surface); box-shadow: 0 0 0 2px var(--line), 0 4px 14px rgba(0,0,0,.25); transition: transform 3.6s cubic-bezier(.12,.72,.18,1); }
+.gbw-lbl { position: absolute; left: 50%; top: 50%; font-size: 22px; line-height: 1; }
+.gbw-odds { list-style: none; padding: 0; margin: 8px auto 4px; display: grid; gap: 3px; max-width: 260px; font-size: 13px; text-align: left; }
+.gbw-odds li { display: flex; align-items: center; gap: 6px; }
+.gbw-odds i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.gbw-odds b { margin-left: auto; }
+.gbw-hint { margin: 4px 0 8px; }
+.gb-reward-in { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); animation: cardIn .35s cubic-bezier(.2,1.5,.4,1); }
+@media (prefers-reduced-motion: reduce) { .gbw-wheel { transition-duration: .3s; } }

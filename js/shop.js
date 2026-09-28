@@ -132,8 +132,8 @@
       ${sp('firework', '煙火', '', '🎆', '煙火', '放在同學的座位上，大家下次打開 App 時都會看到', `💰 ${S.fireworkPrice} 點`, S.coins >= S.fireworkPrice)}
       ${sp('swap', '交換位置卡', 'swap', '🔀', '交換位置卡', banned ? `你被扣了 ${S.minus} 分（超過 ${S.swapBan} 分），不能使用` : S.unlimited ? '和另一位同學強制對調座位（導師請按「送人」）' : '和另一位同學強制對調座位', `💰 ${S.swapPrice || 20} 點`, !banned && (swapFree || S.coins >= (S.swapPrice || 20)))}
       ${sp('steal', '竊盜卡', 'steal', '🦹', '竊盜卡', `把別人的一個配件變成你的（到期日不變）${othersN ? '' : '｜目前沒有人有配件'}`, `💰 ${S.stealPrice} 點`, S.coins >= S.stealPrice && othersN)}
-      ${sp('sun', '小太陽卡', 'wx', '☀️', '小太陽卡', `放在一位同學的座位上方，維持 ${S.weatherDays || 10} 天`, `💰 ${S.weatherPrice || 5} 點`, S.coins >= (S.weatherPrice || 5))}
-      ${sp('rain', '小雨傘卡', 'wx', '☂️', '小雨傘卡', `放在一位同學的座位上方，維持 ${S.weatherDays || 10} 天`, `💰 ${S.weatherPrice || 5} 點`, S.coins >= (S.weatherPrice || 5))}
+      ${sp('sun', '小太陽卡', 'wx', '☀️', '小太陽卡', `放在一位同學的座位上方，維持 ${S.weatherDays || 5} 天`, `💰 ${S.weatherPrice || 5} 點`, S.coins >= (S.weatherPrice || 5))}
+      ${sp('rain', '小雨傘卡', 'wx', '☂️', '小雨傘卡', `放在一位同學的座位上方，維持 ${S.weatherDays || 5} 天`, `💰 ${S.weatherPrice || 5} 點`, S.coins >= (S.weatherPrice || 5))}
       ${sp('transfer', '抽籤轉移卡', 'drawc', '🔄', '抽籤轉移卡', `設定一位替身：${S.transferDays || 10} 天內抽籤抽到你，會立刻換成替身上場（次數不限）`, `💰 ${S.transferPrice || 20} 點`, S.coins >= (S.transferPrice || 20))}
       ${sp('sure', '抽籤必中卡', 'drawc', '🎯', '抽籤必中卡', '指定一位同學：下一次抽籤，第一位一定會變成他（只有一次）', `💰 ${S.surePrice || 30} 點`, S.coins >= (S.surePrice || 30))}
       ${A.isGiftBoxMaker?.() ? sp('giftbox', '禮物盒', 'gbox', '🎁', '禮物盒（導師、班長、副班長專屬）', '每週一次：上傳一張圖片變成驚喜盒，放在教室正中間；大家打開會隨機得到煙火、小太陽卡或小雨傘卡', '每週 1 個', true) : ''}
@@ -247,7 +247,7 @@
   // ── 小太陽卡／小雨傘卡：選一位同學 ──
   function openWeather(kind) {
     const sun = kind === 'sun';
-    let h = A.sheetHead(`${sun ? '☀️ 小太陽卡' : '☂️ 小雨傘卡'}（${S.weatherPrice || 5} 點）`, `放在誰的座位上方？維持 ${S.weatherDays || 10} 天`);
+    let h = A.sheetHead(`${sun ? '☀️ 小太陽卡' : '☂️ 小雨傘卡'}（${S.weatherPrice || 5} 點）`, `放在誰的座位上方？維持 ${S.weatherDays || 5} 天`);
     const list = [S.me, ...S.classmates].filter(k => k && k !== A.D.teacherLabel);
     h += `<div class="field"><select id="wxTo"><option value="">— 請選擇同學 —</option>${list.map(k => `<option value="${esc(k)}">${esc(k)}${k === S.me ? '（自己）' : ''}</option>`).join('')}</select></div>
       <div class="actions"><button type="button" class="btn btn--primary wide" data-act="wxOk">${sun ? '☀️ 放小太陽' : '☂️ 放小雨傘'}</button></div>`;
@@ -851,7 +851,7 @@
       const st = await testState();
       if (st.coins < 5) throw new Error('點數不夠');
       const t = new Date();
-      store.set(K.spend, [...store.get(K.spend, []), { id: Math.random().toString(36).slice(2, 10), who: me, points: 5, use: p.kind === 'sun' ? '小太陽卡' : '小雨傘卡', target: p.to, note: schoolDaysLater(10), time: `${A.pad2(t.getMonth() + 1)}/${A.pad2(t.getDate())} ${A.fmtTime(t)}`, t: Date.now() }]);
+      store.set(K.spend, [...store.get(K.spend, []), { id: Math.random().toString(36).slice(2, 10), who: me, points: 5, use: p.kind === 'sun' ? '小太陽卡' : '小雨傘卡', target: p.to, note: schoolDaysLater(5), time: `${A.pad2(t.getMonth() + 1)}/${A.pad2(t.getDate())} ${A.fmtTime(t)}`, t: Date.now() }]);
       return testState();
     }
     if (action === 'buyDrawCard') {
