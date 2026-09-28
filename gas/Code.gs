@@ -2486,7 +2486,7 @@ function json(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
-// ════════ 📈 投資競賽：每月一季、每人 1,000 枚投資幣，連動真實台股收盤價 ════════
+// ════════ 📈 投資競賽：每人 1,000 枚投資幣（不歸零）、每月一季排名，連動真實台股收盤價 ════════
 // 規則在最下方的 InvestEngine（和網頁 js/invest-engine.js 同一份）。
 // 股價：Yahoo 奇摩股市資料（含除息），抓不到時改用證交所；每天下午 2 點以後有人打開 App 就會更新。
 const SHEET_TRADE = '投資交易';
@@ -2605,32 +2605,31 @@ function tradeRows() {
     };
   }).filter(t => t.id && !isNaN(t.t));
 }
-function investBooks(season, P, days, trades) {
+/** 每個人從第一次下單到現在的帳本（不分季、不歸零） */
+function investBooks(P, days, trades) {
   const by = {}, books = {};
-  trades.filter(t => t.season === season).forEach(t => { (by[t.who] = by[t.who] || []).push(t); });
-  Object.keys(by).forEach(k => { books[k] = InvestEngine.book(by[k], P, season, days); });
+  trades.forEach(t => { (by[t.who] = by[t.who] || []).push(t); });
+  Object.keys(by).forEach(k => { books[k] = InvestEngine.book(by[k], P, days); });
   return { by: by, books: books };
 }
-/** 把算出來的成交結果寫回「投資交易」（給導師看）；季末還沒成交的單改成取消 */
-function syncFills(by, books, closeSeason) {
+/** 把算出來的成交結果寫回「投資交易」（給導師看） */
+function syncFills(by, books) {
   const sh = tradeSheet(), ups = [];
   Object.keys(by).forEach(k => by[k].forEach(t => {
-    if (t.status === '已取消' || /^已取消/.test(t.status)) return;
+    if (/^已取消/.test(t.status)) return;
     const f = books[k].fills[t.id];
     let row = null;
     if (f && f.fail) row = ['已取消（' + f.fail + '）', f.d, '', '', '', '', ''];
     else if (f) row = ['已成交', f.d, f.price, f.units, f.fee, f.tax, f.net];
-    else if (closeSeason) row = ['已取消（季末沒有成交）', '', '', '', '', '', ''];
     if (row && t.status !== row[0]) ups.push([t.row, row]);
   }));
   if (!ups.length) return;
   withLock(() => ups.forEach(u => sh.getRange(u[0], 9, 1, 7).setValues([u[1]])));
 }
-function standingsOf(books) {
-  const list = Object.keys(books).filter(k => k !== CONFIG.TEACHER_NAME && books[k].diary > 0).map(k => {
-    const b = books[k];
-    return { key: k, ret: b.ret, value: b.value, eligible: b.eligible, diary: b.diary, vol: b.vol, avgInv: b.avgInv, days: b.days };
-  });
+/** 某一季的排名（導師也一起排名，不領獎、不佔同學的得獎名額） */
+function standingsOf(books, season) {
+  const list = Object.keys(books).map(k => Object.assign({ key: k, noPrize: k === CONFIG.TEACHER_NAME }, InvestEngine.seasonStats(books[k], season)))
+    .filter(x => x.active);
   return InvestEngine.standings(list);
 }
 /** 這一季結束了嗎？（最後一個平日已經有收盤價，或已經進入下個月而且之後更新過股價） */
@@ -2644,22 +2643,26 @@ function investSettle() {
   const props = PropertiesService.getScriptProperties();
   const doneList = () => JSON.parse(props.getProperty('INV_DONE') || '[]');
   const trades = tradeRows();
-  const seasons = trades.map(t => t.season).filter((s, i, a) => a.indexOf(s) === i && doneList().indexOf(s) < 0).sort();
+  if (!trades.length) return;
+  // 從第一筆交易的那一季到這個月，每一季都要結算（有人整季都沒交易也照樣算，投資組合不歸零）
+  const cur = ymd(new Date()).slice(0, 7), seasons = [];
+  for (let s = trades.map(t => t.season).sort()[0]; s <= cur; s = InvestEngine.nextSeason(s)) if (doneList().indexOf(s) < 0) seasons.push(s);
   if (!seasons.length) return;
   const P = investPrices(), days = InvestEngine.tradingDays(P);
+  let R = null;
   seasons.forEach(season => {
     if (!investFinal(season, days)) return;
-    const R = investBooks(season, P, days, trades);
-    syncFills(R.by, R.books, true);
+    R = R || investBooks(P, days, trades);
+    syncFills(R.by, R.books);
     withLock(() => {
       if (doneList().indexOf(season) >= 0) return;
-      const st = standingsOf(R.books), now = new Date(), rows = [], mails = [], RU = InvestEngine.RULES;
+      const st = standingsOf(R.books, season), now = new Date(), rows = [], mails = [], RU = InvestEngine.RULES;
       st.list.forEach(x => {
-        const pts = x.prize + (x.steady ? RU.STEADY : 0) + (x.eligible ? RU.JOIN : 0);
+        const pts = x.noPrize ? 0 : x.prize + (x.steady ? RU.STEADY : 0) + (x.eligible ? RU.JOIN : 0);
         const award = [x.prize ? '第 ' + x.rank + ' 名' : '', x.steady ? '穩健獎' : '', x.eligible ? '參與獎' : ''].filter(String).join('、');
-        rows.push([season, x.rank || '', x.key, Math.round(x.ret * 1e6) / 1e6, x.value, award || '（日記未滿 ' + RU.DIARY + ' 筆）', pts, now]);
-        if (pts) mails.push([x.key, '📈 ' + season + ' 投資競賽結算囉！\n你的報酬率：' + (x.ret * 100).toFixed(2) + '%' + (x.rank ? '（第 ' + x.rank + ' 名）' : '') +
-          '\n獲得：' + award + '，共 ' + pts + ' 點商店點數，已經放進你的商店點數。\n\n新的一季已經開始，每人重新發 ' + RU.START + ' 枚投資幣！']);
+        rows.push([season, x.rank || '', x.key, Math.round(x.ret * 1e6) / 1e6, x.value, x.noPrize ? '導師（不領獎）' : award || '（投資日記未滿 ' + RU.DIARY + ' 筆）', pts, now]);
+        if (pts) mails.push([x.key, '📈 ' + season + ' 投資競賽結算囉！\n這一季的報酬率：' + (x.ret * 100).toFixed(2) + '%' + (x.rank ? '（第 ' + x.rank + ' 名）' : '') +
+          '\n累計報酬率：' + (x.total * 100).toFixed(2) + '%\n獲得：' + award + '，共 ' + pts + ' 點商店點數，已經放進你的商店點數。\n\n投資組合不會歸零，會繼續延續到下一季，長期投資加油！']);
       });
       if (rows.length) {
         const sh = getSheet(SHEET_INVRES, HEAD_INVRES);
@@ -2686,9 +2689,10 @@ function investAwardsFor(key) {
   return invResRows().filter(r => r.key === key && r.points > 0).map(r => ({ date: new Date(r.t), points: r.points, season: r.season }));
 }
 const prevSeason = s => { const a = s.split('/'); const d = new Date(+a[0], +a[1] - 2, 1); return d.getFullYear() + '/' + ('0' + (d.getMonth() + 1)).slice(-2); };
-const pubRow = (x, key) => ({ rank: x.rank, code: faceCode(key), ret: x.ret, value: x.value, prize: x.prize || x.points || 0 });
+const pubCode = key => (key === CONFIG.TEACHER_NAME ? CONFIG.TEACHER_NAME : faceCode(key));
+const pubRow = (x, key) => ({ rank: x.rank, code: pubCode(key), ret: x.ret, value: x.value, prize: x.prize || x.points || 0 });
 /** 教室後方的公告：月底最後一個平日～下個月 7 號顯示前十名＋穩健獎（只有座號） */
-function investBoard(forceSeason) {
+function investBoard(forceSeason, R) {
   const today = ymd(new Date()), cur = today.slice(0, 7);
   let season = forceSeason || '';
   if (!season) {
@@ -2698,40 +2702,55 @@ function investBoard(forceSeason) {
   }
   const res = invResRows().filter(r => r.season === season);
   if (res.length) {
-    const top = res.filter(r => r.rank && r.rank <= 10).sort((a, b) => a.rank - b.rank).map(r => ({ rank: r.rank, code: faceCode(r.key), ret: r.ret, value: r.value }));
+    // 前十名（導師在裡面時，同學的得獎名額往後補）
+    const top = res.filter(r => r.rank && (r.rank <= 10 || r.points > 1)).sort((a, b) => a.rank - b.rank).map(r => ({ rank: r.rank, code: pubCode(r.key), ret: r.ret, value: r.value }));
     const s = res.find(r => /穩健獎/.test(r.award));
     return { season: season, final: true, top: top, steady: s ? { code: faceCode(s.key), ret: s.ret, value: s.value } : null };
   }
-  const P = investPrices(), days = InvestEngine.tradingDays(P), R = investBooks(season, P, days, tradeRows());
+  if (forceSeason) return null;
+  if (!R) { const P = investPrices(); R = investBooks(P, InvestEngine.tradingDays(P), tradeRows()); }
   if (!Object.keys(R.books).length) return null;
-  const st = standingsOf(R.books);
+  const st = standingsOf(R.books, season);
   return {
     season: season, final: false,
-    top: st.list.filter(x => x.rank && x.rank <= 10).map(x => pubRow(x, x.key)),
+    top: st.list.filter(x => x.rank && (x.rank <= 10 || x.prize)).map(x => pubRow(x, x.key)),
     steady: st.steady ? { code: faceCode(st.steady.key), ret: st.steady.ret, value: st.steady.value } : null,
   };
 }
-/** 前三名的座位放一次鞭炮（結算後 7 天內，每支手機放一次） */
+/** 前三名同學的座位放一次鞭炮（結算後 7 天內，每支手機放一次；導師不算，並列的都放） */
 function investFireworks() {
   const since = Date.now() - 7 * 86400e3;
-  return invResRows().filter(r => r.rank && r.rank <= 3 && r.t >= since).map(r => ({
-    id: 'inv-' + r.season + '-' + faceCode(r.key), by: INVEST_BOT, to: r.key, time: Utilities.formatDate(new Date(r.t), CONFIG.TIMEZONE, 'MM/dd HH:mm'),
-    label: '🧨 ' + Number(r.season.slice(5)) + ' 月投資競賽第 ' + r.rank + ' 名！', kind: 'firecracker',
-  }));
+  const stu = invResRows().filter(r => r.rank && r.t >= since && r.key !== CONFIG.TEACHER_NAME).sort((a, b) => a.season < b.season ? -1 : a.season > b.season ? 1 : a.rank - b.rank);
+  const out = [];
+  let season = '', n = 0, pr = 0, lastRank = 0;
+  stu.forEach(r => {
+    if (r.season !== season) { season = r.season; n = 0; pr = 0; lastRank = 0; }
+    n++;
+    if (r.rank !== lastRank) { pr = n; lastRank = r.rank; }
+    if (pr <= 3) out.push({
+      id: 'inv-' + r.season + '-' + faceCode(r.key), by: INVEST_BOT, to: r.key, time: Utilities.formatDate(new Date(r.t), CONFIG.TIMEZONE, 'MM/dd HH:mm'),
+      label: '🧨 ' + Number(r.season.slice(5)) + ' 月投資競賽第 ' + r.rank + ' 名！', kind: 'firecracker',
+    });
+  });
+  return out;
 }
 function investState(who) {
   investTick();
   const P = investPrices(), days = InvestEngine.tradingDays(P), trades = tradeRows();
-  const today = ymd(new Date()), hm = hmNow(), next = InvestEngine.orderDay(today, hm), season = InvestEngine.seasonOf(next);
-  const R = investBooks(season, P, days, trades);
-  syncFills(R.by, R.books, false);
-  const me = who.key, b = R.books[me] || InvestEngine.book([], P, season, days);
+  const today = ymd(new Date()), hm = hmNow(), next = InvestEngine.orderDay(today, hm), season = today.slice(0, 7);
+  const R = investBooks(P, days, trades);
+  syncFills(R.by, R.books);
+  const me = who.key, b = R.books[me] || InvestEngine.book([], P, days), ms = InvestEngine.seasonStats(b, season);
   const mine = (R.by[me] || []).slice().sort((x, y) => y.t - x.t).map(t => {
     const f = b.fills[t.id];
     return { id: t.id, time: t.time, side: t.side, code: t.code, amount: t.amount, units: t.units, reason: t.reason,
-      status: t.status === '已取消' ? '已取消' : f ? (f.fail ? '已取消（' + f.fail + '）' : '已成交') : '待成交', fill: f && !f.fail ? f : null };
+      status: /^已取消/.test(t.status) ? t.status : f ? (f.fail ? '已取消（' + f.fail + '）' : '已成交') : '待成交', fill: f && !f.fail ? f : null };
   });
-  const st = standingsOf(R.books);
+  const st = standingsOf(R.books, season);
+  const pub = x => ({ code: pubCode(x.key), name: who.teacher ? x.key : '', me: x.key === me, ret: x.ret, total: x.total, value: x.value, rank: x.rank, eligible: x.eligible, diary: x.diary, prize: x.prize, steady: x.steady, teacher: !!x.noPrize });
+  // 累計排行（長期投資）：從開始到現在的報酬率
+  const total = Object.keys(R.books).filter(k => R.books[k].diary > 0).map(k => ({ key: k, t: R.books[k].total, v: R.books[k].value }))
+    .sort((a, c) => c.t - a.t).map(x => ({ code: pubCode(x.key), name: who.teacher ? x.key : '', me: x.key === me, total: x.t, value: x.v, teacher: x.key === CONFIG.TEACHER_NAME }));
   const stocks = InvestEngine.STOCKS.map(s => {
     const ds = Object.keys(P[s.code]).filter(d => P[s.code][d].c > 0).sort(), l = ds.length;
     return Object.assign({}, s, { date: ds[l - 1] || '', close: l ? P[s.code][ds[l - 1]].c : 0, prev: l > 1 ? P[s.code][ds[l - 2]].c : 0,
@@ -2745,10 +2764,10 @@ function investState(who) {
     .map(s => Object.assign({ mine: invResRows().find(r => r.season === s && r.key === me) || null }, investBoard(s)));
   return {
     ok: true, season: season, next: next, today: today, hm: hm, final: investFinal(season, days), rules: InvestEngine.RULES, stocks: stocks,
-    me: { cash: b.cash, avail: b.avail, value: b.value, ret: b.ret, diary: b.diary, eligible: b.eligible, holdings: b.holdings, divs: b.divs, snaps: b.snaps, sellable: sellable, vol: b.vol, avgInv: b.avgInv },
-    trades: mine, teacher: !!who.teacher,
-    standings: st.list.map(x => ({ code: faceCode(x.key), name: who.teacher ? x.key : '', me: x.key === me, ret: x.ret, value: x.value, rank: x.rank, eligible: x.eligible, diary: x.diary, prize: x.prize, steady: x.steady })),
-    board: investBoard(), past: past, fetched: Number(PropertiesService.getScriptProperties().getProperty('INV_FETCH') || 0),
+    me: { cash: b.cash, avail: b.avail, value: b.value, total: b.total, ret: ms.ret, start: ms.start, diary: b.diary, eligible: b.eligible, holdings: b.holdings, divs: b.divs,
+      snaps: b.snaps.slice(-60), sellable: sellable, joined: b.diary > 0 || b.pending.length > 0 },
+    trades: mine, teacher: !!who.teacher, standings: st.list.map(pub), total: total,
+    board: investBoard('', R), past: past, fetched: Number(PropertiesService.getScriptProperties().getProperty('INV_FETCH') || 0),
   };
 }
 function investOrder(who, o) {
@@ -2757,10 +2776,10 @@ function investOrder(who, o) {
   const reason = String(o.reason || '').trim().slice(0, 200);
   if (reason.length < 4) throw new Error('請寫下為什麼要' + side + '（投資日記，至少 4 個字）');
   withLock(() => {
-    const now = new Date(), today = ymd(now), next = InvestEngine.orderDay(today, hmNow()), season = InvestEngine.seasonOf(next);
+    const now = new Date(), today = ymd(now), next = InvestEngine.orderDay(today, hmNow());
     const P = investPrices(), days = InvestEngine.tradingDays(P);
-    const mine = tradeRows().filter(t => t.who === who.key && t.season === season);
-    const b = InvestEngine.book(mine, P, season, days);
+    const mine = tradeRows().filter(t => t.who === who.key);
+    const b = InvestEngine.book(mine, P, days);
     let amount = '', units = '';
     if (side === '買') {
       amount = Math.floor(Number(o.amount) * 100) / 100;
@@ -2774,16 +2793,16 @@ function investOrder(who, o) {
       if (units > can + 1e-6) throw new Error(can > 0 ? '最多只能賣 ' + can + ' 單位（買進滿 ' + InvestEngine.RULES.HOLD + ' 個交易日的部分）' : '這檔還沒有滿 ' + InvestEngine.RULES.HOLD + ' 個交易日的持股，還不能賣');
     }
     const sh = tradeSheet(), id = Utilities.getUuid().slice(0, 8);
-    sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_TRADE.length).setValues([[now, season, who.key, side, code, amount, units, reason, '待成交', '', '', '', '', '', '', id]]);
+    sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_TRADE.length).setValues([[now, InvestEngine.seasonOf(next), who.key, side, code, amount, units, reason, '待成交', '', '', '', '', '', '', id]]);
   });
   return investState(who);
 }
 function investCancel(who, id) {
   withLock(() => {
-    const t = tradeRows().find(x => x.id === id);
+    const all = tradeRows(), t = all.find(x => x.id === id);
     if (!t || t.who !== who.key) throw new Error('找不到這筆委託');
     const P = investPrices(), days = InvestEngine.tradingDays(P);
-    const b = InvestEngine.book(tradeRows().filter(x => x.who === who.key && x.season === t.season), P, t.season, days);
+    const b = InvestEngine.book(all.filter(x => x.who === who.key), P, days);
     if (b.pending.indexOf(id) < 0) throw new Error('這筆已經成交（或取消）了，不能取消');
     tradeSheet().getRange(t.row, 9).setValue('已取消');
   });
@@ -2969,13 +2988,15 @@ var SelEngine = (function () {
  * （網頁的測試模式在手機上模擬；正式的由 Google Apps Script 計算）
  *
  * 規則：
- *   1. 每個月一季，每季每人 1,000 枚投資幣，季末歸零重來。
- *   2. 下單後以「當天收盤價」成交（13:30 以後下單＝下一個交易日的收盤價）。可以買零碎的單位。
- *   3. 買進、賣出都收手續費 0.1425%；賣出另收交易稅（股票 0.3%、ETF 0.1%）。
- *   4. 買進後至少要持有 3 個交易日才能賣（先買的先賣）。
- *   5. 持有的股票除息時，現金股利會自動發到現金。
- *   6. 排名看報酬率；報酬率一樣就並列。每季要有 3 筆以上成交的交易（每筆都寫了理由＝投資日記）才有領獎資格。
- *   7. 穩健獎：有資格、報酬率是正的、平均至少一半的錢放在股票裡，每天漲跌起伏（波動度）最小的人。
+ *   1. 第一次參加時拿到 1,000 枚投資幣；之後「不歸零」，投資組合一直延續（學習長期投資）。
+ *   2. 每個月是一季：每季的名次看「這一季的報酬率」＝季末總值 ÷ 季初總值 − 1。另外有「累計報酬率」排行。
+ *   3. 下單後以「當天收盤價」成交（13:30 以後下單＝下一個交易日的收盤價）。可以買零碎的單位。
+ *   4. 買進、賣出都收手續費 0.1425%；賣出另收交易稅（股票 0.3%、ETF 0.1%）。
+ *   5. 買進後至少要持有 3 個交易日才能賣（先買的先賣）。
+ *   6. 持有的股票除息時，現金股利會自動發到現金。
+ *   7. 累計有 3 筆以上成交的交易（每筆都寫了理由＝投資日記）才有領獎資格；報酬率一樣就並列。
+ *   8. 穩健獎：有資格、這一季報酬率是正的、平均至少一半的錢放在股票裡，每天漲跌起伏（波動度）最小的人。
+ *   9. noPrize（導師）：一起排名，但不領獎、不佔同學的得獎名額、不參加穩健獎。
  * 日期一律用 'yyyy/MM/dd' 字串；季＝'yyyy/MM'。
  */
 var InvestEngine = (function () {
@@ -2983,12 +3004,37 @@ var InvestEngine = (function () {
     START: 1000, FEE: 0.001425, TAX_STOCK: 0.003, TAX_ETF: 0.001, HOLD: 3, DIARY: 3,
     PRIZE: [15, 10, 10, 5, 5, 5, 5, 5, 5, 5], STEADY: 5, JOIN: 1, MIN_INV: 0.5, CLOSE: '13:30',
   };
+  // group：畫面上依產業分組（可以收合）
   var STOCKS = [
-    { code: '2330', name: '台積電', type: 'stock', short: '台積電' },
-    { code: '0050', name: '元大台灣50', type: 'etf', short: '0050' },
-    { code: '0056', name: '元大高股息', type: 'etf', short: '高股息' },
-    { code: '00632R', name: '元大台灣50反1', type: 'etf', short: '反一' },
-    { code: '00631L', name: '元大台灣50正2', type: 'etf', short: '正二' },
+    { code: '0050', name: '元大台灣50', type: 'etf', short: '0050', group: 'ETF' },
+    { code: '0056', name: '元大高股息', type: 'etf', short: '高股息', group: 'ETF' },
+    { code: '00632R', name: '元大台灣50反1', type: 'etf', short: '反一', group: 'ETF' },
+    { code: '00631L', name: '元大台灣50正2', type: 'etf', short: '正二', group: 'ETF' },
+    { code: '2330', name: '台積電', type: 'stock', short: '台積電', group: '半導體' },
+    { code: '2454', name: '聯發科', type: 'stock', short: '聯發科', group: '半導體' },
+    { code: '2303', name: '聯電', type: 'stock', short: '聯電', group: '半導體' },
+    { code: '3711', name: '日月光投控', type: 'stock', short: '日月光', group: '半導體' },
+    { code: '3443', name: '創意', type: 'stock', short: '創意', group: '半導體' },
+    { code: '2408', name: '南亞科', type: 'stock', short: '南亞科', group: '半導體' },
+    { code: '2344', name: '華邦電', type: 'stock', short: '華邦電', group: '半導體' },
+    { code: '6515', name: '穎崴', type: 'stock', short: '穎崴', group: '半導體' },
+    { code: '2317', name: '鴻海', type: 'stock', short: '鴻海', group: '電子製造／AI 伺服器' },
+    { code: '2382', name: '廣達', type: 'stock', short: '廣達', group: '電子製造／AI 伺服器' },
+    { code: '3231', name: '緯創', type: 'stock', short: '緯創', group: '電子製造／AI 伺服器' },
+    { code: '2357', name: '華碩', type: 'stock', short: '華碩', group: '電子製造／AI 伺服器' },
+    { code: '2308', name: '台達電', type: 'stock', short: '台達電', group: '電子零組件' },
+    { code: '2345', name: '智邦', type: 'stock', short: '智邦', group: '電子零組件' },
+    { code: '3037', name: '欣興', type: 'stock', short: '欣興', group: '電子零組件' },
+    { code: '2881', name: '富邦金', type: 'stock', short: '富邦金', group: '金融' },
+    { code: '2882', name: '國泰金', type: 'stock', short: '國泰金', group: '金融' },
+    { code: '2891', name: '中信金', type: 'stock', short: '中信金', group: '金融' },
+    { code: '2886', name: '兆豐金', type: 'stock', short: '兆豐金', group: '金融' },
+    { code: '2412', name: '中華電', type: 'stock', short: '中華電', group: '電信' },
+    { code: '1216', name: '統一', type: 'stock', short: '統一', group: '食品／零售' },
+    { code: '2912', name: '統一超', type: 'stock', short: '統一超', group: '食品／零售' },
+    { code: '1301', name: '台塑', type: 'stock', short: '台塑', group: '傳統產業' },
+    { code: '2002', name: '中鋼', type: 'stock', short: '中鋼', group: '傳統產業' },
+    { code: '2603', name: '長榮', type: 'stock', short: '長榮', group: '航運' },
   ];
   var TYPE = {};
   STOCKS.forEach(function (s) { TYPE[s.code] = s.type; });
@@ -3000,6 +3046,7 @@ var InvestEngine = (function () {
   function isWeekday(s) { var w = parse(s).getDay(); return w > 0 && w < 6; }
   function nextWeekday(s) { do { s = addDays(s, 1); } while (!isWeekday(s)); return s; }
   function seasonOf(s) { return String(s).slice(0, 7); }
+  function nextSeason(s) { var a = s.split('/'), d = new Date(+a[0], +a[1], 1); return d.getFullYear() + '/' + pad(d.getMonth() + 1); }
   /** 這一季（月）最後一個週一～週五 */
   function lastWeekday(season) {
     var a = season.split('/'), d = new Date(+a[0], +a[1], 0);
@@ -3019,29 +3066,25 @@ var InvestEngine = (function () {
   }
 
   /**
-   * 重算一個人這一季的帳本。
+   * 重算一個人從第一次下單到現在的帳本（不分季、不歸零）。
    * trades：[{ id, ymd, hm, t, side: '買'|'賣', code, amount(買的投資幣), units(賣的單位), status }]
    *   status：'已取消' 的不算；其他（待成交、已成交）都照規則重新計算。
    * days：所有交易日（tradingDays 的結果）
    */
-  function book(trades, prices, season, days) {
+  function book(trades, prices, days) {
     var idx = {};
     days.forEach(function (d, i) { idx[d] = i; });
-    var sdays = days.filter(function (d) { return seasonOf(d) === season; });
     var cash = RULES.START, lots = {}, last = {}, fills = {}, divs = [], snaps = [];
     STOCKS.forEach(function (s) { lots[s.code] = []; });
-    // 季初的「最後收盤價」
-    var first = sdays[0] || '9999';
-    days.forEach(function (d) {
-      if (d >= first) return;
-      STOCKS.forEach(function (s) { var p = prices[s.code] && prices[s.code][d]; if (p && p.c > 0) last[s.code] = p.c; });
-    });
     var pend = trades.filter(function (t) { return t.status !== '已取消'; })
       .map(function (t) { return { tr: t, eff: orderDay(t.ymd, t.hm) }; })
       .sort(function (a, b) { return a.tr.t - b.tr.t; });
-    var held = function (code) { return lots[code].reduce(function (s, l) { return s + l.u; }, 0); };
+    var start = pend.length ? pend.reduce(function (m, o) { return o.eff < m ? o.eff : m; }, '9999') : '9999';
+    var held = function (code) { return (lots[code] || []).reduce(function (s, l) { return s + l.u; }, 0); };
     var between = function (a, d) { return (idx[d] === undefined ? days.length : idx[d]) - idx[a]; };
-    sdays.forEach(function (D) {
+    days.forEach(function (D) {
+      STOCKS.forEach(function (s) { var p = prices[s.code] && prices[s.code][D]; if (p && p.c > 0) last[s.code] = p.c; });
+      if (D < start) return;                             // 還沒開始投資
       // 1. 除息：前一天收盤時持有的人領現金股利
       STOCKS.forEach(function (s) {
         var p = prices[s.code] && prices[s.code][D];
@@ -3078,10 +3121,9 @@ var InvestEngine = (function () {
       });
       // 3. 收盤後的總值
       var inv = 0;
-      STOCKS.forEach(function (s) { var p = prices[s.code] && prices[s.code][D]; if (p && p.c > 0) last[s.code] = p.c; inv += held(s.code) * (last[s.code] || 0); });
+      STOCKS.forEach(function (s) { inv += held(s.code) * (last[s.code] || 0); });
       snaps.push({ d: D, v: r2(cash + inv), inv: cash + inv > 0 ? inv / (cash + inv) : 0 });
     });
-    // 持股、還沒成交的單
     var holdings = STOCKS.map(function (s) {
       var u = held(s.code), cost = lots[s.code].reduce(function (t, l) { return t + l.cost; }, 0);
       return { code: s.code, units: r6(u), cost: r2(cost), price: last[s.code] || 0, value: r2(u * (last[s.code] || 0)), lots: lots[s.code].map(function (l) { return { d: l.d, u: l.u }; }) };
@@ -3089,22 +3131,29 @@ var InvestEngine = (function () {
     var pending = pend.filter(function (o) { return !fills[o.tr.id]; }).map(function (o) { return o.tr.id; });
     var reserved = pend.filter(function (o) { return !fills[o.tr.id] && o.tr.side === '買'; }).reduce(function (s, o) { return s + o.tr.amount; }, 0);
     var value = snaps.length ? snaps[snaps.length - 1].v : RULES.START;
-    var done = Object.keys(fills).filter(function (id) { return !fills[id].fail; });
-    // 波動度、平均持股比例：從第一次成交那天開始算
-    var fd = null;
-    done.forEach(function (id) { if (!fd || fills[id].d < fd) fd = fills[id].d; });
-    var from = fd ? snaps.findIndex(function (s) { return s.d === fd; }) : -1, rets = [], invs = [];
-    if (from >= 0) for (var i = from; i < snaps.length; i++) {
-      invs.push(snaps[i].inv);
-      if (i > from) rets.push(snaps[i].v / snaps[i - 1].v - 1);
-    }
+    var fillDays = Object.keys(fills).filter(function (id) { return !fills[id].fail; }).map(function (id) { return fills[id].d; });
+    return {
+      cash: r2(cash), avail: r2(cash - reserved), value: value, total: value / RULES.START - 1,
+      holdings: holdings, fills: fills, divs: divs, snaps: snaps, pending: pending, fillDays: fillDays,
+      diary: fillDays.length, eligible: fillDays.length >= RULES.DIARY,
+    };
+  }
+
+  /** 某一季的成績：季初總值（上一季最後一天收盤，第一次參加＝1,000）→ 季末（或到目前為止）總值 */
+  function seasonStats(b, season) {
+    var inS = b.snaps.filter(function (s) { return seasonOf(s.d) === season; });
+    var before = b.snaps.filter(function (s) { return seasonOf(s.d) < season; });
+    var v0 = before.length ? before[before.length - 1].v : RULES.START;
+    var v1 = inS.length ? inS[inS.length - 1].v : v0;
+    var diary = b.fillDays.filter(function (d) { return seasonOf(d) <= season; }).length;
+    var series = [v0].concat(inS.map(function (s) { return s.v; })), rets = [];
+    for (var i = 1; i < series.length; i++) rets.push(series[i] / series[i - 1] - 1);
     var mean = rets.reduce(function (s, x) { return s + x; }, 0) / (rets.length || 1);
     var vol = rets.length ? Math.sqrt(rets.reduce(function (s, x) { return s + (x - mean) * (x - mean); }, 0) / rets.length) : 0;
     return {
-      cash: r2(cash), avail: r2(cash - reserved), value: value, ret: value / RULES.START - 1,
-      holdings: holdings, fills: fills, divs: divs, snaps: snaps, pending: pending,
-      diary: done.length, eligible: done.length >= RULES.DIARY, vol: vol, days: rets.length,
-      avgInv: invs.length ? invs.reduce(function (s, x) { return s + x; }, 0) / invs.length : 0,
+      start: v0, value: v1, ret: v1 / v0 - 1, total: v1 / RULES.START - 1, diary: diary, eligible: diary >= RULES.DIARY, active: diary > 0,
+      seasonTrades: b.fillDays.filter(function (d) { return seasonOf(d) === season; }).length,
+      vol: vol, days: rets.length, avgInv: inS.length ? inS.reduce(function (s, x) { return s + x.inv; }, 0) / inS.length : 0,
     };
   }
 
@@ -3119,13 +3168,17 @@ var InvestEngine = (function () {
     return Math.max(0, r6(ok - (pendingSellUnits || 0)));
   }
 
-  /** 排名：只有符合資格的人有名次（報酬率到 0.01% 一樣就並列）；另外算穩健獎、獎勵點數 */
+  /** 排名：只有符合資格的人有名次（報酬率到 0.01% 一樣就並列）；另外算穩健獎、獎勵點數。
+      noPrize（導師）：一起排名，但不領獎、不佔同學的得獎名額、不參加穩健獎 */
   function standings(list) {
     var rk = function (x) { return Math.round(x.ret * 1e4); };
     var el = list.filter(function (x) { return x.eligible; }).sort(function (a, b) { return b.ret - a.ret; });
     var rank = 0;
-    el.forEach(function (x, i) { if (i === 0 || rk(x) !== rk(el[i - 1])) rank = i + 1; x.rank = rank; x.prize = RULES.PRIZE[rank - 1] || 0; });
-    var cand = el.filter(function (x) { return x.ret > 0 && x.avgInv >= RULES.MIN_INV && x.days >= 2; })
+    el.forEach(function (x, i) { if (i === 0 || rk(x) !== rk(el[i - 1])) rank = i + 1; x.rank = rank; });
+    var stu = el.filter(function (x) { return !x.noPrize; }), pr = 0;
+    stu.forEach(function (x, i) { if (i === 0 || rk(x) !== rk(stu[i - 1])) pr = i + 1; x.prank = pr; x.prize = RULES.PRIZE[pr - 1] || 0; });
+    el.forEach(function (x) { if (x.noPrize) { x.prank = null; x.prize = 0; } });
+    var cand = stu.filter(function (x) { return x.ret > 0 && x.avgInv >= RULES.MIN_INV && x.days >= 2; })
       .sort(function (a, b) { return a.vol - b.vol || b.ret - a.ret; });
     var steady = cand[0] || null;
     list.forEach(function (x) { if (!x.eligible) { x.rank = null; x.prize = 0; } x.steady = x === steady; });
@@ -3135,6 +3188,7 @@ var InvestEngine = (function () {
 
   return {
     RULES: RULES, STOCKS: STOCKS, parse: parse, fmt: fmt, addDays: addDays, isWeekday: isWeekday, nextWeekday: nextWeekday,
-    seasonOf: seasonOf, lastWeekday: lastWeekday, orderDay: orderDay, tradingDays: tradingDays, book: book, sellable: sellable, standings: standings,
+    seasonOf: seasonOf, nextSeason: nextSeason, lastWeekday: lastWeekday, orderDay: orderDay, tradingDays: tradingDays,
+    book: book, seasonStats: seasonStats, sellable: sellable, standings: standings,
   };
 })();

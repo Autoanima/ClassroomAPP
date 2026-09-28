@@ -1285,3 +1285,15 @@ body.ww-open { overflow: hidden; }
 .inv-board[hidden] { display: none; }
 .ib-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 @media (prefers-reduced-motion: reduce) { .inv-board-btn { animation: none; } }
+
+.inv-rets { display: flex; gap: 14px; font-size: 15px; }
+.inv-rets b { font-size: 17px; }
+.inv-gtools { text-align: right; font-size: 13px; margin: 2px 0 6px; color: var(--muted); }
+.inv-group { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 8px; }
+.inv-group > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 10px 12px; cursor: pointer; list-style: none; }
+.inv-group > summary::-webkit-details-marker { display: none; }
+.inv-group > summary::before { content: '▸'; color: var(--muted); transition: transform .15s; }
+.inv-group[open] > summary::before { transform: rotate(90deg); }
+.inv-group > summary .muted { flex: 1 1 140px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ig-chg { font-weight: 700; font-size: 13px; }
+.inv-group .inv-stocks { padding: 0 10px 10px; margin: 0; }

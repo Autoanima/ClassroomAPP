@@ -9,7 +9,10 @@
   const ui = Object.assign({ view: 'me' }, store.get('indoor.investui.v1', {}));
   const saveUi = () => store.set('indoor.investui.v1', ui);
   const STOCK = Object.fromEntries(E.STOCKS.map(s => [s.code, s]));
-  const KIND = { '2330': ['個股', 'k-stock'], '0050': ['ETF', 'k-etf'], '0056': ['高股息 ETF', 'k-etf'], '00632R': ['反向 ETF', 'k-inv'], '00631L': ['槓桿 ETF', 'k-lev'] };
+  const KIND = { '0056': ['高股息 ETF', 'k-etf'], '00632R': ['反向 ETF', 'k-inv'], '00631L': ['槓桿 ETF', 'k-lev'] };
+  const kindOf = s => (s.type === 'stock' ? ['個股', 'k-stock'] : KIND[s.code] || ['ETF', 'k-etf']);
+  const GROUPS = [...new Set(E.STOCKS.map(s => s.group))];
+  ui.groups ||= { ETF: true, 半導體: true };
   const WD = '日一二三四五六';
 
   // ── 顯示格式（台灣習慣：紅漲綠跌）──
@@ -56,22 +59,34 @@
   function meHtml() {
     const M = S.me, R = S.rules;
     const mine = S.standings.find(x => x.me);
-    let h = `<div class="banner ok"><div class="bn-main">📈 ${month(S.season)} 月投資競賽</div>
+    let h = `<div class="banner ok"><div class="bn-main">📈 ${month(S.season)} 月投資競賽（投資組合不歸零）</div>
       <div class="bn-sub">${timingText()}</div></div>`;
-    if (S.teacher) h += `<p class="muted small center">導師也可以試玩，但不會列入排名。</p>`;
+    if (S.teacher) h += `<p class="muted small center">導師和同學一樣從 ${coin(R.START)} 枚開始、一起排名，但不領獎，也不佔同學的得獎名額。</p>`;
     // 總覽
     h += `<div class="panel inv-sum">
-      <div class="inv-total"><span class="muted small">總值（現金＋股票）</span><b>${coin(M.value)}</b><span class="inv-ret ${updn(M.ret)}">${pct(M.ret)}</span></div>
+      <div class="inv-total"><span class="muted small">總值（現金＋股票）</span><b>${coin(M.value)}</b>
+        <span class="inv-rets"><span>本季 <b class="${updn(M.ret)}">${pct(M.ret)}</b></span><span>累計 <b class="${updn(M.total)}">${pct(M.total)}</b></span></span></div>
       ${spark([R.START, ...M.snaps.map(s => s.v)], 140, 44)}
       <div class="inv-facts">
         <span>💰 可用現金 <b>${coin(M.avail)}</b></span>
         <span>✍️ 投資日記 <b>${M.diary}/${R.DIARY}</b>${M.eligible ? ' ✅' : ''}</span>
         <span>🏆 名次 <b>${mine?.rank ? `第 ${mine.rank} 名` : '—'}</b></span>
       </div>
-      ${M.eligible ? '' : `<p class="muted small">再成交 ${R.DIARY - M.diary} 筆交易（每筆都要寫理由）就有領獎資格。</p>`}
+      ${M.eligible ? '' : `<p class="muted small">再成交 ${R.DIARY - M.diary} 筆交易（每筆都要寫理由）就有領獎資格（累計，之後就一直有資格）。</p>`}
+      <p class="muted small">本季報酬率：從 ${month(S.season)} 月初的 ${coin(M.start)} 算起；累計報酬率：從一開始的 ${coin(R.START)} 算起。</p>
     </div>`;
     // 股票
-    h += `<div class="inv-stocks">${S.stocks.map(stockCard).join('')}</div>`;
+    // 依產業分組，可以收合（有持股的組別自動打開）
+    h += `<div class="inv-gtools"><button type="button" class="link-btn" data-iv="gall" data-v="1">全部展開</button>｜<button type="button" class="link-btn" data-iv="gall" data-v="0">全部收合</button></div>`;
+    h += GROUPS.map(g => {
+      const list = S.stocks.filter(s => s.group === g), held = list.filter(s => M.holdings.some(x => x.code === s.code));
+      const open = ui.groups[g] ?? held.length > 0;
+      const best = list.map(s => (s.prev ? s.close / s.prev - 1 : 0));
+      return `<details class="inv-group" data-g="${esc(g)}"${open ? ' open' : ''}><summary><b>${esc(g)}</b>
+        <span class="muted small">${list.map(s => esc(s.short)).join('・')}</span>
+        ${held.length ? `<span class="tag">持有 ${held.length} 檔</span>` : ''}<span class="ig-chg ${updn(best.reduce((a, b) => a + b, 0))}">${pct(best.reduce((a, b) => a + b, 0) / (best.length || 1))}</span></summary>
+        <div class="inv-stocks">${list.map(stockCard).join('')}</div></details>`;
+    }).join('');
     // 還沒成交
     const pend = S.trades.filter(t => t.status === '待成交');
     if (pend.length) h += `<div class="panel"><h3>⏳ 等待成交</h3>${pend.map(t => `<div class="inv-trade">
@@ -89,7 +104,7 @@
     return h;
   }
   function stockCard(s) {
-    const M = S.me, hd = M.holdings.find(x => x.code === s.code), k = KIND[s.code] || ['', ''];
+    const M = S.me, hd = M.holdings.find(x => x.code === s.code), k = kindOf(s);
     const chg = s.prev ? s.close / s.prev - 1 : 0;
     const can = M.sellable[s.code] || 0;
     return `<div class="panel inv-stock">
@@ -107,15 +122,25 @@
     const el = L.filter(x => x.eligible), no = L.filter(x => !x.eligible);
     const row = x => `<div class="inv-row${x.me ? ' me' : ''}">
       <span class="ir-rank">${x.rank ? (x.rank <= 3 ? ['🥇', '🥈', '🥉'][x.rank - 1] : x.rank) : ''}</span>
-      <span class="ir-who">${esc(x.code)}${x.name ? ` <span class="muted small">${esc(A.parseKey(x.name).name || x.name)}</span>` : ''}${x.me ? ' <span class="tag">我</span>' : ''}</span>
+      <span class="ir-who">${esc(x.code)}${x.name && x.name !== x.code ? ` <span class="muted small">${esc(A.parseKey(x.name).name || x.name)}</span>` : ''}${x.me ? ' <span class="tag">我</span>' : ''}${x.teacher ? ' <span class="muted small">（不領獎）</span>' : ''}</span>
       <span class="ir-ret ${updn(x.ret)}">${pct(x.ret)}</span>
       <span class="ir-val">${coin(x.value)}</span>
       <span class="ir-tag">${x.prize ? `🏆+${x.prize}` : ''}${x.steady ? ' 🐢穩健' : ''}${x.eligible ? '' : ` ✍️${x.diary}/${R.DIARY}`}</span></div>`;
-    let h = `<div class="panel"><h3>🏆 ${month(S.season)} 月排行榜 <span class="muted small">${S.final ? '（已結算）' : '（每天收盤後更新）'}</span></h3>
+    const seg = (v, t) => `<button type="button" data-iv="rk" data-v="${v}" aria-pressed="${(ui.rk || 'season') === v}">${t}</button>`;
+    let h = `<div class="inv-nav inv-rk">${seg('season', `🏆 ${month(S.season)} 月（本季）`)}${seg('total', '📈 累計（長期）')}</div>`;
+    if (ui.rk === 'total') {
+      return h + `<div class="panel"><h3>📈 累計報酬率排行 <span class="muted small">（從一開始到現在，不發獎，看長期表現）</span></h3>
+        <div class="inv-row head"><span class="ir-rank">#</span><span class="ir-who">座號</span><span class="ir-ret">累計</span><span class="ir-val">投資幣</span><span class="ir-tag"></span></div>
+        ${(S.total || []).map((x, i) => `<div class="inv-row${x.me ? ' me' : ''}"><span class="ir-rank">${i + 1}</span>
+          <span class="ir-who">${esc(x.code)}${x.name && x.name !== x.code ? ` <span class="muted small">${esc(A.parseKey(x.name).name || x.name)}</span>` : ''}${x.me ? ' <span class="tag">我</span>' : ''}</span>
+          <span class="ir-ret ${updn(x.total)}">${pct(x.total)}</span><span class="ir-val">${coin(x.value)}</span><span class="ir-tag"></span></div>`).join('') || '<p class="muted small">還沒有人開始投資。</p>'}
+        <p class="muted small">長期來看，穩定成長、少犯大錯的人通常會慢慢爬上來。</p></div>`;
+    }
+    h += `<div class="panel"><h3>🏆 ${month(S.season)} 月排行榜 <span class="muted small">${S.final ? '（已結算）' : '（每天收盤後更新）'}</span></h3>
       <div class="inv-row head"><span class="ir-rank">名次</span><span class="ir-who">座號</span><span class="ir-ret">報酬率</span><span class="ir-val">投資幣</span><span class="ir-tag"></span></div>
       ${el.length ? el.map(row).join('') : '<p class="muted small">還沒有人符合領獎資格（成交 3 筆以上）。</p>'}
       ${no.length ? `<h3 class="inv-sub">還沒有領獎資格（投資日記未滿 ${R.DIARY} 筆）</h3>${no.map(row).join('')}` : ''}
-      <p class="muted small">報酬率一樣的同學並列。🐢 穩健獎：報酬率是正的、平均至少一半的錢放在股票裡，每天漲跌起伏最小的人。</p></div>`;
+      <p class="muted small">名次看「這一季」的報酬率（月初總值 → 月底總值），報酬率一樣的並列。🐢 穩健獎：報酬率是正的、平均至少一半的錢放在股票裡，每天漲跌起伏最小的人。</p></div>`;
     if (S.past?.length) h += `<div class="panel"><h3>📚 歷屆結果</h3>${S.past.map(p => `<details class="inv-past"><summary>${esc(p.season)}（${month(p.season)} 月）${p.mine ? `・我：${pct(p.mine.ret)}${p.mine.points ? `，得到 ${p.mine.points} 點` : ''}` : ''}</summary>
       ${boardList(p)}</details>`).join('')}</div>`;
     return h;
@@ -128,20 +153,22 @@
   function rulesHtml() {
     const R = S.rules, P = R.PRIZE;
     return `<div class="panel inv-text"><h3>📜 競賽規則</h3><ol>
-      <li><b>每個月是一季</b>：每季開始時，每人拿到 <b>${coin(R.START)}</b> 枚投資幣；月底結算後歸零，下個月重新開始。</li>
-      <li><b>投資標的</b>：${E.STOCKS.map(s => `${esc(s.code)} ${esc(s.name)}`).join('、')}。股價就是台灣股市真實的收盤價。</li>
-      <li><b>成交價</b>：下單後以「收盤價」成交。13:30 以前下單＝當天收盤價；13:30 以後或假日下單＝下一個交易日的收盤價。收盤前都可以取消。</li>
+      <li><b>投資幣不歸零</b>：第一次參加時拿到 <b>${coin(R.START)}</b> 枚投資幣，之後一直延續下去（股票可以長期持有，學習長期投資）。</li>
+      <li><b>每個月是一季</b>：每季的名次看「這一季的報酬率」＝月底總值 ÷ 月初總值 − 1。所以就算之前賠了，每一季都有機會拿獎。另外有「累計報酬率」排行看長期表現。</li>
+      <li><b>投資標的</b>：${E.STOCKS.length} 檔，依產業分組——${GROUPS.map(g => `${esc(g)}（${E.STOCKS.filter(s => s.group === g).map(s => esc(s.short)).join('、')}）`).join('；')}。股價就是台灣股市真實的收盤價。</li>
+      <li><b>成交價</b>：下單後以「收盤價」成交。13:30 以前下單＝當天收盤價；13:30 以後或假日下單＝下一個交易日的收盤價。成交前都可以取消。</li>
       <li><b>零碎單位</b>：可以只買一點點（例如 0.25 單位的台積電），投入多少投資幣就買多少。</li>
       <li><b>手續費</b>：買、賣都收 ${(R.FEE * 100).toFixed(4)}%；<b>賣出</b>另收交易稅：股票 ${R.TAX_STOCK * 100}%、ETF ${R.TAX_ETF * 100}%。</li>
       <li><b>至少持有 ${R.HOLD} 個交易日</b>才能賣（先買的先賣）。</li>
       <li><b>股利</b>：持有的股票除息時，現金股利會自動發到你的現金。</li>
-      <li><b>投資日記</b>：每次買賣都要寫理由。一季至少要有 <b>${R.DIARY} 筆成交</b>的交易，才有領獎資格。</li>
-      <li><b>排名</b>看報酬率＝（總值 ÷ ${coin(R.START)}）− 1；報酬率一樣就並列。</li>
+      <li><b>投資日記</b>：每次買賣都要寫理由。累計有 <b>${R.DIARY} 筆成交</b>的交易，就有領獎資格（之後一直有效，長期持有不用一直買賣）。</li>
+      <li><b>報酬率一樣就並列</b>。</li>
+      <li><b>導師也一起比賽</b>：和大家一樣從 ${coin(R.START)} 枚開始、一起排名，但不領獎，也不佔同學的得獎名額（例如導師第 1 名，同學的第 2 名一樣拿第 1 名的 ${P[0]} 點）。</li>
     </ol>
-    <h3>🎁 商店點數獎勵（每季）</h3>
+    <h3>🎁 商店點數獎勵（每季，依同學之間的名次）</h3>
     <table class="inv-prize"><tr><th>第 1 名</th><td>${P[0]} 點</td></tr><tr><th>第 2～3 名</th><td>${P[1]} 點</td></tr><tr><th>第 4～10 名</th><td>${P[3]} 點</td></tr>
       <tr><th>🐢 穩健獎（1 名）</th><td>${R.STEADY} 點</td></tr><tr><th>參與獎（有資格的人）</th><td>${R.JOIN} 點</td></tr></table>
-    <p class="muted small">穩健獎：有資格、報酬率是正的、平均至少 ${R.MIN_INV * 100}% 的錢放在股票裡，每天總值漲跌起伏（波動度）最小的人。<br>
+    <p class="muted small">穩健獎：有資格、這一季報酬率是正的、平均至少 ${R.MIN_INV * 100}% 的錢放在股票裡，每天總值漲跌起伏（波動度）最小的人。<br>
     月底最後一個上課日，教室後方會出現 📊 公告，顯示前十名和穩健獎；結算後，前三名的座位會放一次鞭炮 🧨。</p>
     <p class="muted small">⚠️ 這個競賽只用虛擬的投資幣練習，不是真的買賣股票，也不是投資建議。</p></div>`;
   }
@@ -173,11 +200,14 @@
     ${sec('7. 風險和報酬、分散投資', `<p>想要比較高的報酬，通常要承擔比較大的漲跌（風險）。正二可能賺很多，也可能賠很多；0056 比較平穩，但通常漲得比較慢。</p>
       <p><b>波動度</b>：每天總值上上下下的程度。穩健獎就是看誰「賺錢又穩」。</p>
       <p>把錢分散在不同的標的，可以讓總值不會因為一檔大跌就大受影響。</p>`)}
-    ${sec('8. 新手常犯的錯', `<ul><li><b>追高殺低</b>：看到大漲才衝進去、一跌就害怕賣掉。</li>
+    ${sec('8. 長期投資與複利', `<p>這個競賽的投資幣<b>不會歸零</b>，就是要練習長期投資。</p>
+      <p><b>複利</b>：賺到的錢繼續投資，會「利上滾利」。例如每年賺 7%：1,000 → 10 年後約 1,967 → 20 年後約 3,870。時間越長，效果越明顯。</p>
+      <p>長期投資的重點：選自己看得懂的公司或 ETF、分散投資、不要因為短期漲跌就慌張買賣。股利也可以再投入，讓錢繼續滾。</p>`)}
+    ${sec('9. 新手常犯的錯', `<ul><li><b>追高殺低</b>：看到大漲才衝進去、一跌就害怕賣掉。</li>
       <li><b>全部押在一檔</b>：押對了很開心，押錯了就一次賠很多。</li>
       <li><b>聽消息就買</b>：先想清楚「為什麼買」，這就是投資日記的目的。</li>
       <li><b>頻繁交易</b>：手續費和稅會慢慢吃掉獲利。</li></ul>`)}
-    ${sec('9. 真實世界', `<p>在台灣，滿 18 歲才可以自己開證券帳戶；未滿 18 歲需要父母（法定代理人）同意。<br>
+    ${sec('10. 真實世界', `<p>在台灣，滿 18 歲才可以自己開證券帳戶；未滿 18 歲需要父母（法定代理人）同意。<br>
       投資一定有風險，可能賺也可能賠。先用這個競賽練習「做功課、寫理由、控制風險」的好習慣吧！</p>
       <p class="muted small">⚠️ 這裡的內容是一般觀念教學，不是投資建議。</p>`)}
     </div>`;
@@ -248,6 +278,8 @@
     if (!b || b.disabled) return;
     const act = b.dataset.iv;
     if (act === 'view') { ui.view = b.dataset.v; saveUi(); render(); window.scrollTo({ top: 0 }); return; }
+    if (act === 'rk') { ui.rk = b.dataset.v; saveUi(); render(); return; }
+    if (act === 'gall') { GROUPS.forEach(g => { ui.groups[g] = b.dataset.v === '1'; }); saveUi(); render(); return; }
     if (act === 'buy') return openOrder('買', b.dataset.code);
     if (act === 'sell') return openOrder('賣', b.dataset.code);
     if (act === 'cancel') {
@@ -258,6 +290,12 @@
     }
   });
 
+  // 記住哪些產業是打開的
+  $('#investRoot').addEventListener('toggle', e => {
+    const d = e.target.closest?.('details.inv-group');
+    if (!d) return;
+    ui.groups[d.dataset.g] = d.open; saveUi();
+  }, true);
   A.tabHooks.invest = () => {
     render();
     if (!S || Date.now() - loadedAt > 60e3) load();
@@ -321,7 +359,7 @@
   window.addEventListener('resize', () => { if (A.currentTab() === 'seats' && S?.board) paintBoard(); });
   A.on('faces', () => { if (A.currentTab() === 'seats' && S?.board) setTimeout(paintBoard, 80); });
   // 除錯：在前三名座位放鞭炮
-  A.investFxTest = () => A.emit('fireworks', (S?.standings || []).filter(x => x.rank && x.rank <= 3).map(x => ({
+  A.investFxTest = () => A.emit('fireworks', (S?.standings || []).filter(x => x.rank && x.rank <= 3 && !x.teacher).map(x => ({
     id: 'invtest-' + Date.now() + x.code, by: '📈 投資競賽', to: x.key || A.students().find(k => codeOf(k) === x.code), label: `🧨 投資競賽第 ${x.rank} 名！`, kind: 'firecracker',
   })));
 
@@ -338,13 +376,17 @@
     while (!E.isWeekday(end)) end = E.addDays(end, -1);
     const ds = [end];
     while (ds.length < 70) { let d = E.addDays(ds[0], -1); while (!E.isWeekday(d)) d = E.addDays(d, -1); ds.unshift(d); }
-    const r = rng(20260901), P = {}, px = { '2330': 2300, '0050': 105, '0056': 55, '00632R': 10.2, '00631L': 34 };
+    const r = rng(20260901), P = {}, px = { '2330': 2300, '0050': 105, '0056': 55, '00632R': 10.2, '00631L': 34, '2454': 5000, '2303': 150, '3711': 650, '2317': 240, '2382': 320,
+      '3231': 170, '2357': 900, '2308': 1800, '2345': 1800, '2881': 145, '2882': 105, '2891': 66, '2886': 48, '2412': 142, '1216': 73, '2912': 210, '1301': 60, '2002': 19, '2603': 230, '3443': 8000, '2408': 480, '2344': 160, '6515': 5500, '3037': 1100 };
+    const hot = { '3443': 2.2, '2408': 2.6, '2344': 2.5, '6515': 2.2, '3037': 2.3 };
+    const beta = Object.fromEntries(E.STOCKS.map((s, i) => [s.code, hot[s.code] || 0.4 + ((i * 37) % 11) / 8]));
     E.STOCKS.forEach(s => { P[s.code] = {}; });
     const cur = today.slice(0, 7), divDay = ds.filter(d => d.slice(0, 7) === cur)[2];
     ds.forEach(d => {
       const g = () => (r() + r() + r() - 1.5) * 0.02, m = 0.0006 + g();
       px['0050'] *= 1 + m + g() * 0.1; px['2330'] *= 1 + m * 1.3 + g() * 0.4; px['0056'] *= 1 + m * 0.6 + g() * 0.25;
       px['00631L'] *= 1 + m * 2; px['00632R'] *= 1 - m;
+      E.STOCKS.filter(s => s.type === 'stock' && s.code !== '2330').forEach(s => { px[s.code] *= 1 + m * beta[s.code] + g() * 0.5; });
       let div = 0;
       if (d === divDay) { div = 0.8; px['0056'] -= 0.8; }
       E.STOCKS.forEach(s => { P[s.code][d] = { c: Math.round(px[s.code] * 100) / 100, div: s.code === '0056' ? div : 0 }; });
@@ -354,27 +396,27 @@
   }
   function testTrades(me) {
     const own = store.get(TK, []);
-    const P = testPrices(), days = E.tradingDays(P), season = E.seasonOf(E.orderDay(A.fmtDate(new Date()), hmNow()));
-    const sd = days.filter(d => d.slice(0, 7) === season);
+    const P = testPrices(), days = E.tradingDays(P), sd = days.slice(-45);   // 最近兩個月左右（跨季）
     const r = rng(777), out = [];
     const why = ['覺得 AI 會帶動台積電成長', '想領 0056 的股利', '大盤好像要跌，買反一避險', '分散投資，買 0050 比較穩', '最近漲很多，先賣掉一半', '想試試看正二'];
     A.students().filter(k => k !== me).slice(0, 18).forEach((k, i) => {
       const n = 1 + Math.floor(r() * 4);
       for (let j = 0; j < n && sd.length; j++) {
         const d = sd[Math.floor(r() * sd.length)], s = E.STOCKS[Math.floor(r() * E.STOCKS.length)];
-        out.push({ id: `f${i}-${j}`, who: k, t: E.parse(d).getTime() + 36e6 + j, ymd: d, hm: '10:00', season, side: '買', code: s.code, amount: 150 + Math.floor(r() * 250), units: 0, reason: why[Math.floor(r() * why.length)], status: '待成交' });
+        out.push({ id: `f${i}-${j}`, who: k, t: E.parse(d).getTime() + 36e6 + j, ymd: d, hm: '10:00', season: d.slice(0, 7), side: '買', code: s.code, amount: 150 + Math.floor(r() * 250), units: 0, reason: why[Math.floor(r() * why.length)], status: '待成交' });
       }
     });
     return out.concat(own);
   }
   function testState(me) {
     const P = testPrices(), days = E.tradingDays(P), today = A.fmtDate(new Date()), hm = hmNow();
-    const next = E.orderDay(today, hm), season = E.seasonOf(next), all = testTrades(me).filter(t => t.season === season);
+    const next = E.orderDay(today, hm), season = today.slice(0, 7), all = testTrades(me);
     const by = {};
     all.forEach(t => { (by[t.who] ||= []).push(t); });
-    const books = Object.fromEntries(Object.keys(by).map(k => [k, E.book(by[k], P, season, days)]));
-    const b = books[me] || E.book([], P, season, days);
-    const st = E.standings(Object.keys(books).filter(k => books[k].diary > 0).map(k => ({ key: k, ret: books[k].ret, value: books[k].value, eligible: books[k].eligible, diary: books[k].diary, vol: books[k].vol, avgInv: books[k].avgInv, days: books[k].days })));
+    const books = Object.fromEntries(Object.keys(by).map(k => [k, E.book(by[k], P, days)]));
+    const b = books[me] || E.book([], P, days), ms = E.seasonStats(b, season);
+    const T = A.D.teacherLabel || '導師';
+    const st = E.standings(Object.keys(books).map(k => ({ key: k, noPrize: k === T, ...E.seasonStats(books[k], season) })).filter(x => x.active));
     const mine = (by[me] || []).slice().sort((x, y) => y.t - x.t).map(t => {
       const f = b.fills[t.id];
       return { id: t.id, time: `${t.ymd.slice(5)} ${t.hm}`, side: t.side, code: t.code, amount: t.amount, units: t.units, reason: t.reason,
@@ -383,16 +425,18 @@
     const pendSell = {};
     mine.filter(t => t.status === '待成交' && t.side === '賣').forEach(t => { pendSell[t.code] = (pendSell[t.code] || 0) + t.units; });
     const sellable = Object.fromEntries(b.holdings.map(h => [h.code, E.sellable(b, h.code, days, next, pendSell[h.code])]));
-    const pub = x => ({ code: codeOf(x.key), key: x.key, name: A.isTeacher() ? x.key : '', me: x.key === me, ret: x.ret, value: x.value, rank: x.rank, eligible: x.eligible, diary: x.diary, prize: x.prize, steady: x.steady });
+    const pub = x => ({ code: x.key === T ? T : codeOf(x.key), key: x.key, teacher: x.key === T, name: A.isTeacher() ? x.key : '', me: x.key === me, ret: x.ret, total: x.total, value: x.value, rank: x.rank, eligible: x.eligible, diary: x.diary, prize: x.prize, steady: x.steady });
     const stocks = E.STOCKS.map(s => {
       const ds = Object.keys(P[s.code]).sort(), l = ds.length;
       return { ...s, date: ds[l - 1], close: P[s.code][ds[l - 1]].c, prev: P[s.code][ds[l - 2]].c, hist: ds.slice(-40).map(d => [d, P[s.code][d].c]), divs: ds.filter(d => P[s.code][d].div > 0).map(d => [d, P[s.code][d].div]) };
     });
     return {
       ok: true, season, next, today, hm, final: false, rules: E.RULES, stocks, teacher: A.isTeacher(),
-      me: { cash: b.cash, avail: b.avail, value: b.value, ret: b.ret, diary: b.diary, eligible: b.eligible, holdings: b.holdings, divs: b.divs, snaps: b.snaps, sellable, vol: b.vol, avgInv: b.avgInv },
+      me: { cash: b.cash, avail: b.avail, value: b.value, total: b.total, ret: ms.ret, start: ms.start, diary: b.diary, eligible: b.eligible, holdings: b.holdings, divs: b.divs, snaps: b.snaps.slice(-60), sellable },
       trades: mine, standings: st.list.map(pub),
-      board: { season, final: false, top: st.list.filter(x => x.rank && x.rank <= 10).map(x => ({ rank: x.rank, code: codeOf(x.key), ret: x.ret, value: x.value })), steady: st.steady ? { code: codeOf(st.steady.key), ret: st.steady.ret } : null },
+      total: Object.keys(books).filter(k => books[k].diary > 0).sort((x, y) => books[y].total - books[x].total)
+        .map(k => ({ code: k === T ? T : codeOf(k), name: A.isTeacher() ? k : '', me: k === me, total: books[k].total, value: books[k].value })),
+      board: { season, final: false, top: st.list.filter(x => x.rank && (x.rank <= 10 || x.prize)).map(x => ({ rank: x.rank, code: x.key === T ? T : codeOf(x.key), ret: x.ret, value: x.value })), steady: st.steady ? { code: codeOf(st.steady.key), ret: st.steady.ret } : null },
       past: [], fetched: Date.now(),
     };
   }
@@ -403,7 +447,7 @@
       const o = p.order, st = testState(me), today = A.fmtDate(new Date()), hm = hmNow();
       if (o.side === '買') { if (!(o.amount >= 1)) throw new Error('至少要投入 1 枚投資幣'); if (o.amount > st.me.avail) throw new Error(`投資幣不夠（現在可用 ${st.me.avail} 枚）`); }
       else if (!(o.units > 0) || o.units > (st.me.sellable[o.code] || 0) + 1e-6) throw new Error('這檔還沒有滿 3 個交易日的持股，或超過可以賣的單位');
-      store.set(TK, [...store.get(TK, []), { id: 't' + Date.now(), who: me, t: Date.now(), ymd: today, hm, season: st.season, side: o.side, code: o.code, amount: Number(o.amount) || 0, units: Number(o.units) || 0, reason: o.reason, status: '待成交' }]);
+      store.set(TK, [...store.get(TK, []), { id: 't' + Date.now(), who: me, t: Date.now(), ymd: today, hm, season: E.seasonOf(E.orderDay(today, hm)), side: o.side, code: o.code, amount: Number(o.amount) || 0, units: Number(o.units) || 0, reason: o.reason, status: '待成交' }]);
       return testState(me);
     }
     if (action === 'investCancel') {
