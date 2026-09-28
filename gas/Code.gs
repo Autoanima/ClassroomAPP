@@ -110,9 +110,9 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ getLeave: 1, addLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ getLeave: 1, addLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
 const GUEST_OK = { getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1 };
@@ -148,6 +148,13 @@ function doPost(e) {
     switch (req.action) {
       case 'ping': return json(ping());
       case 'getRoster': return json({ ok: true, roster: rosterWithOutdoor(), grade: PropertiesService.getScriptProperties().getProperty('CLASS_GRADE') || '' });
+      case 'getLeave': return json(getLeave(who));
+      case 'addLeave': return json(addLeave(who, req.row || {}));
+      case 'leaveCard': return json(leaveCard(who, String(req.id || ''), req.data));
+      case 'getLeaveCard': return json(getLeaveCard(who, req.fid));
+      case 'setLeaveStatus': return json(setLeaveStatus(who, String(req.id || ''), String(req.status || ''), req.reply));
+      case 'cancelLeave': return json(cancelLeave(who, String(req.id || '')));
+      case 'setLeaveRules': return json(setLeaveRules(who, req.text));
       case 'getGuestCode':   // 導師在設定頁看／改任課老師登入碼
         if (!who.teacher) throw new Error('只有導師可以看登入碼');
         return json({ ok: true, code: guestCode() });
@@ -2601,6 +2608,111 @@ function photoFolder() {
 
 function json(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ════════ 📝 請假：同學登記、上傳簽好章的假卡；導師看總表、確認或退回 ════════
+const SHEET_LEAVE = '請假';
+const HEAD_LEAVE = ['編號', '登記時間', '同學', '假別', '開始日期', '開始節', '結束日期', '結束節', '說明', '狀態', '假卡', '導師備註', '登記人', '更新時間'];
+const LEAVE_TYPES = ['事假', '病假', '公假', '喪假', '生理假', '身心調適假'];
+const LEAVE_BOT = '📝 請假通知';
+// 狀態：已登記（還沒交假卡）→ 已上傳假卡（等導師確認）→ 已確認；或 退回、已取消
+const leaveSheet = () => textSheet(SHEET_LEAVE, HEAD_LEAVE, [5, 7]);
+function leaveRows() {
+  const sh = getSS().getSheetByName(SHEET_LEAVE);
+  if (!sh || sh.getLastRow() < 2) return [];
+  const d = v => (v instanceof Date ? ymd(v) : String(v).replace(/^'/, '').trim());
+  return sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_LEAVE.length).getValues().map((r, i) => ({
+    row: i + 2, id: String(r[0]), t: r[1] instanceof Date ? r[1].getTime() : 0, time: r[1] instanceof Date ? Utilities.formatDate(r[1], CONFIG.TIMEZONE, 'MM/dd HH:mm') : '',
+    key: String(r[2]).trim(), type: String(r[3]), from: d(r[4]), fromP: Number(r[5]) || 0, to: d(r[6]), toP: Number(r[7]) || 0, note: String(r[8]),
+    status: String(r[9]), cards: String(r[10] || '').split(',').filter(String), reply: String(r[11]), by: String(r[12]),
+  })).filter(x => x.id);
+}
+const leavePub = x => ({ id: x.id, time: x.time, key: x.key, type: x.type, from: x.from, fromP: x.fromP, to: x.to, toP: x.toP, note: x.note, status: x.status, cards: x.cards, reply: x.reply, by: x.by });
+const PERIOD = p => (Number(p) === 0 ? '早自習' : '第' + p + '節');
+const leaveText = x => x.type + '：' + x.from.slice(5) + ' ' + PERIOD(x.fromP) + (x.from === x.to ? (x.fromP === x.toP ? '' : '～' + PERIOD(x.toP)) : ' ～ ' + x.to.slice(5) + ' ' + PERIOD(x.toP));
+function getLeave(who) {
+  const all = leaveRows().filter(x => x.status !== '已取消')
+    .sort((a, b) => (b.from + b.fromP).localeCompare(a.from + a.fromP) || b.t - a.t);
+  // 班長、副班長：看得到全班的總表（誰、哪天、假別、進度），但看不到別人的說明和假卡照片
+  const monitor = !who.teacher && isMonitor(who.key);
+  const rows = who.teacher ? all.map(leavePub)
+    : monitor ? all.map(x => (x.key === who.key ? leavePub(x) : Object.assign(leavePub(x), { note: '', cards: [], nCards: x.cards.length, other: true })))
+    : all.filter(x => x.key === who.key).map(leavePub);
+  return { ok: true, rows: rows, me: who.teacher ? '' : who.key,
+    types: LEAVE_TYPES, rules: PropertiesService.getScriptProperties().getProperty('LEAVE_RULES') || '', teacher: !!who.teacher, monitor: monitor };
+}
+function addLeave(who, r) {
+  const key = who.teacher ? String(r.key || '') : who.key;
+  if (getStudents().students.indexOf(key) < 0) throw new Error(who.teacher ? '請選擇同學' : '找不到你的名字');
+  const type = String(r.type || '');
+  if (LEAVE_TYPES.indexOf(type) < 0) throw new Error('請選擇假別');
+  const okDate = s => /^\d{4}\/\d\d\/\d\d$/.test(s);
+  const from = String(r.from || ''), to = String(r.to || from);
+  const fromP = Math.max(0, Math.min(8, Number(r.fromP) || 0)), toP = Math.max(0, Math.min(8, Number(r.toP) || 0));
+  if (!okDate(from) || !okDate(to)) throw new Error('請選擇日期');
+  if (to < from || (to === from && toP < fromP)) throw new Error('結束的時間要在開始之後');
+  const note = String(r.note || '').trim().slice(0, 200), id = Utilities.getUuid().slice(0, 8), by = who.teacher ? CONFIG.TEACHER_NAME : who.key;
+  withLock(() => {
+    const sh = leaveSheet();
+    sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_LEAVE.length).setValues([[id, new Date(), key, type, from, fromP, to, toP, note, '已登記', '', '', by, new Date()]]);
+  });
+  const x = { type: type, from: from, fromP: fromP, to: to, toP: toP };
+  if (!who.teacher) botMail([[CONFIG.TEACHER_NAME, '📝 ' + key + ' 登記了請假\n' + leaveText(x) + (note ? '\n說明：' + note : '') + '\n（簽好章的假卡上傳後，就可以在「請假」總表確認）\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
+  else botMail([[key, '📝 導師幫你登記了請假\n' + leaveText(x) + '\n請記得跑完假卡流程（家長 → 導師 → 教官室），簽完章後在 App 上傳假卡照片。\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
+  return getLeave(who);
+}
+function leaveFolder() {
+  const root = getRootFolder(), it = root.getFoldersByName('請假卡');
+  return it.hasNext() ? it.next() : root.createFolder('請假卡');
+}
+function leaveCard(who, id, data) {
+  const x = leaveRows().find(r => r.id === id);
+  if (!x || (!who.teacher && x.key !== who.key)) throw new Error('找不到這筆請假');
+  if (x.status === '已確認') throw new Error('這筆已經確認過了');
+  if (x.cards.length >= 5) throw new Error('每一筆最多 5 張假卡照片');
+  const m = String(data || '').match(/^data:image\/(jpeg|png);base64,(.+)$/);
+  if (!m) throw new Error('假卡要是照片');
+  const bytes = Utilities.base64Decode(m[2]);
+  if (bytes.length > 700000) throw new Error('照片太大了');
+  const fid = leaveFolder().createFile(Utilities.newBlob(bytes, 'image/' + m[1], '請假卡_' + x.from.replace(/\//g, '') + '_' + x.key + '_' + x.type + '_' + (x.cards.length + 1) + (m[1] === 'png' ? '.png' : '.jpg'))).getId();
+  withLock(() => {
+    const sh = leaveSheet();
+    const cur = String(sh.getRange(x.row, 11).getValue() || '').split(',').filter(String);
+    sh.getRange(x.row, 10, 1, 2).setValues([['已上傳假卡', cur.concat([fid]).join(',')]]);
+    sh.getRange(x.row, 14).setValue(new Date());
+  });
+  if (!who.teacher) botMail([[CONFIG.TEACHER_NAME, '📝 ' + x.key + ' 上傳了假卡，請確認\n' + leaveText(x) + '\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
+  return getLeave(who);
+}
+function getLeaveCard(who, fid) {
+  fid = String(fid || '');
+  const x = leaveRows().find(r => r.cards.indexOf(fid) >= 0);
+  if (!x || (!who.teacher && x.key !== who.key)) throw new Error('找不到這張假卡');
+  const b = DriveApp.getFileById(fid).getBlob();
+  return { ok: true, d: 'data:' + b.getContentType() + ';base64,' + Utilities.base64Encode(b.getBytes()) };
+}
+/** 導師：確認（已確認）或退回（寫原因）；同學會收到飛鴿傳書 */
+function setLeaveStatus(who, id, status, reply) {
+  if (!who.teacher) throw new Error('只有導師可以確認請假');
+  if (['已確認', '退回'].indexOf(status) < 0) throw new Error('狀態不對');
+  reply = String(reply || '').trim().slice(0, 200);
+  const x = leaveRows().find(r => r.id === id);
+  if (!x) throw new Error('找不到這筆請假');
+  withLock(() => { const sh = leaveSheet(); sh.getRange(x.row, 10).setValue(status); sh.getRange(x.row, 12).setValue(reply); sh.getRange(x.row, 14).setValue(new Date()); });
+  botMail([[x.key, (status === '已確認' ? '✅ 導師已經確認你的請假\n' : '↩ 導師退回了你的請假，請依說明處理後再上傳\n') + leaveText(x) + (reply ? '\n導師說明：' + reply : '') + '\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
+  return getLeave(who);
+}
+function cancelLeave(who, id) {
+  const x = leaveRows().find(r => r.id === id);
+  if (!x || (!who.teacher && x.key !== who.key)) throw new Error('找不到這筆請假');
+  if (!who.teacher && x.status === '已確認') throw new Error('導師已經確認了，要取消請直接跟導師說');
+  withLock(() => { const sh = leaveSheet(); sh.getRange(x.row, 10).setValue('已取消'); sh.getRange(x.row, 14).setValue(new Date()); });
+  return getLeave(who);
+}
+function setLeaveRules(who, text) {
+  if (!who.teacher) throw new Error('只有導師可以編輯請假規則');
+  PropertiesService.getScriptProperties().setProperty('LEAVE_RULES', String(text || '').slice(0, 5000));
+  return getLeave(who);
 }
 
 // ════════ 📈 投資競賽：每人 1,000 枚投資幣（不歸零）、每月一季排名，連動真實台股收盤價 ════════

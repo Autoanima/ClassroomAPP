@@ -43,7 +43,7 @@
     paintBtn();
   }
   // 信件內容：App 的分頁連結（…#tab=lunch）變成「前往」按鈕，其他網址可以點
-  const GO = { lunch: '🍱 前往訂便當', shop: '🛍 前往商店', invest: '📈 前往投資', fund: '💰 前往班費', draw: '🎲 前往抽籤', seats: '🪑 前往座位' };
+  const GO = { leave: '📝 前往請假', lunch: '🍱 前往訂便當', shop: '🛍 前往商店', invest: '📈 前往投資', fund: '💰 前往班費', draw: '🎲 前往抽籤', seats: '🪑 前往座位' };
   function mailBody(text) {
     const go = [];
     const rest = String(text).split('\n').filter(line => {
