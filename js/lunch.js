@@ -5,8 +5,8 @@
   const { $, esc, toast, store } = A;
   let L = null;
 
-  const canChoose = () => !A.isTeacher() && !A.isGuest() && !!A.me();
-  const nm = k => { const p = A.parseKey(k); return `${p.code.replace(/(\d+)$/, ' $1')} ${p.name}`; };
+  const canChoose = () => !A.isGuest() && (A.isTeacher() || !!A.me());   // 導師也可以訂（預設「要」）
+  const nm = k => { if (k === (A.D.teacherLabel || '導師')) return k; const p = A.parseKey(k); return `${p.code.replace(/(\d+)$/, ' $1')} ${p.name}`; };
 
   let lAt = 0;
   async function load(quiet) {
@@ -28,7 +28,7 @@
     // 我的狀態＋要訂／不訂（導師不用登記）
     let me = '';
     if (canChoose()) {
-      const st = choice ? `<b class="${choice === '要' ? 'ok-t' : ''}">${choice === '要' ? '要訂' : '不訂'}</b>${mine.time ? `<span class="muted small">（${esc(mine.time)}）</span>` : ''}`
+      const st = choice ? `<b class="${choice === '要' ? 'ok-t' : ''}">${choice === '要' ? '要訂' : '不訂'}</b>${mine.auto ? '<span class="muted small">（預設）</span>' : mine.time ? `<span class="muted small">（${esc(mine.time)}）</span>` : ''}`
         : '<b class="no-t">還沒登記</b>';
       const paid = choice === '要' ? (mine.paid ? '<span class="tag good">已繳費</span>' : '<span class="tag">還沒繳費</span>') : '';
       me = `<div class="lc-me">你：${st} ${paid}</div>
@@ -101,13 +101,14 @@
     const meal = `${m1.getMonth() + 1}/${m1.getDate()}～${m5.getMonth() + 1}/${m5.getDate()}`;
     const locked = dow > 5 || (dow === 5 && hm >= 1200);
     const all = store.get(KEY, {}), rows = all[week] || (all[week] = {});
-    const me = A.me();
+    const T = A.D.teacherLabel || '導師', me = A.isTeacher() ? T : A.me();
     if (action === 'setLunch') { if (locked) throw new Error('本週登記已經在週五中午 12 點截止了，下週一再開放'); rows[me] = { choice: p.choice, time: A.fmtTime(now), paid: rows[me]?.paid || false }; }
-    if (action === 'setLunchPaid') { if (!rows[p.key] || rows[p.key].choice !== '要') throw new Error('這位同學沒有訂便當'); rows[p.key].paid = p.paid; }
+    if (action === 'setLunchPaid') { if (!rows[p.key] && p.key === T) rows[T] = { choice: '要', time: '', paid: false }; if (!rows[p.key] || rows[p.key].choice !== '要') throw new Error('這位同學沒有訂便當'); rows[p.key].paid = p.paid; }
     store.set(KEY, all);
-    const students = A.students();
-    const yes = students.filter(k => rows[k]?.choice === '要');
-    const report = [`🍱 商一甲 便當登記（${meal}）`, `✅ 要訂 ${yes.length} 人${yes.length ? '：\n' + yes.join('、') : ''}`, `❌ 不訂 ${students.filter(k => rows[k]?.choice === '不要').length} 人`, `⚠️ 未登記 ${students.filter(k => !rows[k]).length} 人`].join('\n');
-    return { ok: true, week, meal, locked, first: null, rows: students.map(k => ({ key: k, choice: rows[k]?.choice || '', paid: !!rows[k]?.paid, time: rows[k]?.time || '' })), me: A.isTeacher() ? '' : me, canPay: A.isTeacher() || A.jobsOf(me || '').roles.some(r => /^總務/.test(r)), report };
+    const students = [...A.students(), T];
+    const eff = k => rows[k] || (k === T ? { choice: '要', time: '', paid: false, auto: true } : null);
+    const yes = students.filter(k => eff(k)?.choice === '要');
+    const report = [`🍱 商一甲 便當登記（${meal}）`, `✅ 要訂 ${yes.length} 人${yes.length ? '：\n' + yes.join('、') : ''}`, `❌ 不訂 ${students.filter(k => eff(k)?.choice === '不要').length} 人`, `⚠️ 未登記 ${students.filter(k => !eff(k)).length} 人`].join('\n');
+    return { ok: true, week, meal, locked, first: null, rows: students.map(k => ({ key: k, choice: eff(k)?.choice || '', paid: !!eff(k)?.paid, time: eff(k)?.time || '', auto: !!eff(k)?.auto })), me, canPay: A.isTeacher() || A.jobsOf(me || '').roles.some(r => /^總務/.test(r)), report };
   };
 })();

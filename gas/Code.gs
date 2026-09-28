@@ -1200,7 +1200,15 @@ function botMail(list, from) {
 }
 const treasurers = () => { try { const m = cadreMap(); return Object.keys(m).filter(k => m[k].some(r => /^總務/.test(String(r).trim()))); } catch (e) { return []; } };
 /** 給 LINE 群組的報表（清楚的文字格式） */
+/** 導師也訂便當：名單加上導師；導師沒登記過，預設「要」 */
+function lunchWithTeacher(rows, students) {
+  const T = CONFIG.TEACHER_NAME, r = Object.assign({}, rows);
+  if (!r[T]) r[T] = { choice: '要', time: '', paid: false, auto: true };
+  return { rows: r, people: students.concat([T]) };
+}
 function lunchReport(L, rows, students) {
+  const W = lunchWithTeacher(rows, students);
+  rows = W.rows; students = W.people;
   const yes = students.filter(k => rows[k] && rows[k].choice === '要'), no = students.filter(k => rows[k] && rows[k].choice === '不要');
   const none = students.filter(k => !rows[k]);
   const paid = yes.filter(k => rows[k].paid), unpaid = yes.filter(k => !rows[k].paid);
@@ -1243,23 +1251,23 @@ function getLunch(who) {
   const first = PropertiesService.getScriptProperties().getProperty('LUNCH_T1_' + L.week);
   return {
     ok: true, week: L.week, meal: L.meal, locked: L.locked, first: first ? JSON.parse(first) : null,
-    rows: students.map(k => ({ key: k, choice: rows[k] ? rows[k].choice : '', paid: rows[k] ? rows[k].paid : false, time: rows[k] ? rows[k].time : '' })),
-    me: who.teacher ? '' : who.key, canPay: !!who.teacher || treasurers().indexOf(who.key) >= 0,
+    rows: lunchWithTeacher(rows, students).people.map(k => { const W = lunchWithTeacher(rows, students).rows; return { key: k, choice: W[k] ? W[k].choice : '', paid: W[k] ? W[k].paid : false, time: W[k] ? W[k].time : '', auto: !!(W[k] && W[k].auto) }; }),
+    me: who.teacher ? CONFIG.TEACHER_NAME : who.key, canPay: !!who.teacher || treasurers().indexOf(who.key) >= 0,
     report: lunchReport(L, rows, students),
   };
 }
 function setLunch(who, choice) {
-  if (who.teacher) throw new Error('導師不用登記便當');
   if (choice !== '要' && choice !== '不要') throw new Error('請選「要」或「不要」');
+  const me = who.teacher ? CONFIG.TEACHER_NAME : who.key;
   const L = lunchNow();
   if (L.locked) throw new Error('本週登記已經在週五中午 12 點截止了，下週一再開放');
   withLock(() => {
-    const sh = getSheet(SHEET_LUNCH, HEAD_LUNCH), cur = lunchRows(L.week)[who.key];
+    const sh = getSheet(SHEET_LUNCH, HEAD_LUNCH), cur = lunchRows(L.week)[me];
     if (cur) sh.getRange(cur.row, 3, 1, 2).setValues([[choice, new Date()]]);
     else {
       const row = sh.getLastRow() + 1;
       sh.getRange(row, 1).setNumberFormat('@');   // 先設成文字，週次才不會被變成日期
-      sh.getRange(row, 1, 1, HEAD_LUNCH.length).setValues([[L.week, who.key, choice, new Date(), false, '']]);
+      sh.getRange(row, 1, 1, HEAD_LUNCH.length).setValues([[L.week, me, choice, new Date(), false, '']]);
     }
   });
   return getLunch(who);
@@ -1269,7 +1277,13 @@ function setLunchPaid(who, key, paid) {
   if (!who.teacher && treasurers().indexOf(who.key) < 0) throw new Error('只有總務股長和導師可以登記繳費');
   const L = lunchNow();
   withLock(() => {
-    const cur = lunchRows(L.week)[key];
+    let cur = lunchRows(L.week)[key];
+    if (!cur && key === CONFIG.TEACHER_NAME) {
+      const sh = getSheet(SHEET_LUNCH, HEAD_LUNCH), row = sh.getLastRow() + 1;
+      sh.getRange(row, 1).setNumberFormat('@');
+      sh.getRange(row, 1, 1, HEAD_LUNCH.length).setValues([[L.week, key, '要', new Date(), false, '']]);
+      cur = lunchRows(L.week)[key];
+    }
     if (!cur || cur.choice !== '要') throw new Error('這位同學沒有訂便當');
     getSheet(SHEET_LUNCH, HEAD_LUNCH).getRange(cur.row, 5, 1, 2).setValues([[paid, paid ? mailName(who) + ' ' + Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'MM/dd HH:mm') : '']]);
   });
