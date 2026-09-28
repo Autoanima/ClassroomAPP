@@ -21,7 +21,7 @@
     const r = el.getBoundingClientRect(), pr = host.getBoundingClientRect();
     dock.style.top = (r.top - pr.top + r.height / 2) + 'px';
     dock.style.left = (r.left - pr.left + r.width / 2) + 'px';
-    dock.innerHTML = list.map(b => `<button type="button" class="box-icon${b.opened ? ' opened' : ''}" data-box="${esc(b.id)}" title="${esc(b.by)} 的禮物盒${b.opened ? '（點一下可以再看一次）' : ''}">🎁</button>`).join('');
+    dock.innerHTML = list.map(b => `<button type="button" class="box-icon${b.opened ? ' opened' : ''}" data-box="${esc(b.id)}" title="${esc(b.by)} 的禮物盒${b.opened ? '（點一下再看一次）' : ''}">🎁</button>`).join('');
     dock.hidden = !list.length;
   }
   function paintDock() {
@@ -40,9 +40,32 @@
     e.stopPropagation();
     const box = boxes.find(x => x.id === b.dataset.box);
     if (!box?.opened) return play(box);
-    // 已經打開過：問要不要再看一次
-    A.ask(`🎁 ${box.by} 的禮物盒（已經打開過）\n要再看一次嗎？`, '再看一次').then(ok => { if (ok) play(box, true); });
+    showAgain(box);   // 已經打開過：直接再看一次圖片
   }, true);
+
+  // ── 打開過的禮物盒：直接顯示圖片；點外面或按 ✕ 關閉 ──
+  const imgCache = {};
+  async function showAgain(box) {
+    if (playing) return;
+    let fx = $('#giftFx');
+    if (!fx) { fx = document.createElement('div'); fx.id = 'giftFx'; document.body.appendChild(fx); }
+    const paint = img => {
+      fx.innerHTML = `<div class="gb-card"><button type="button" class="gb-x" aria-label="關閉">✕</button>
+        ${img ? `<img src="${img}" alt="禮物盒的圖片">` : `<div class="gb-noimg">${img === '' ? '（圖片不見了）' : '讀取中…'}</div>`}
+        <div class="gb-note">來自 ${esc(box.by)} 的禮物</div></div>`;
+    };
+    paint(imgCache[box.id]);
+    fx.className = 'show again'; fx.hidden = false;
+    const close = e => {
+      if (e.target.closest('.gb-card') && !e.target.closest('.gb-x')) return;   // 點圖片本身不關
+      fx.hidden = true; fx.removeEventListener('click', close);
+    };
+    fx.addEventListener('click', close);
+    if (imgCache[box.id] === undefined) {
+      try { const r = await A.api('openGiftBox', { id: box.id }); imgCache[box.id] = r.img || ''; } catch { imgCache[box.id] = ''; }
+      if (!fx.hidden) paint(imgCache[box.id]);
+    }
+  }
 
   // ── 動畫：從天而降 → 一秒後爆開 → 圖片 → 點一下關閉 → 得到道具 ──
   const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -63,6 +86,7 @@
     fx.insertAdjacentHTML('beforeend', bits.map((b, i) => `<span class="gb-bit" style="--a:${i * 45}deg">${b}</span>`).join(''));
     await wait(220);
     if (r.error) { fx.hidden = true; playing = false; return toast('禮物盒打不開：' + r.error); }
+    imgCache[box.id] = r.img || '';
     fx.innerHTML = `<div class="gb-card">${r.img ? `<img src="${r.img}" alt="禮物盒的圖片">` : '<div class="gb-noimg">（圖片不見了）</div>'}
       <div class="gb-note">來自 ${esc(r.by)} 的禮物・點一下關閉</div></div>`;
     fx.className = 'show';
