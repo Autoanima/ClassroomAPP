@@ -1297,3 +1297,5 @@ body.ww-open { overflow: hidden; }
 .inv-group > summary .muted { flex: 1 1 140px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ig-chg { font-weight: 700; font-size: 13px; }
 .inv-group .inv-stocks { padding: 0 10px 10px; margin: 0; }
+
+.inv-quick .btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; box-shadow: 0 0 0 3px var(--accent-soft); }

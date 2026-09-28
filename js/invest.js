@@ -224,10 +224,10 @@
     h += `<p class="small">${timingText()}；成交價可能和現在的價格不一樣。</p>`;
     if (side === '買') {
       h += `<label class="field"><span>投入多少投資幣？（可用 ${coin(M.avail)} 枚）</span><input type="number" id="invAmt" min="1" max="${M.avail}" step="1" inputmode="decimal" placeholder="例如 300"></label>
-        <div class="inv-quick">${[0.25, 0.5, 1].map(k => `<button type="button" class="btn" data-act="q" data-k="${k}">${k === 1 ? '全部' : k * 100 + '%'}</button>`).join('')}</div>`;
+        <div class="inv-quick">${[0.25, 0.5, 1].map(k => `<button type="button" class="btn" data-act="q" data-k="${k}" aria-pressed="false">${k === 1 ? '全部' : k * 100 + '%'}</button>`).join('')}</div>`;
     } else {
       h += `<label class="field"><span>賣出幾單位？（可以賣 ${unit(can)} 單位）</span><input type="number" id="invAmt" min="0" max="${can}" step="any" inputmode="decimal" placeholder="單位"></label>
-        <div class="inv-quick">${[0.5, 1].map(k => `<button type="button" class="btn" data-act="q" data-k="${k}">${k === 1 ? '全部可賣' : '一半'}</button>`).join('')}</div>`;
+        <div class="inv-quick">${[0.5, 1].map(k => `<button type="button" class="btn" data-act="q" data-k="${k}" aria-pressed="false">${k === 1 ? '全部可賣' : '一半'}</button>`).join('')}</div>`;
     }
     h += `<p id="invEst" class="muted small"></p>
       <label class="field"><span>✍️ 為什麼要${side === '買' ? '買' : '賣'}？（投資日記，一定要寫）</span>
@@ -249,13 +249,19 @@
       el.textContent = `預估：賣得 ${coin(g)}，扣手續費 ${coin(fee)}、交易稅 ${coin(tax)}，約拿回 ${coin(g - fee - tax)} 枚`;
     }
   }
-  A.sheetBody.addEventListener('input', e => { if (e.target.id === 'invAmt' && A.sheetMode()?.kind === 'invest') estimate(); });
+  A.sheetBody.addEventListener('input', e => {
+    if (e.target.id !== 'invAmt' || A.sheetMode()?.kind !== 'invest') return;
+    A.sheetBody.querySelectorAll('.inv-quick [aria-pressed]').forEach(x => x.setAttribute('aria-pressed', 'false')); // 自己輸入數字就取消比例
+    estimate();
+  });
   A.sheetHandlers.invest = async (act, b) => {
     if (!ord) return;
     const M = S.me;
     if (act === 'q') {
       const k = Number(b.dataset.k);
       $('#invAmt').value = ord.side === '買' ? Math.floor(M.avail * k) : Math.floor((M.sellable[ord.code] || 0) * k * 1e4) / 1e4;
+      // 按下去的比例按鈕要看得出來
+      b.parentElement.querySelectorAll('[data-act="q"]').forEach(x => x.setAttribute('aria-pressed', x === b));
       estimate();
       return;
     }
