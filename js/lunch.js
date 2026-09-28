@@ -63,7 +63,7 @@
     h += yes.length ? `<ul class="lunch-list">${yes.map(r => `<li>${L.canPay
       ? `<label class="lunch-paid"><input type="checkbox" data-paid="${esc(r.key)}"${r.paid ? ' checked' : ''}> ${esc(nm(r.key))}</label>`
       : `<span>${esc(nm(r.key))}</span>${r.paid ? '<span class="tag good">已繳費</span>' : ''}`}</li>`).join('')}</ul>` : '<p class="muted small">還沒有人。</p>';
-    if (L.canPay) h += `<p class="muted small">勾選＝已經繳餐費（總務股長、導師可以勾）。</p>`;
+    if (L.canPay) h += `<p class="muted small">勾選＝已經繳餐費（只有總務股長可以勾）。</p>`;
     h += `</div><div class="panel"><b>❌ 不訂 ${no.length} 人</b><p class="small lunch-names">${no.map(r => esc(nm(r.key))).join('、') || '—'}</p></div>
       <div class="panel"><b>⚠️ 未登記 ${none.length} 人</b><p class="small lunch-names">${none.map(r => esc(nm(r.key))).join('、') || '—'}</p></div>
       <div class="panel"><h3>📋 統計報表</h3><pre class="lunch-report">${esc(L.report)}</pre>
@@ -109,6 +109,6 @@
     const eff = k => rows[k] || (k === T ? { choice: '要', time: '', paid: false, auto: true } : null);
     const yes = students.filter(k => eff(k)?.choice === '要');
     const report = [`🍱 商一甲 便當登記（${meal}）`, `✅ 要訂 ${yes.length} 人${yes.length ? '：\n' + yes.join('、') : ''}`, `❌ 不訂 ${students.filter(k => eff(k)?.choice === '不要').length} 人`, `⚠️ 未登記 ${students.filter(k => !eff(k)).length} 人`].join('\n');
-    return { ok: true, week, meal, locked, first: null, rows: students.map(k => ({ key: k, choice: eff(k)?.choice || '', paid: !!eff(k)?.paid, time: eff(k)?.time || '', auto: !!eff(k)?.auto })), me, canPay: A.isTeacher() || A.jobsOf(me || '').roles.some(r => /^總務/.test(r)), report };
+    return { ok: true, week, meal, locked, first: null, rows: students.map(k => ({ key: k, choice: eff(k)?.choice || '', paid: !!eff(k)?.paid, time: eff(k)?.time || '', auto: !!eff(k)?.auto })), me, canPay: !A.isTeacher() && A.jobsOf(me || '').roles.some(r => /^總務/.test(r)), report };
   };
 })();

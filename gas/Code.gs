@@ -1318,7 +1318,7 @@ function getLunch(who) {
   return {
     ok: true, week: L.week, meal: L.meal, locked: L.locked, first: first ? JSON.parse(first) : null,
     rows: lunchWithTeacher(rows, students).people.map(k => { const W = lunchWithTeacher(rows, students).rows; return { key: k, choice: W[k] ? W[k].choice : '', paid: W[k] ? W[k].paid : false, time: W[k] ? W[k].time : '', auto: !!(W[k] && W[k].auto) }; }),
-    me: who.teacher ? CONFIG.TEACHER_NAME : who.key, canPay: !!who.teacher || treasurers().indexOf(who.key) >= 0,
+    me: who.teacher ? CONFIG.TEACHER_NAME : who.key, canPay: !who.teacher && treasurers().indexOf(who.key) >= 0,   // 只有總務股長可以勾繳費（導師不行）
     report: lunchReport(L, rows, students),
   };
 }
@@ -1340,7 +1340,7 @@ function setLunch(who, choice) {
 }
 /** 總務（和導師）勾選誰已經繳餐費（截止後也可以勾） */
 function setLunchPaid(who, key, paid) {
-  if (!who.teacher && treasurers().indexOf(who.key) < 0) throw new Error('只有總務股長和導師可以登記繳費');
+  if (who.teacher || treasurers().indexOf(who.key) < 0) throw new Error('只有總務股長可以登記繳費');
   const L = lunchNow();
   withLock(() => {
     let cur = lunchRows(L.week)[key];
