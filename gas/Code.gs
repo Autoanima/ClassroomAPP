@@ -117,6 +117,7 @@ const CADRE_OK = Object.assign({ getFundReceipt: 1, addFundReceipt: 1, investSta
 // 任課老師（不用密碼）：只能抽籤、看座位表
 const GUEST_OK = { getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1 };
+const MONITOR_OK = { addDrawLog: 1, getDrawFx: 1, drawUsed: 1 };   // 用學生身分登入的班長、副班長：可以抽籤
 
 function doGet() {
   return json({ ok: true, msg: '內掃區檢查 API 運作中' });
@@ -139,7 +140,7 @@ function doPost(e) {
       who = m ? { role: m[1], key: m[2] } : { role: 'S', key: v };
       const ok = who.role === 'G' ? GUEST_OK[req.action]
         : who.role === 'C' ? CADRE_OK[req.action] || (CHECKER_OK[req.action] && isInspector(who.key))
-        : STUDENT_OK[req.action];
+        : STUDENT_OK[req.action] || (MONITOR_OK[req.action] && isMonitor(who.key));
       if (!ok) return json({ ok: false, error: '沒有權限' });
     } else {
       if (req.token == null || normPw(req.token) !== normPw(CONFIG.TOKEN)) return json({ ok: false, error: '密碼錯誤', code: 'token' });

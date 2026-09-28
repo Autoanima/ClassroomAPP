@@ -18,7 +18,9 @@
   let rolling = false;
   let last = [];
   // 全班共用的抽籤紀錄（雲端）；學生只能看
-  const canDraw = () => !A.isStudent();
+  // 導師、幹部可以抽籤；用學生身分登入的班長、副班長也可以
+  const isMonitor = () => A.jobsOf(A.me() || '').roles.some(r => /^副?班長$/.test(String(r).trim()));
+  const canDraw = () => !A.isStudent() || isMonitor();
   let log = [], logTop = '', lastBy = '', lastTime = '';
   async function loadLog(reveal) {
     try {
@@ -42,7 +44,7 @@
   let fx = { transfers: [], sure: [], weights: {}, boost: 0.1, times: 3 }, fxAt = 0;
   const weightOf = k => fx.weights?.[k]?.w || 1;
   async function loadFx(force) {
-    if (A.isStudent() || (!force && Date.now() - fxAt < 60e3)) return;
+    if (!canDraw() || (!force && Date.now() - fxAt < 60e3)) return;
     try { const r = await A.api('getDrawFx'); fx = { transfers: r.transfers || [], sure: r.sure || [], weights: r.weights || {}, boost: r.boost ?? 0.1, times: r.boostTimes ?? 3 }; fxAt = Date.now(); } catch { /* 讀不到就照一般抽籤 */ }
   }
   /** 套用抽籤卡：先必中卡（第一位換成指定的人），再轉移卡（抽到的人換成替身）；回傳要播的動畫 */
