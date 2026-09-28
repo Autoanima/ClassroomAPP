@@ -1693,6 +1693,7 @@
         : '尚未開始。第一次標記時開始計時。'}<br>等待寫入試算表：${queue.length} 筆</p>`;
       h += `<div class="actions"><button type="button" class="btn btn--danger wide" data-act="reset">立即清空本次紀錄</button></div>`;
     }
+    if (!isGuest()) h += App.vocabSettingsHtml?.() || '';
     h += `<h3>登入</h3><p class="muted small" style="margin:0">${usesSid() ? '借別人的手機登入時，用完請一定要登出。登入後 30 天內不用再輸入身分證字號。' : '這支手機已記住密碼。借別人用或換手機時可以登出。'}</p>`;
     h += `<div class="actions"><button type="button" class="btn wide" data-act="lock">🔒 登出</button></div>`;
     if (isStaff()) {
@@ -1704,7 +1705,8 @@
     openSheet({ kind: 'settings' }, h);
   }
   $('#settingsBtn').addEventListener('click', openSettings);
-  sheetHandlers.settings = async act => {
+  sheetHandlers.settings = async (act, b) => {
+    if (App.vocabSettingsAct?.(act, b)) return;
     if (act === 'ping') {
       settings.gasUrl = $('#setUrl').value.trim() || CFG.gasUrl || '';
       saveSettings();
@@ -1884,7 +1886,7 @@
   };
 
   // ── 自動更新：切回 App 或每 10 分鐘檢查 GitHub 上的檔案有沒有變 ──
-  const WATCH = ['index.html', 'sw.js','config.js', 'js/map-data.js', 'js/sel-engine.js', 'js/app.js', 'js/seats.js', 'js/points.js', 'js/draw.js', 'js/shop.js', 'js/line.js', 'js/board.js', 'js/mail.js', 'js/fund.js', 'js/lunch.js', 'js/giftbox.js', 'css/style.css'];
+  const WATCH = ['index.html', 'sw.js','config.js', 'js/map-data.js', 'js/sel-engine.js', 'js/app.js', 'js/seats.js', 'js/points.js', 'js/draw.js', 'js/shop.js', 'js/line.js', 'js/board.js', 'js/mail.js', 'js/fund.js', 'js/lunch.js', 'js/giftbox.js', 'js/vocab.js', 'css/style.css'];
   async function fingerprint() {
     try {
       const tags = await Promise.all(WATCH.map(async u => {

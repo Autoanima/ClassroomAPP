@@ -19,17 +19,29 @@
     return n;
   }
 
-  async function load() {
-    if (loading) return;
-    loading = true;
-    try {
-      const [r] = await Promise.all([A.api('shopState'), A.builtinCatalog()]);
-      S = r;
-      if (S.catalog.some(a => a.id.startsWith('d:') && !A.accUrl(a.id))) await A.loadAccImages().catch(() => {});
-      loadedAt = Date.now();
-    } catch (e) { toast('商店讀取失敗：' + e.message); }
-    loading = false;
-    render();
+  // 上次的商店內容記在這台手機：打開商店先立刻顯示，再到雲端更新
+  const CACHE = 'indoor.shopcache.v1' + A.SFX;
+  const who = () => A.isTeacher() ? '導師' : A.me() || '';
+  let loadP = null;
+  function load(quiet) {
+    return loadP ||= (async () => {
+      loading = true;
+      if (A.currentTab() === 'shop') render();
+      try {
+        const [r] = await Promise.all([A.api('shopState'), A.builtinCatalog()]);
+        S = r;
+        if (S.catalog.some(a => a.id.startsWith('d:') && !A.accUrl(a.id))) await A.loadAccImages().catch(() => {});
+        loadedAt = Date.now();
+        store.set(CACHE, { who: who(), t: loadedAt, S });
+      } catch (e) { if (!quiet) toast('商店讀取失敗：' + e.message); }
+      loading = false;
+      render();
+    })().finally(() => { loadP = null; });
+  }
+  function fromCache() {
+    if (S) return;
+    const c = store.get(CACHE, null);
+    if (c?.S && c.who === who()) { S = c.S; loadedAt = c.t; }
   }
 
   function render() {
@@ -685,7 +697,21 @@
   }
   A.flashTest = () => playFlash(A.students().filter(k => A.decoOf(k).length).slice(0, 12)); // 除錯用
 
-  A.tabHooks.shop = () => { render(); load(); };
+  A.tabHooks.shop = () => {
+    fromCache();
+    render();
+    if (S && !loading && Date.now() - loadedAt < 20e3) return;   // 剛剛才偷偷預先載入過
+    // 完全沒有資料可以先顯示時，跳出「載入中」視窗（可以背單字）
+    const done = S ? null : A.waitFor?.('商店');
+    load().finally(() => done?.());
+  };
+  // 登入後過幾秒就偷偷先把商店載好，之後每 5 分鐘更新一次（打開商店就不用等）
+  A.on('start', () => {
+    if (A.isGuest()) return;
+    fromCache();
+    setTimeout(() => load(true), 2500);
+    setInterval(() => { if (A.currentTab() !== 'shop' && !document.hidden && Date.now() - loadedAt > 5 * 60e3) load(true); }, 60e3);
+  });
   A.on('start', () => setTimeout(() => A.ensureFaces?.(true), 1200));
   A.on('faces', () => { if (A.currentTab() === 'shop') render(); });
 
