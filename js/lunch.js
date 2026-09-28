@@ -13,7 +13,7 @@
     try { L = await A.api('getLunch'); lAt = Date.now(); } catch (e) { if (!quiet) toast('便當資料讀取失敗：' + e.message); }
     if (!quiet || A.currentTab() === 'lunch') render();
   }
-  // ── 時間軸：一週裡現在在哪個階段（開放登記 → 週四統計、提醒 → 週五 12:00 截止 → 放學前繳費 → 已截止）──
+  // ── 便當卡片：一週裡現在在哪個階段（開放登記 → 週五 12:00 截止 → 放學前繳費 → 已截止）＋我的登記 ──
   function timeline(mine) {
     const now = new Date(), dow = now.getDay() || 7;
     const x = (dow - 1) + (now.getHours() + now.getMinutes() / 60) / 24;   // 週一 0:00＝0，週日 24:00＝7
@@ -23,24 +23,31 @@
     const left = CUT - x, lh = Math.max(0, Math.floor(left * 24));
     const leftTxt = lh >= 24 ? `還有 ${Math.floor(lh / 24)} 天 ${lh % 24} 小時` : `還有 ${lh} 小時`;
     const choice = mine?.choice;
-    const rows = [
-      ['✏️', '可以填寫嗎？', stage === 'open' ? `<b class="ok-t">可以</b>：登記或修改都可以（週五 12:00 截止，${leftTxt}）` : `<b class="no-t">不行</b>：名單已經確定，下週一 00:00 開放新的登記`],
-      ['🍱', '我要訂嗎？', !canChoose() ? '導師不用登記' : choice ? `你登記了「<b>${esc(choice)}</b>」${mine.time ? `（${esc(mine.time)}）` : ''}` : `<b class="no-t">你還沒登記</b>${stage === 'open' ? '，請在下面選「要」或「不要」' : ''}`],
-      ['💰', '什麼時候繳費？', `週五 12:00 截止後，<b>週五放學前</b>把便當費交給總務${choice === '要' ? (mine.paid ? '｜<b class="ok-t">你已繳費</b>' : '｜<b class="no-t">你還沒繳費</b>') : ''}`],
-      ['🔒', '什麼時候不能填？', '每週<b>五 12:00 ～ 週日</b>：名單暫時確定，不能填寫或修改'],
-    ];
-    const tick = (v, t, cls = '') => `<span class="lt-tick ${cls}" style="left:${P(v)}"><i></i><em>${t}</em></span>`;
-    return `<div class="panel lunch-tl">
-      <div class="lt-now-txt">${stage === 'open' ? '🟢 開放登記中' : stage === 'pay' ? '💰 繳費時間（已截止登記）' : '🔒 已截止，下週一開放'}</div>
+    const tag = { open: ['開放登記中', 'ok'], pay: ['繳費時間', 'pay'], lock: ['已截止', 'lock'] }[stage];
+    const sub = stage === 'open' ? `週五 12:00 截止・${leftTxt}` : stage === 'pay' ? '名單已確定・今天放學前繳費' : '名單已確定・下週一 00:00 開放新的登記';
+    // 我的狀態＋要訂／不訂（導師不用登記）
+    let me = '';
+    if (canChoose()) {
+      const st = choice ? `<b class="${choice === '要' ? 'ok-t' : ''}">${choice === '要' ? '要訂' : '不訂'}</b>${mine.time ? `<span class="muted small">（${esc(mine.time)}）</span>` : ''}`
+        : '<b class="no-t">還沒登記</b>';
+      const paid = choice === '要' ? (mine.paid ? '<span class="tag good">已繳費</span>' : '<span class="tag">還沒繳費</span>') : '';
+      me = `<div class="lc-me">你：${st} ${paid}</div>
+        <div class="lunch-pick">
+          <button type="button" class="btn${choice === '要' ? ' btn--primary' : ''}" data-l="要"${L.locked ? ' disabled' : ''}>🍱 要訂</button>
+          <button type="button" class="btn${choice === '不要' ? ' btn--primary' : ''}" data-l="不要"${L.locked ? ' disabled' : ''}>🙅 不訂</button></div>`;
+    }
+    return `<div class="panel lunch-card">
+      <div class="lc-head"><b>下週 ${esc(L.meal)} 便當</b><span class="lc-tag ${tag[1]}">${tag[0]}</span></div>
+      <div class="muted small lc-sub">${sub}</div>
       <div class="lt-bar">
         <span class="lt-seg open" style="left:0;width:${P(CUT)}"></span>
         <span class="lt-seg pay" style="left:${P(CUT)};width:${P(PAY - CUT)}"></span>
         <span class="lt-seg lock" style="left:${P(PAY)};width:${P(7 - PAY)}"></span>
-        <span class="lt-now" style="left:${P(Math.min(7, Math.max(0, x)))}"><b>現在</b></span>
+        <span class="lt-now" style="left:${P(Math.min(7, Math.max(0, x)))}" title="現在"></span>
       </div>
-      <div class="lt-days">${'一二三四五六日'.split('').map(d => `<span>週${d}</span>`).join('')}</div>
-      <div class="lt-ticks">${tick(3.5, '週四 12:00<br>第一次統計')}${tick(3 + 17 / 24, '週四 17:00<br>提醒未登記', 'up')}${tick(CUT, '週五 12:00<br>截止', 'cut')}${tick(PAY, '放學前<br>繳費', 'up')}</div>
-      <ul class="lt-rows">${rows.map(r => `<li><span class="lt-ico">${r[0]}</span><b>${r[1]}</b><span>${r[2]}</span></li>`).join('')}</ul>
+      <div class="lc-legend"><span style="width:${P(CUT)}">登記（週一～五 12:00）</span><span class="pay-t">繳費</span><span class="lc-end">截止</span></div>
+      ${me ? `<div class="lc-line"></div>${me}` : ''}
+      <div class="muted small lc-foot">有訂的人：週五放學前把便當費交給總務，逾時未交會取消訂餐。</div>
     </div>`;
   }
   function render() {
@@ -48,14 +55,8 @@
     if (!L) { root.innerHTML = `<div class="panel"><p class="muted">讀取中…</p></div>`; return; }
     const yes = L.rows.filter(r => r.choice === '要'), no = L.rows.filter(r => r.choice === '不要'), none = L.rows.filter(r => !r.choice);
     const mine = L.rows.find(r => r.key === L.me);
-    let h = timeline(mine) + `<div class="banner ${L.locked ? 'warn' : 'ok'}"><div class="bn-main">${L.locked ? '🔒 本週登記已截止' : '🍱 登記中：下週（' + esc(L.meal) + '）的便當'}</div>
-      <div class="bn-sub">${L.locked ? `下週（${esc(L.meal)}）的名單已經確定，不能再改；下週一會開放新的登記。` : '每週一～週五中午 12:00 前登記；週四下午 5 點會提醒還沒登記的同學。'}</div></div>`;
-    if (canChoose()) {
-      h += `<div class="panel lunch-me"><h3>我要訂便當嗎？</h3><div class="lunch-pick">
-        <button type="button" class="btn${mine?.choice === '要' ? ' btn--primary' : ''}" data-l="要"${L.locked ? ' disabled' : ''}>🍱 要訂</button>
-        <button type="button" class="btn${mine?.choice === '不要' ? ' btn--primary' : ''}" data-l="不要"${L.locked ? ' disabled' : ''}>🙅 不訂</button></div>
-        <p class="muted small">${mine?.choice ? `你登記的是「${esc(mine.choice)}」（${esc(mine.time)}）${mine.choice === '要' ? (mine.paid ? '｜💰 已繳費' : '｜還沒繳費：週五放學前交給總務，逾時未交會取消訂餐') : ''}` : '你還沒登記。'}</p></div>`;
-    }
+    // 一張卡片：標題＋狀態、時間軸、我的狀態＋要訂／不訂
+    let h = timeline(mine);
     if (L.first) h += `<p class="muted small center">週四 ${esc(L.first.time)} 第一次統計：要 ${L.first.yes} 人・不要 ${L.first.no} 人・未登記 ${L.first.none} 人</p>`;
     // 名單：要訂（總務可以勾繳費）、不訂、未登記
     h += `<div class="panel"><div class="pt-head"><b>✅ 要訂 ${yes.length} 人</b><span class="muted small">💰 已繳 ${yes.filter(r => r.paid).length}／${yes.length}</span></div>`;

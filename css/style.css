@@ -1385,3 +1385,27 @@ body.ww-open { overflow: hidden; }
 .ok-t { color: var(--good); } .no-t { color: var(--bad); }
 @media (max-width: 420px) { .lt-rows li { grid-template-columns: 1.6em 1fr; } .lt-rows li > span:last-child { grid-column: 2; } }
 @media (prefers-reduced-motion: reduce) { .ww-prog i { animation: none; transform: scaleX(.6); } }
+
+/* 🍱 便當：合併成一張卡片（標題＋狀態、細時間軸、我的登記） */
+.lunch-card .lc-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 17px; }
+.lc-tag { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 8px; white-space: nowrap; }
+.lc-tag.ok { background: #e6f4ea; color: #1a7f4b; }
+.lc-tag.pay { background: #fff3d6; color: #9a5b00; }
+.lc-tag.lock { background: var(--line); color: var(--muted); }
+[data-theme="dark"] .lc-tag.ok { background: #1f3a2a; color: #8ce99a; }
+[data-theme="dark"] .lc-tag.pay { background: #3b2f0b; color: #ffd43b; }
+.lc-sub { margin: 2px 0 14px; }
+.lunch-card .lt-bar { height: 8px; border-radius: 4px; }
+.lunch-card .lt-seg.open { border-radius: 4px 0 0 4px; }
+.lunch-card .lt-seg.lock { border-radius: 0 4px 4px 0; }
+.lunch-card .lt-now { top: -5px; width: 3px; height: 18px; background: var(--accent); border-radius: 2px; transform: translateX(-50%); box-shadow: 0 0 0 2px var(--surface); }
+.lunch-card .lt-now::after { display: none; }
+.lc-legend { display: flex; font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+.lc-legend > span:first-child { flex: none; }
+.lc-legend .pay-t { color: #d08700; margin-left: 4px; }
+.lc-legend .lc-end { margin-left: auto; }
+.lc-line { border-top: 1px solid var(--line); margin: 14px 0 10px; }
+.lc-me { font-size: 15px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.lc-foot { margin: 10px 0 0; }
+/* 手機比較窄：上方的圖示按鈕小一點，名字（例如「導師」）才不會被擠成「導…」 */
+@media (max-width: 420px) { .topbar .icon-btn { width: 30px; } .topbar .topbar-row, body.role-teacher .topbar .topbar-row { gap: 1px; } }
