@@ -13,12 +13,42 @@
     try { L = await A.api('getLunch'); lAt = Date.now(); } catch (e) { if (!quiet) toast('便當資料讀取失敗：' + e.message); }
     if (!quiet || A.currentTab() === 'lunch') render();
   }
+  // ── 時間軸：一週裡現在在哪個階段（開放登記 → 週四統計、提醒 → 週五 12:00 截止 → 放學前繳費 → 已截止）──
+  function timeline(mine) {
+    const now = new Date(), dow = now.getDay() || 7;
+    const x = (dow - 1) + (now.getHours() + now.getMinutes() / 60) / 24;   // 週一 0:00＝0，週日 24:00＝7
+    const P = v => (v / 7 * 100).toFixed(2) + '%';
+    const CUT = 4 + 12 / 24, PAY = 4 + 17 / 24;                           // 週五 12:00 截止、週五 17:00 放學
+    const stage = !L.locked ? 'open' : x < PAY ? 'pay' : 'lock';
+    const left = CUT - x, lh = Math.max(0, Math.floor(left * 24));
+    const leftTxt = lh >= 24 ? `還有 ${Math.floor(lh / 24)} 天 ${lh % 24} 小時` : `還有 ${lh} 小時`;
+    const choice = mine?.choice;
+    const rows = [
+      ['✏️', '可以填寫嗎？', stage === 'open' ? `<b class="ok-t">可以</b>：登記或修改都可以（週五 12:00 截止，${leftTxt}）` : `<b class="no-t">不行</b>：名單已經確定，下週一 00:00 開放新的登記`],
+      ['🍱', '我要訂嗎？', !canChoose() ? '導師不用登記' : choice ? `你登記了「<b>${esc(choice)}</b>」${mine.time ? `（${esc(mine.time)}）` : ''}` : `<b class="no-t">你還沒登記</b>${stage === 'open' ? '，請在下面選「要」或「不要」' : ''}`],
+      ['💰', '什麼時候繳費？', `週五 12:00 截止後，<b>週五放學前</b>把便當費交給總務${choice === '要' ? (mine.paid ? '｜<b class="ok-t">你已繳費</b>' : '｜<b class="no-t">你還沒繳費</b>') : ''}`],
+      ['🔒', '什麼時候不能填？', '每週<b>五 12:00 ～ 週日</b>：名單暫時確定，不能填寫或修改'],
+    ];
+    const tick = (v, t, cls = '') => `<span class="lt-tick ${cls}" style="left:${P(v)}"><i></i><em>${t}</em></span>`;
+    return `<div class="panel lunch-tl">
+      <div class="lt-now-txt">${stage === 'open' ? '🟢 開放登記中' : stage === 'pay' ? '💰 繳費時間（已截止登記）' : '🔒 已截止，下週一開放'}</div>
+      <div class="lt-bar">
+        <span class="lt-seg open" style="left:0;width:${P(CUT)}"></span>
+        <span class="lt-seg pay" style="left:${P(CUT)};width:${P(PAY - CUT)}"></span>
+        <span class="lt-seg lock" style="left:${P(PAY)};width:${P(7 - PAY)}"></span>
+        <span class="lt-now" style="left:${P(Math.min(7, Math.max(0, x)))}"><b>現在</b></span>
+      </div>
+      <div class="lt-days">${'一二三四五六日'.split('').map(d => `<span>週${d}</span>`).join('')}</div>
+      <div class="lt-ticks">${tick(3.5, '週四 12:00<br>第一次統計')}${tick(3 + 17 / 24, '週四 17:00<br>提醒未登記', 'up')}${tick(CUT, '週五 12:00<br>截止', 'cut')}${tick(PAY, '放學前<br>繳費', 'up')}</div>
+      <ul class="lt-rows">${rows.map(r => `<li><span class="lt-ico">${r[0]}</span><b>${r[1]}</b><span>${r[2]}</span></li>`).join('')}</ul>
+    </div>`;
+  }
   function render() {
     const root = $('#lunchRoot');
     if (!L) { root.innerHTML = `<div class="panel"><p class="muted">讀取中…</p></div>`; return; }
     const yes = L.rows.filter(r => r.choice === '要'), no = L.rows.filter(r => r.choice === '不要'), none = L.rows.filter(r => !r.choice);
     const mine = L.rows.find(r => r.key === L.me);
-    let h = `<div class="banner ${L.locked ? 'warn' : 'ok'}"><div class="bn-main">${L.locked ? '🔒 本週登記已截止' : '🍱 登記中：下週（' + esc(L.meal) + '）的便當'}</div>
+    let h = timeline(mine) + `<div class="banner ${L.locked ? 'warn' : 'ok'}"><div class="bn-main">${L.locked ? '🔒 本週登記已截止' : '🍱 登記中：下週（' + esc(L.meal) + '）的便當'}</div>
       <div class="bn-sub">${L.locked ? `下週（${esc(L.meal)}）的名單已經確定，不能再改；下週一會開放新的登記。` : '每週一～週五中午 12:00 前登記；週四下午 5 點會提醒還沒登記的同學。'}</div></div>`;
     if (canChoose()) {
       h += `<div class="panel lunch-me"><h3>我要訂便當嗎？</h3><div class="lunch-pick">
@@ -57,6 +87,7 @@
   });
   A.tabHooks.lunch = () => { render(); if (Date.now() - lAt > 30e3) load(); };   // 剛預先載入過就不用再載
   A.addPrefetch('lunch', () => load(true));
+  setInterval(() => { if (A.currentTab() === 'lunch' && L && !document.hidden) render(); }, 60e3);
 
   // ── 測試模式：存在這台裝置；時間規則和正式版一樣 ──
   const prevTest = A.testSeatApi;

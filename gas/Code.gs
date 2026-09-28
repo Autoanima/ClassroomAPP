@@ -35,9 +35,7 @@ const CONFIG = {
   SITE_URL: 'https://autoanima.github.io/ClassroomAPP/',   // 網站網址（讀取內建配件清單 assets/acc/catalog.json）
   ACC_FOLDER: '配件',                 // 「內掃檢查」資料夾裡放配件 PNG 的子資料夾；檔名「名稱_價格.png」
   ACC_DEFAULT_PRICE: 3,               // 檔名沒寫價格時的價格
-  ACC_DAYS: 10,                       // 配件有效天數（只算上課日：週一到週五，扣掉下面的國定假日）
-  // 國定假日、補假（不算上課日）。颱風假、學校的放假也可以加進來；新的一年記得補上
-  HOLIDAYS: ['2026/01/01', '2026/02/16', '2026/02/17', '2026/02/18', '2026/02/19', '2026/02/20', '2026/02/27', '2026/04/03', '2026/04/06', '2026/05/01', '2026/06/19', '2026/09/25', '2026/09/28', '2026/10/09', '2026/10/26', '2026/12/25', '2027/01/01'],
+  ACC_DAYS: 10,                       // 配件有效天數（從購買當天算起，週末、假日都算）
   STEAL_PRICE: 10,                    // 竊盜卡：奪取別人的配件
   FIREWORK_PRICE: 1,                  // 煙火：放在某位同學的座位上，大家下次打開 App 時會看到
   SWAP_PRICE: 20,                     // 交換位置卡：和另一位同學強制對調座位
@@ -45,7 +43,7 @@ const CONFIG = {
   TRANSFER_PRICE: 20,                 // 抽籤轉移卡：設定替身，抽籤抽到自己時由替身上場（次數不限）
   TRANSFER_DAYS: 10,                  // 抽籤轉移卡有效天數
   WEATHER_PRICE: 5,                   // 小太陽卡／小雨傘卡：放在某位同學的座位上方
-  WEATHER_DAYS: 10,                   // 小太陽卡／小雨傘卡有效上課日
+  WEATHER_DAYS: 10,                   // 小太陽卡／小雨傘卡有效天數（從購買當天算起，週末、假日都算）
   SURE_PRICE: 30,                     // 抽籤必中卡：指定一位同學，下一次抽籤第一位一定是他（只有一次）
   SWAP_BAN_MINUS: 10,
   PENALTY_PER: 2,                     // 每被扣 2 分，商店點數減 1 點（最少扣到 0 點，不會變負的）
@@ -762,7 +760,7 @@ function delPoints(id, who) {
   return { ok: true, rows: getPoints(7, who) };
 }
 
-// ── 商店：用加分的點數買大頭照配件（可以自己用或送人），配件有效 10 個上課日 ──
+// ── 商店：用加分的點數買大頭照配件（可以自己用或送人），配件有效 10 天 ──
 function accFolder() {
   const root = getRootFolder();
   const it = root.getFoldersByName(CONFIG.ACC_FOLDER);
@@ -814,20 +812,10 @@ function accImages(have) {
   return { ok: true, images: out, ids: ids };
 }
 const ymd = d => Utilities.formatDate(d, CONFIG.TIMEZONE, 'yyyy/MM/dd');
-/** 從今天起算第 n 個上課日（週一到週五；今天是上課日就算第 1 天） */
-function schoolDaysLater(n) {
-  // 從台北時間的「今天中午」開始算（不受 Apps Script 專案時區設定影響）
+/** 從今天起算第 n 天的日期（今天算第 1 天；週末、假日都算） */
+function daysLater(n) {
   const t = ymd(new Date()).split('/').map(Number);
-  const d = new Date(Date.UTC(t[0], t[1] - 1, t[2], 4));
-  const hol = {};
-  (CONFIG.HOLIDAYS || []).forEach(h => { hol[h] = 1; });
-  let count = 0;
-  for (let i = 0; i < 60; i++) {
-    const wd = d.getUTCDay();
-    if (wd >= 1 && wd <= 5 && !hol[ymd(d)] && ++count >= n) break;
-    d.setUTCDate(d.getUTCDate() + 1);
-  }
-  return ymd(d);
+  return ymd(new Date(Date.UTC(t[0], t[1] - 1, t[2] + n - 1, 4)));   // 台北中午，不受專案時區影響
 }
 function invRows() {
   const sh = getSheet(SHEET_INV, HEAD_INV);
@@ -936,7 +924,7 @@ function shopState(who) {
   const stolen = spendRows().filter(x => x.use === '竊盜卡' && x.target === key && x.t >= since).map(x => ({ time: x.time, thief: x.who, name: x.note }));
   return {
     ok: true, me: key, today: today, coins: c.coins, earned: c.earned, spent: c.spent, catalog: cat, plus: plus, classmates: classmates,
-    holidays: CONFIG.HOLIDAYS || [], stealPrice: CONFIG.STEAL_PRICE, fireworkPrice: CONFIG.FIREWORK_PRICE, swapPrice: CONFIG.SWAP_PRICE, others: others, stolen: stolen,
+    stealPrice: CONFIG.STEAL_PRICE, fireworkPrice: CONFIG.FIREWORK_PRICE, swapPrice: CONFIG.SWAP_PRICE, others: others, stolen: stolen,
     weatherPrice: CONFIG.WEATHER_PRICE, weatherDays: CONFIG.WEATHER_DAYS,
     transferPrice: CONFIG.TRANSFER_PRICE, surePrice: CONFIG.SURE_PRICE, transferDays: CONFIG.TRANSFER_DAYS, myDraw: myDrawCards(key),
     swapped: spendRows().filter(x => x.use === '交換位置卡' && x.target === key && x.t >= since).map(x => ({ time: x.time, by: x.who, note: x.note })),
@@ -966,7 +954,7 @@ function buyAcc(who, acc) {
     if (c.coins < a.price) throw new Error('點數不夠（需要 ' + a.price + ' 點，你有 ' + c.coins + ' 點）');
     const sh = getSheet(SHEET_INV, HEAD_INV);
     sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_INV.length).setNumberFormat('@')
-      .setValues([[Utilities.getUuid().slice(0, 8), who.key, a.id, a.name, String(a.price), who.key, Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'yyyy/MM/dd HH:mm'), schoolDaysLater(CONFIG.ACC_DAYS), '']]);
+      .setValues([[Utilities.getUuid().slice(0, 8), who.key, a.id, a.name, String(a.price), who.key, Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'yyyy/MM/dd HH:mm'), daysLater(CONFIG.ACC_DAYS), '']]);
   });
   return shopState(who);
 }
@@ -1196,8 +1184,9 @@ function lunchNow() {
 function lunchRows(week) {
   const sh = getSS().getSheetByName(SHEET_LUNCH), out = {};
   if (!sh || sh.getLastRow() < 2) return out;
+  const tzS = getSS().getSpreadsheetTimeZone() || CONFIG.TIMEZONE;
   sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_LUNCH.length).getValues().forEach((r, i) => {
-    const w = r[0] instanceof Date ? ymd(r[0]) : String(r[0]);
+    const w = r[0] instanceof Date ? Utilities.formatDate(r[0], tzS, 'yyyy/MM/dd') : String(r[0]).replace(/^'/, '').trim();
     if (w !== week) return;
     out[String(r[1]).trim()] = { row: i + 2, choice: String(r[2]), time: r[3] instanceof Date ? Utilities.formatDate(r[3], CONFIG.TIMEZONE, 'MM/dd HH:mm') : '', paid: r[4] === true || String(r[4]) === 'TRUE', paidBy: String(r[5]) };
   });
@@ -1269,8 +1258,8 @@ function setLunch(who, choice) {
     if (cur) sh.getRange(cur.row, 3, 1, 2).setValues([[choice, new Date()]]);
     else {
       const row = sh.getLastRow() + 1;
+      sh.getRange(row, 1).setNumberFormat('@');   // 先設成文字，週次才不會被變成日期
       sh.getRange(row, 1, 1, HEAD_LUNCH.length).setValues([[L.week, who.key, choice, new Date(), false, '']]);
-      sh.getRange(row, 1).setNumberFormat('@');
     }
   });
   return getLunch(who);
@@ -1585,14 +1574,14 @@ function setDuty(who, list) {
   });
   return getDuty();
 }
-// ── 小太陽卡／小雨傘卡：放在某位同學的座位上方，維持 10 個上課日（到期日記在「說明」欄）──
+// ── 小太陽卡／小雨傘卡：放在某位同學的座位上方，維持 10 天（到期日記在「說明」欄）──
 const WEATHER = { sun: '小太陽卡', rain: '小雨傘卡' };
 function buyWeather(who, kind, to) {
   const card = WEATHER[kind];
   if (!card) throw new Error('沒有這種卡片');
   if (getStudents().students.indexOf(to) < 0) throw new Error('請選擇同學');
   withLock(() => {
-    addSpend(who.key, payCard(who, card, CONFIG.WEATHER_PRICE), card, to, schoolDaysLater(CONFIG.WEATHER_DAYS));
+    addSpend(who.key, payCard(who, card, CONFIG.WEATHER_PRICE), card, to, daysLater(CONFIG.WEATHER_DAYS));
   });
   return shopState(who);
 }

@@ -1,5 +1,5 @@
 'use strict';
-/* 🛍 商店：同學用「加分」得到的點數買大頭照配件，可以自己用或送人；配件有效 10 個上課日 */
+/* 🛍 商店：同學用「加分」得到的點數買大頭照配件，可以自己用或送人；配件有效 10 天（週末、假日都算） */
 (() => {
   const A = window.App, D = A.D;
   const { $, esc, toast, store } = A;
@@ -10,19 +10,16 @@
 
   const code = k => A.parseKey(k).code;
   const accImgStyle = id => `background-image:url('${A.accUrl(id)}')`;
-  // 上課日：週一到週五，扣掉國定假日、補假
-  const holidays = () => new Set(S?.holidays || D.holidays || []);
-  const ymdOf = d => `${d.getFullYear()}/${A.pad2(d.getMonth() + 1)}/${A.pad2(d.getDate())}`;
-  const isSchoolDay = (d, hol) => d.getDay() % 6 !== 0 && !hol.has(ymdOf(d));
-  // 今天到到期日還剩幾個上課日（含今天）
-  function schoolDaysLeft(exp) {
+  // 今天到到期日還剩幾天（含今天；週末、假日都算）
+  function daysLeft(exp) {
     const [y, m, dd] = exp.split('/').map(Number);
-    const end = new Date(y, m - 1, dd, 12);
     const d = new Date(); d.setHours(12, 0, 0, 0);
-    const hol = holidays();
-    let n = 0;
-    for (let i = 0; i < 90 && d <= end; i++) { if (isSchoolDay(d, hol)) n++; d.setDate(d.getDate() + 1); }
-    return n;
+    return Math.max(0, Math.round((new Date(y, m - 1, dd, 12) - d) / 86400e3) + 1);
+  }
+  // 購買、送人等要等雲端處理：超過 0.4 秒就跳出「請稍等，正在處理中」視窗（有進度條，可以順便背單字）
+  function doing(action, p) {
+    const done = A.waitFor?.('', { msg: '請稍等，正在處理中', work: true });
+    return A.api(action, p).finally(() => done?.());
   }
 
   // 上次的商店內容記在這台手機：打開商店先立刻顯示，再到雲端更新
@@ -79,9 +76,9 @@
     else {
       h += `<ul class="inv">`;
       active.forEach(x => {
-        const left = schoolDaysLeft(x.exp);
+        const left = daysLeft(x.exp);
         h += `<li><span class="acc-thumb" style="${accImgStyle(x.acc)}"></span><div class="inv-what"><b>${esc(x.name)}</b>${used.has(x.id) ? ' <span class="tag good">使用中</span>' : ''}
-          <div class="muted small">到 ${esc(x.exp)}（還有 ${left} 個上課日）${x.note ? '｜' + esc(x.note) : ''}</div></div>
+          <div class="muted small">到 ${esc(x.exp)}（還有 ${left} 天）${x.note ? '｜' + esc(x.note) : ''}</div></div>
           <button type="button" class="btn" data-s="gift" data-inv="${esc(x.id)}">🎁 送人</button></li>`;
       });
       h += `</ul>`;
@@ -102,8 +99,8 @@
         `<li><span class="acc-thumb" style="${accImgStyle(a.id)}"></span><div class="inv-what"><b>${esc(a.name)}</b>${a.delisted ? ' <span class="tag">已下架</span>' : ''}<div class="muted small">售價 ${a.price} 點・賣出 ${a.sold} 次${a.delisted ? '｜已經買的人可以用到到期' : ''}</div></div>
           ${a.delisted ? '' : `<button type="button" class="btn btn--danger" data-s="delAcc" data-acc="${esc(a.id)}" data-name="${esc(a.name)}">下架</button>`}</li>`).join('')}</ul></div>`;
     }
-    h += `<div class="panel"><h3>商店</h3><p class="muted small">每個配件買了之後有效 10 個上課日（週六、週日不算），可以自己用，也可以送給同學。</p><div class="shop-grid">`;
-    S.catalog.filter(a => !a.delisted).forEach(a => {
+    h += `<div class="panel"><h3>商店</h3><p class="muted small">每個配件買了之後有效 10 天（從購買當天算起，週末、假日都算），可以自己用，也可以送給同學。同學用創造卡做的商品排在最前面。</p><div class="shop-grid">`;
+    S.catalog.filter(a => !a.delisted).sort((a, b) => (b.creator ? 1 : 0) - (a.creator ? 1 : 0) || (a.creator ? (b.t || 0) - (a.t || 0) : 0)).forEach(a => {
       const can = S.coins >= a.price;
       h += `<div class="shop-item"><span class="acc-thumb big" style="${accImgStyle(a.id)}"></span><b>${esc(a.name)}</b>${a.creator ? `<span class="muted small">🎨 ${esc(a.creator)}</span>` : ''}
         ${S.admin && a.creator ? `<span class="shop-admin"><button type="button" class="mini-btn" data-s="delAcc" data-acc="${esc(a.id)}" data-name="${esc(a.name)}">下架</button><button type="button" class="mini-btn danger" data-s="removeAcc" data-acc="${esc(a.id)}" data-name="${esc(a.name)}">移除退點</button></span>` : ''}
@@ -128,8 +125,8 @@
       ${sp('firework', '煙火', '', '🎆', '煙火', '放在同學的座位上，大家下次打開 App 時都會看到', `💰 ${S.fireworkPrice} 點`, S.coins >= S.fireworkPrice)}
       ${sp('swap', '交換位置卡', 'swap', '🔀', '交換位置卡', banned ? `你被扣了 ${S.minus} 分（超過 ${S.swapBan} 分），不能使用` : S.unlimited ? '和另一位同學強制對調座位（導師請按「送人」）' : '和另一位同學強制對調座位', `💰 ${S.swapPrice || 20} 點`, !banned && (swapFree || S.coins >= (S.swapPrice || 20)))}
       ${sp('steal', '竊盜卡', 'steal', '🦹', '竊盜卡', `把別人的一個配件變成你的（到期日不變）${othersN ? '' : '｜目前沒有人有配件'}`, `💰 ${S.stealPrice} 點`, S.coins >= S.stealPrice && othersN)}
-      ${sp('sun', '小太陽卡', 'wx', '☀️', '小太陽卡', `放在一位同學的座位上方，維持 ${S.weatherDays || 10} 個上課日`, `💰 ${S.weatherPrice || 5} 點`, S.coins >= (S.weatherPrice || 5))}
-      ${sp('rain', '小雨傘卡', 'wx', '☂️', '小雨傘卡', `放在一位同學的座位上方，維持 ${S.weatherDays || 10} 個上課日`, `💰 ${S.weatherPrice || 5} 點`, S.coins >= (S.weatherPrice || 5))}
+      ${sp('sun', '小太陽卡', 'wx', '☀️', '小太陽卡', `放在一位同學的座位上方，維持 ${S.weatherDays || 10} 天`, `💰 ${S.weatherPrice || 5} 點`, S.coins >= (S.weatherPrice || 5))}
+      ${sp('rain', '小雨傘卡', 'wx', '☂️', '小雨傘卡', `放在一位同學的座位上方，維持 ${S.weatherDays || 10} 天`, `💰 ${S.weatherPrice || 5} 點`, S.coins >= (S.weatherPrice || 5))}
       ${sp('transfer', '抽籤轉移卡', 'drawc', '🔄', '抽籤轉移卡', `設定一位替身：${S.transferDays || 10} 天內抽籤抽到你，會立刻換成替身上場（次數不限）`, `💰 ${S.transferPrice || 20} 點`, S.coins >= (S.transferPrice || 20))}
       ${sp('sure', '抽籤必中卡', 'drawc', '🎯', '抽籤必中卡', '指定一位同學：下一次抽籤，第一位一定會變成他（只有一次）', `💰 ${S.surePrice || 30} 點`, S.coins >= (S.surePrice || 30))}
       ${A.isGiftBoxMaker?.() ? sp('giftbox', '禮物盒', 'gbox', '🎁', '禮物盒（導師、班長、副班長專屬）', '每週一次：上傳一張圖片變成驚喜盒，放在教室正中間；大家打開會隨機得到煙火、小太陽卡或小雨傘卡', '每週 1 個', true) : ''}
@@ -180,9 +177,9 @@
     }
     if (act === 'buy') {
       const a = S.catalog.find(x => x.id === b.dataset.acc);
-      if (!await A.ask(`用 ${a.price} 點買「${a.name}」？\n買了之後有效 10 個上課日。`, '購買')) return;
+      if (!await A.ask(`用 ${a.price} 點買「${a.name}」？\n買了之後有效 10 天（今天算第 1 天）。`, '購買')) return;
       b.disabled = true;
-      try { S = await A.api('buyAcc', { acc: a.id }); toast(`✓ 買到「${a.name}」了！按「裝扮大頭照」戴上它`); } catch (err) { toast(err.message); }
+      try { S = await doing('buyAcc', { acc: a.id }); toast(`✓ 買到「${a.name}」了！按「裝扮大頭照」戴上它`); } catch (err) { toast(err.message); }
       render();
     } else if (act === 'gift') {
       openGift(b.dataset.inv);
@@ -209,12 +206,12 @@
     } else if (act === 'delAcc') {
       if (!await A.ask(`下架「${b.dataset.name}」？\n下架後不能再買；已經買的人可以繼續用到到期，大頭照上的裝扮不會消失。`, '下架', true)) return;
       b.disabled = true;
-      try { S = await A.api('delAcc', { acc: b.dataset.acc }); toast('已下架（已經買的人可以用到到期）'); } catch (err) { toast(err.message); }
+      try { S = await doing('delAcc', { acc: b.dataset.acc }); toast('已下架（已經買的人可以用到到期）'); } catch (err) { toast(err.message); }
       render();
     } else if (act === 'removeAcc') {
       if (!await A.ask(`立刻移除「${b.dataset.name}」？\n內容不適當時才用：圖片會馬上拿掉（大家的大頭照上也會消失），並把點數退還給每一位買的人。`, '移除並退點', true)) return;
       b.disabled = true;
-      try { S = await A.api('delAcc', { acc: b.dataset.acc, mode: 'remove' }); toast('已移除，點數已退還'); A.ensureFaces?.(true); } catch (err) { toast(err.message); }
+      try { S = await doing('delAcc', { acc: b.dataset.acc, mode: 'remove' }); toast('已移除，點數已退還'); A.ensureFaces?.(true); } catch (err) { toast(err.message); }
       render();
     }
   });
@@ -236,14 +233,14 @@
     if (!to) return toast('請選擇同學');
     if (!await A.ask(`送一張「${card}」給 ${to}？\n（${S.unlimited ? '導師不扣點數' : `花 ${CARD_PRICE()[card]} 點`}）`, '送出')) return;
     b.disabled = true;
-    try { S = await A.api('giftCard', { card, to }); A.closeSheet(); toast(`🎁 已送出${card}給 ${to}`); } catch (err) { toast(err.message); b.disabled = false; }
+    try { S = await doing('giftCard', { card, to }); A.closeSheet(); toast(`🎁 已送出${card}給 ${to}`); } catch (err) { toast(err.message); b.disabled = false; }
     render();
   };
 
   // ── 小太陽卡／小雨傘卡：選一位同學 ──
   function openWeather(kind) {
     const sun = kind === 'sun';
-    let h = A.sheetHead(`${sun ? '☀️ 小太陽卡' : '☂️ 小雨傘卡'}（${S.weatherPrice || 5} 點）`, `放在誰的座位上方？維持 ${S.weatherDays || 10} 個上課日`);
+    let h = A.sheetHead(`${sun ? '☀️ 小太陽卡' : '☂️ 小雨傘卡'}（${S.weatherPrice || 5} 點）`, `放在誰的座位上方？維持 ${S.weatherDays || 10} 天`);
     const list = [S.me, ...S.classmates].filter(k => k && k !== A.D.teacherLabel);
     h += `<div class="field"><select id="wxTo"><option value="">— 請選擇同學 —</option>${list.map(k => `<option value="${esc(k)}">${esc(k)}${k === S.me ? '（自己）' : ''}</option>`).join('')}</select></div>
       <div class="actions"><button type="button" class="btn btn--primary wide" data-act="wxOk">${sun ? '☀️ 放小太陽' : '☂️ 放小雨傘'}</button></div>`;
@@ -256,7 +253,7 @@
     if (!to) return toast('請選擇同學');
     b.disabled = true;
     try {
-      S = await A.api('buyWeather', { kind: card, to });
+      S = await doing('buyWeather', { kind: card, to });
       A.closeSheet();
       toast(`${card === 'sun' ? '☀️ 小太陽' : '☂️ 小雨傘'}放在 ${to} 的座位上了！`);
       A.ensureFaces?.(true);
@@ -285,7 +282,7 @@
     if (!await A.ask(tr ? `花 ${S.transferPrice || 20} 點，設定 ${to} 當你的替身？` : `花 ${S.surePrice || 30} 點，下一次抽籤第一位一定是 ${to}？`, tr ? '設定' : '使用')) return;
     b.disabled = true;
     try {
-      S = await A.api('buyDrawCard', { kind: card, to });
+      S = await doing('buyDrawCard', { kind: card, to });
       A.closeSheet();
       toast(tr ? `🔄 替身設定好了：${to}` : `🎯 必中卡已設定：${to}`);
     } catch (err) { toast(err.message); b.disabled = false; }
@@ -343,7 +340,7 @@
     if (!await A.ask(`上架「${name}」，售價 ${price} 點？`, '上架')) return;
     b.disabled = true; b.textContent = '上傳中…';
     try {
-      S = await A.api('createAcc', { name, price, data: made });
+      S = await doing('createAcc', { name, price, data: made });
       await A.loadAccImages().catch(() => {});
       A.closeSheet();
       toast(`🎨「${name}」已經上架了！`);
@@ -367,7 +364,7 @@
     if (!await A.ask(`把「${name}」送給 ${to}？送出後就不能收回。`, '送出')) return;
     b.disabled = true;
     try {
-      S = await A.api('giftAcc', { inv, to });
+      S = await doing('giftAcc', { inv, to });
       A.closeSheet();
       toast(`✓ 已送給 ${to}`);
       A.setDeco(S.me || A.me(), decoFromState());
@@ -389,7 +386,7 @@
     if (!await A.ask(`花 ${S.stealPrice} 點，把 ${b.dataset.owner} 的「${b.dataset.name}」奪過來？`, '奪取！', true)) return;
     b.disabled = true;
     try {
-      S = await A.api('stealAcc', { inv: b.dataset.inv });
+      S = await doing('stealAcc', { inv: b.dataset.inv });
       A.closeSheet();
       toast(`🦹 成功奪取「${b.dataset.name}」！`);
       A.ensureFaces?.(true);
@@ -422,7 +419,7 @@
     if (!await A.ask(`花 ${S.swapPrice || 20} 點，和 ${to} 對調座位？\n（${A.seatOf?.(S.me)} ⇄ ${A.seatOf?.(to)}）`, '對調！', true)) return;
     b.disabled = true;
     try {
-      S = await A.api('swapSeatCard', { to });
+      S = await doing('swapSeatCard', { to });
       A.closeSheet();
       toast(`🔀 已和 ${to} 對調座位！`);
       A.ensureFaces?.(true); // 重新讀座位表
@@ -443,7 +440,7 @@
     if (!to) return toast('請選擇同學');
     b.disabled = true;
     try {
-      S = await A.api('buyFirework', { to });
+      S = await doing('buyFirework', { to });
       A.closeSheet();
       toast(`🎆 煙火放在 ${to} 的座位上了！`);
       A.ensureFaces?.(true); // 自己馬上看得到
@@ -678,7 +675,7 @@
     if (act === 'decoSave') {
       b.disabled = true; b.textContent = '儲存中…';
       try {
-        S = await A.api('saveDeco', { layers: ed.layers.map(({ inv, x, y, s, r }) => ({ inv, x, y, s, r })) });
+        S = await doing('saveDeco', { layers: ed.layers.map(({ inv, x, y, s, r }) => ({ inv, x, y, s, r })) });
         A.setDeco(S.me || A.me(), decoFromState());
         A.closeSheet();
         toast('✓ 大頭照已更新，大家都看得到');
@@ -740,11 +737,8 @@
   // ── 測試模式：點數、配件、裝飾都只存在這台裝置（測試時先送 10 點） ──
   const prevTest = A.testSeatApi;
   const ymd = d => `${d.getFullYear()}/${A.pad2(d.getMonth() + 1)}/${A.pad2(d.getDate())}`;
-  function schoolDaysLater(n) {
-    const d = new Date(); d.setHours(12, 0, 0, 0);
-    let c = 0;
-    const hol = new Set(D.holidays || []);
-    for (let i = 0; i < 60; i++) { if (isSchoolDay(d, hol) && ++c >= n) break; d.setDate(d.getDate() + 1); }
+  function schoolDaysLater(n) {   // 測試模式：今天算第 1 天，週末、假日都算
+    const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + n - 1);
     return ymd(d);
   }
   async function testState() {

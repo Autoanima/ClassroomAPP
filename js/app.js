@@ -1680,7 +1680,6 @@
   function openSettings() {
     let h = sheetHead('設定', `使用人：${esc(isStudent() ? settings.me : settings.inspector || '未選擇')}`);
     if (isStaff()) {
-      if (canRoster()) h += `<div class="actions"><button type="button" class="btn btn--primary wide" data-act="roster">👥 修改負責人員（工作分配、幹部）</button></div>`;
       if (TEST) h += `<div class="actions"><button type="button" class="btn wide" data-act="who">👤 切換使用人（測試模式）</button></div>`;
       h += `<h3>本次掃地檢查紀錄</h3><p class="muted small" style="margin:0">${state.startedAt
         ? `開始於 ${fmtDateW(new Date(state.startedAt))} ${fmtTime(new Date(state.startedAt))}，將於 ${Math.round(RESET_MS / 3600e3)} 小時後自動清空。`

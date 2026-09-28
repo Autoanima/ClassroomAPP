@@ -76,8 +76,8 @@
   }
   function headHtml() {
     if (st.standalone) return `<div class="ww-head"><b>📚 ${st.onOpen ? '開始前先練習一下' : '背單字'}</b><span class="ww-pf muted small">${pfText()}</span><button type="button" class="ww-x" data-w="close" aria-label="關閉">✕</button></div>`;
-    if (st.done) return `<div class="ww-head ok"><b>✓ ${esc(st.what)}載入完成</b><button type="button" class="btn btn--primary" data-w="close">進入${esc(st.what)} →</button></div>`;
-    return `<div class="ww-head"><span class="ww-spin" aria-hidden="true"></span><b>目前正在載入中，請稍後</b><button type="button" class="ww-x" data-w="close" aria-label="先關閉">✕</button></div>`;
+    if (st.done) return `<div class="ww-prog done"><i></i></div><div class="ww-head ok"><b>✓ ${st.work ? '處理完成' : esc(st.what) + '載入完成'}</b><button type="button" class="btn btn--primary" data-w="close">${st.work ? '好' : '進入' + esc(st.what) + ' →'}</button></div>`;
+    return `<div class="ww-prog"><i></i></div><div class="ww-head"><span class="ww-spin" aria-hidden="true"></span><b>${esc(st.msg || '目前正在載入中，請稍後')}</b><button type="button" class="ww-x" data-w="close" aria-label="先關閉">✕</button></div>`;
   }
   function switchHtml() {
     const b = (m, t) => `<button type="button" data-w="mode" data-m="${m}" aria-pressed="${pref.mode === m}">${t}</button>`;
@@ -203,9 +203,9 @@
   }
 
   /** 開始一個可能比較久的載入：超過 0.4 秒才跳出等待視窗。回傳 done()，載入完呼叫它。 */
-  A.waitFor = (what = '') => {
+  A.waitFor = (what = '', opts = {}) => {
     let shown = false, finished = false;
-    const t = setTimeout(() => { if (!finished) { shown = true; open({ what }); } }, 400);
+    const t = setTimeout(() => { if (!finished && (!win || win.hidden)) { shown = true; open(Object.assign({ what }, opts)); } }, 400);
     return () => {
       finished = true; clearTimeout(t);
       if (!shown || !st || st.standalone) return;
@@ -214,6 +214,8 @@
     };
   };
   A.openVocab = extra => open(Object.assign({ standalone: true }, extra));
+  // 上方「切換視角」右邊的 📚：隨時打開小練習
+  $('#vocabBtn')?.addEventListener('click', () => A.openVocab());
   // 背景預先載入的進度（顯示在小練習的標題旁邊）
   const pfText = () => { const i = A.prefetchInfo?.(); return i?.on && i.total && i.done < i.total ? `⚡ 背景載入中 ${i.done}/${i.total}` : i?.on && i.total ? '⚡ 都載好了' : ''; };
   A.on('prefetch', () => { const el = win?.querySelector('.ww-pf'); if (el) el.textContent = pfText(); });

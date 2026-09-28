@@ -32,6 +32,7 @@
       if (top && (isNew || !last.length) && !rolling) { last = top.k; lastBy = top.by; lastTime = top.t; }
       if (A.currentTab() === 'draw' && !rolling) { render(); if (isNew && reveal) $('#stage')?.classList.add('reveal'); }
     } catch { /* 讀不到就先用手機上的 */ }
+    if (A.currentTab() === 'draw') replayFx();
   }
   let pollT = null;
   function poll() {
@@ -42,10 +43,13 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden && A.currentTab() === 'draw') { loadLog(true); poll(); } });
   // 同學在商店買的抽籤卡：轉移卡（替身）、必中卡（指定第一位）
   let fx = { transfers: [], sure: [], weights: {}, boost: 0.1, times: 3 }, fxAt = 0;
+  // 已經發動過的必中卡（雲端可能還沒寫好，先記在手機，避免下一次抽籤又發動一次）
+  const USED = 'indoor.sureused.v1' + A.SFX;
+  const usedSure = () => new Set(store.get(USED, []));
   const weightOf = k => fx.weights?.[k]?.w || 1;
   async function loadFx(force) {
     if (!canDraw() || (!force && Date.now() - fxAt < 60e3)) return;
-    try { const r = await A.api('getDrawFx'); fx = { transfers: r.transfers || [], sure: r.sure || [], weights: r.weights || {}, boost: r.boost ?? 0.1, times: r.boostTimes ?? 3 }; fxAt = Date.now(); } catch { /* 讀不到就照一般抽籤 */ }
+    try { const r = await A.api('getDrawFx'); const used = usedSure(); fx = { transfers: r.transfers || [], sure: (r.sure || []).filter(c => !used.has(c.id)), weights: r.weights || {}, boost: r.boost ?? 0.1, times: r.boostTimes ?? 3 }; fxAt = Date.now(); } catch { /* 讀不到就照一般抽籤 */ }
   }
   /** 套用抽籤卡：先必中卡（第一位換成指定的人），再轉移卡（抽到的人換成替身）；回傳要播的動畫 */
   function applyFx(result) {
@@ -59,6 +63,7 @@
       result[0] = sure.target;
       evs.push({ i: 0, kind: 'sure', from, to: sure.target, by: sure.by });
       fx.sure = fx.sure.filter(c => c !== sure);
+      store.set(USED, [...usedSure(), sure.id].slice(-100));
       A.api('drawUsed', { id: sure.id }).catch(() => {});
     }
     const now = Date.now();
@@ -91,6 +96,69 @@
     await new Promise(r => setTimeout(r, sure ? 1500 : 1100));
     banner.remove();
     nc.classList.remove('fx-land');
+  }
+
+  // ── 抽籤卡動畫重播：別人抽籤時發動了轉移卡／必中卡，大家第一次進抽籤頁都會看到一次 ──
+  const SEEN = 'indoor.drawfxseen.v1' + A.SFX;
+  const myName = () => (A.isTeacher() ? A.D.teacherLabel : A.isGuest() ? '任課老師' : A.me());
+  const markSeen = ids => store.set(SEEN, [...new Set([...store.get(SEEN, []), ...ids])].slice(-300));
+  const RE_SURE = /^🎯 抽籤必中卡（(.+?) 使用）：原本抽到 (.+?) → 換成 (.+)$/;
+  const RE_TR = /^🔄 抽籤轉移卡（(.+?) 使用）：抽到 (.+?) → 由替身 (.+?) 上場$/;
+  /** 從紀錄的文字還原：原本抽到的人（shown）＋依序要播的動畫（evs） */
+  function parseFx(x) {
+    const evs = [];
+    x.fx.forEach(f => {
+      let m = String(f).match(RE_SURE);
+      if (m) return evs.push({ kind: 'sure', by: m[1], from: m[2], to: m[3] });
+      m = String(f).match(RE_TR);
+      if (m) evs.push({ kind: 'transfer', by: m[1], from: m[2], to: m[3] });
+    });
+    // 倒著還原成「發動前」的結果
+    const shown = [...x.k];
+    for (let j = evs.length - 1; j >= 0; j--) {
+      const e = evs[j], i = shown.indexOf(e.to);
+      if (i < 0) return null;
+      e.i = i;
+      const k = shown.indexOf(e.from);
+      if (k >= 0 && k !== i) shown[k] = e.to;   // 必中卡：被指定的人原本就在後面，兩個人對調
+      shown[i] = e.from;
+    }
+    return evs.length ? { shown, evs } : null;
+  }
+  let replaying = false;
+  async function replayFx() {
+    if (replaying || rolling || A.currentTab() !== 'draw' || document.hidden) return;
+    const seen = new Set(store.get(SEEN, []));
+    const fresh = log.filter(x => x.fx?.length && x.id && !seen.has(x.id));
+    if (!fresh.length) return;
+    markSeen(fresh.map(x => x.id));                        // 一次看完，之後不再播
+    const todo = fresh.filter(x => x.by !== myName()).slice(0, 3).reverse();   // 自己抽的已經看過了；最多播最近 3 次
+    if (!todo.length) return;
+    replaying = true; rolling = true;
+    try {
+      for (const x of todo) {
+        const P = parseFx(x);
+        if (!P) continue;
+        render();
+        const stage = $('#stage');
+        if (!stage) break;
+        const note = document.createElement('p');
+        note.className = 'fx-replay';
+        note.textContent = `📣 ${x.t}｜${x.by} 抽籤時，抽籤卡發動了！`;
+        stage.before(note);
+        stage.innerHTML = P.shown.map(k => card(k)).join('');
+        stage.classList.add('reveal');
+        await new Promise(r => setTimeout(r, 900));
+        const shown = [...P.shown];
+        for (const ev of P.evs) await playFx(ev, shown);
+        await new Promise(r => setTimeout(r, 900));
+        note.remove();
+        if (A.currentTab() !== 'draw') break;
+      }
+    } finally {
+      replaying = false; rolling = false;
+      if (A.currentTab() === 'draw') render();
+    }
   }
 
   const all = () => A.students();
@@ -226,6 +294,7 @@
     try {
       const r = await A.api('addDrawLog', { k: result, fx: st.history[0].fx });
       log = r.log || log; logTop = log[0]?.id || logTop;
+      if (log[0]?.id) markSeen([log[0].id]);
     } catch (err) { toast('抽籤紀錄沒有存到雲端：' + err.message); }
     render();
     if (!evs.length) $('#stage').classList.add('reveal');

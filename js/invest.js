@@ -61,7 +61,7 @@
     const mine = S.standings.find(x => x.me);
     let h = `<div class="banner ok"><div class="bn-main">📈 ${month(S.season)} 月投資競賽（投資組合不歸零）</div>
       <div class="bn-sub">${timingText()}</div></div>`;
-    if (S.teacher) h += `<p class="muted small center">導師和同學一樣從 ${coin(R.START)} 枚開始、一起排名，但不領獎，也不佔同學的得獎名額。</p>`;
+    if (S.teacher) h += `<p class="muted small inv-tnote">導師和同學一樣從 ${coin(R.START)} 枚開始、一起排名，但不領獎，也不佔同學的得獎名額。</p>`;
     // 總覽
     h += `<div class="panel inv-sum">
       <div class="inv-total"><span class="muted small">總值（現金＋股票）</span><b>${coin(M.value)}</b>
