@@ -547,7 +547,7 @@
   paintCompact();
 
   // ── 分頁 ──
-  const TABS = ['clean', 'points', 'seats', 'draw', 'shop', 'invest', 'line', 'jobs', 'lunch', 'fund'];
+  const TABS = ['points', 'clean', 'seats', 'lunch', 'shop', 'fund', 'invest', 'draw', 'line', 'jobs'];
   const tabHooks = {};
   const allowedTabs = () => (isGuest() ? ['draw', 'seats'] : isStudent() ? ['seats', 'clean', 'draw', 'shop', 'invest', 'line', 'jobs', 'lunch', 'fund']
     : TABS.filter(t => (t === 'points' ? canPoints() : true)));
