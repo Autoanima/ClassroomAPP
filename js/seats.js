@@ -1131,6 +1131,19 @@
     z.dataset.seat = id;
     z.innerHTML = `<div class="fz-card"><span class="fz-face">${faceHtml(k)}</span><div class="fz-name"><b>${esc(code.replace(/(\d+)$/, ' $1'))}</b> ${esc(name)}</div><div class="muted small">${seatName(id)}</div></div>`;
     z.hidden = false;
+    loadHD(code, id);
+  }
+  // 放大時換成高畫質的照片（第一次放大才下載，之後記在這支手機）
+  const hd = new Map();
+  async function loadHD(code, id) {
+    if (!faces[code]?.d || A.TEST) return;
+    let src = hd.get(code);
+    if (src === undefined) {
+      try { src = (await A.api('getFaceHD', { code })).d || ''; } catch { src = ''; }
+      hd.set(code, src);
+    }
+    const z = $('#faceZoom'), img = z.querySelector('.fz-face .av > img');
+    if (src && img && !z.hidden && z.dataset.seat === id) img.src = src;
   }
   // 點講桌／講台：顯示導師的大頭照（平常不顯示）
   function zoomTeacher() {
@@ -1140,6 +1153,7 @@
     z.dataset.seat = 'T';
     z.innerHTML = `<div class="fz-card"><span class="fz-face">${faceHtml(D.teacherLabel)}</span><div class="fz-name"><b>${esc(D.teacherLabel)}</b></div></div>`;
     z.hidden = false;
+    loadHD('T00', 'T');
   }
   $('#faceZoom').addEventListener('click', () => { $('#faceZoom').hidden = true; });
 

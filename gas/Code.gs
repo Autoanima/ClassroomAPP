@@ -108,11 +108,11 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
-const GUEST_OK = { getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
+const GUEST_OK = { getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1 };
 
 function doGet() {
@@ -206,6 +206,7 @@ function doPost(e) {
       case 'rankOrder': return json(rankOrder(who, req.exam));
       case 'rankInfo': return json({ ok: true, url: rankSheetUrl(), weight: CONFIG.RANK_POINT_WEIGHT, has: (() => { const R = examRanks(); return R ? R.per.map(p => Object.keys(p.rank).length > 0) : [false, false, false]; })() });
       case 'getFaces': return json(getFaces(req.have || {}));
+      case 'getFaceHD': return json(getFaceHD(String(req.code || '')));
       case 'uploadFace': return json(uploadFace(req.code, req.data));
       case 'setFaceFolder': return json(setFaceFolder(req.url));
       case 'selState': return json(selState(req.v));
@@ -1822,6 +1823,24 @@ function getFaces(have) {
   });
   const decoT = {};
   return { ok: true, faces: faces, codes: Object.keys(latest), deco: decoMap(decoT), decoT: decoT, fireworks: fireworksList(), weather: weatherList() };
+}
+/** 放大看的時候用的高畫質大頭照：「大頭照_高畫質」資料夾（和「大頭照」同一層、檔名一樣）；沒有就回傳空的 */
+function getFaceHD(code) {
+  const root = getRootFolder(), it = root.getFoldersByName('大頭照_高畫質');
+  if (!code || !it.hasNext()) return { ok: true, d: '' };
+  const byName = faceNameMap(), files = it.next().getFiles(), unmatched = [];
+  let hit = null;
+  while (files.hasNext()) {
+    const f = files.next();
+    if (!/^image\//.test(f.getMimeType())) continue;
+    const c = fileCode(f.getName(), byName);
+    if (c === code) { hit = f; break; }
+    if (!c) unmatched.push(f);
+  }
+  if (!hit && code === 'T00' && unmatched.length === 1) hit = unmatched[0]; // 導師的照片（沒設定檔名時）
+  if (!hit || hit.getSize() > 1500000) return { ok: true, d: '' };
+  const b = hit.getBlob();
+  return { ok: true, d: 'data:' + b.getContentType() + ';base64,' + Utilities.base64Encode(b.getBytes()) };
 }
 function uploadFace(code, data) {
   code = String(code || '');
