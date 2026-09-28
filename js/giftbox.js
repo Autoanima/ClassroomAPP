@@ -25,6 +25,8 @@
     dock.hidden = !list.length;
   }
   function paintDock() {
+    // 任課老師不用看到禮物盒
+    if (A.isGuest()) { ['boxDock', 'boxDesk'].forEach(id => { const d = document.getElementById(id); if (d) d.hidden = true; }); return; }
     const wrap = document.querySelector('#tab-seats .map-wrap');
     if (!wrap) return;
     const host = wrap.parentElement;
@@ -107,6 +109,7 @@
   const prevHook = A.tabHooks.seats;
   A.tabHooks.seats = () => {
     prevHook?.();
+    if (A.isGuest()) { paintDock(); return; }   // 任課老師：不讀取、不播放禮物盒
     if (Date.now() - loadedAt < 20e3) { paintDock(); return; }
     load().then(list => { const first = list.find(b => !b.opened); if (first && A.currentTab() === 'seats') setTimeout(() => play(first), 300); });
   };
