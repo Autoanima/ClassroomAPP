@@ -80,7 +80,8 @@ const SHEET_DRAW = '抽籤紀錄';          // 大家都看得到最近的抽籤
 const HEAD_DRAW = ['時間', '抽籤人', '結果', '抽籤卡事件', '編號'];
 const DRAW_DAYS = 30;
 const SHEET_FUND = '班費收支';          // 總務登記；刪除只做標記
-const HEAD_FUND = ['日期', '品項', '收支', '金額', '說明', '登記人', '登記時間', '編號', '狀態'];
+const HEAD_FUND = ['日期', '品項', '收支', '金額', '說明', '登記人', '登記時間', '編號', '狀態', '收據'];   // 收據：雲端硬碟「班費收據」資料夾的檔案代號（逗號分隔）
+const RECEIPT_MAX = 5;
 const SHEET_PACK = '紅包';              // 發紅包活動：發起、連署、發放都留紀錄
 const HEAD_PACK = ['發起時間', '發起人', '原因', '每人點數', '連署', '狀態', '發放時間', '編號', '發放人數'];
 const PACK_MAX = 20;                    // 每人最多發幾點
@@ -108,9 +109,9 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
 const GUEST_OK = { getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1 };
@@ -177,6 +178,8 @@ function doPost(e) {
       case 'getFund': return json(getFund());
       case 'addFund': return json(addFund(who, req.row || {}));
       case 'delFund': return json(delFund(who, String(req.id || '')));
+      case 'addFundReceipt': return json(addFundReceipt(who, String(req.id || ''), req.data));
+      case 'getFundReceipt': return json(getFundReceipt(req.fid));
       case 'getPacks': return json({ ok: true, packs: getPacks() });
       case 'startPack': return json({ ok: true, packs: startPack(who, req.reason, req.points) });
       case 'signPack': return json({ ok: true, packs: signPack(who, String(req.id || '')) });
@@ -1308,7 +1311,8 @@ function fundRows() {
   if (!sh || sh.getLastRow() < 2) return [];
   return sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_FUND.length).getValues()
     .filter(r => !String(r[8]) && String(r[1]).trim())
-    .map(r => ({ date: r[0] instanceof Date ? ymd(r[0]) : String(r[0]), item: String(r[1]), type: String(r[2]), amount: Number(r[3]) || 0, note: String(r[4]), by: String(r[5]), id: String(r[7]) }));
+    .map(r => ({ date: r[0] instanceof Date ? ymd(r[0]) : String(r[0]), item: String(r[1]), type: String(r[2]), amount: Number(r[3]) || 0, note: String(r[4]), by: String(r[5]), id: String(r[7]),
+      receipts: String(r[9] || '').split(',').map(x => x.trim()).filter(String) }));
 }
 function getFund() {
   const rows = fundRows().sort((a, b) => a.date.localeCompare(b.date));
@@ -1323,13 +1327,57 @@ function addFund(who, r) {
   const amount = Math.round(Number(r.amount) * 100) / 100, type = r.type === '支出' ? '支出' : '收入';
   if (!item) throw new Error('請填品項');
   if (!(amount > 0) || amount > 1e7) throw new Error('金額要大於 0');
+  const date = String(r.date || ymd(new Date()));
+  const ids = (Array.isArray(r.receipts) ? r.receipts : []).slice(0, 3).map((d, i) => saveReceipt(d, date + '_' + type + '_' + item + '_' + (i + 1)));
   withLock(() => {
-    const sh = getSheet(SHEET_FUND, HEAD_FUND);
+    const sh = fundSheet();
     const row = sh.getLastRow() + 1;
-    sh.getRange(row, 1, 1, HEAD_FUND.length).setValues([[toDate(r.date || ymd(new Date())), item, type, amount, note, mailName(who), new Date(), Utilities.getUuid().slice(0, 8), '']]);
+    sh.getRange(row, 1, 1, HEAD_FUND.length).setValues([[toDate(date), item, type, amount, note, mailName(who), new Date(), Utilities.getUuid().slice(0, 8), '', ids.join(',')]]);
     sh.getRange(row, 1).setNumberFormat('yyyy/mm/dd');
   });
   return getFund();
+}
+/** 班費試算表（舊的沒有「收據」欄就補上標題） */
+function fundSheet() {
+  const sh = getSheet(SHEET_FUND, HEAD_FUND);
+  if (String(sh.getRange(1, 10).getValue()) !== '收據') sh.getRange(1, 10).setValue('收據').setFontWeight('bold').setBackground('#ede7fb');
+  return sh;
+}
+/** 收據、證明的照片：放在「班費收據」資料夾（網頁已經先壓縮過） */
+function fundFolder() {
+  const root = getRootFolder(), it = root.getFoldersByName('班費收據');
+  return it.hasNext() ? it.next() : root.createFolder('班費收據');
+}
+function saveReceipt(data, label) {
+  const m = String(data || '').match(/^data:image\/(jpeg|png);base64,(.+)$/);
+  if (!m) throw new Error('收據要是照片或圖片');
+  const bytes = Utilities.base64Decode(m[2]);
+  if (bytes.length > 700000) throw new Error('收據照片太大了');
+  const name = '班費收據_' + String(label).replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 60) + (m[1] === 'png' ? '.png' : '.jpg');
+  return fundFolder().createFile(Utilities.newBlob(bytes, 'image/' + m[1], name)).getId();
+}
+/** 已經登記的收支，再補上收據 */
+function addFundReceipt(who, id, data) {
+  if (!who.teacher && !isTreasurer(who.key)) throw new Error('只有總務和導師可以上傳收據');
+  const r = fundRows().find(x => x.id === id);
+  if (!r) throw new Error('找不到這筆');
+  if (r.receipts.length >= RECEIPT_MAX) throw new Error('每一筆最多 ' + RECEIPT_MAX + ' 張收據');
+  const fid = saveReceipt(data, r.date + '_' + r.type + '_' + r.item + '_' + (r.receipts.length + 1));
+  withLock(() => {
+    const sh = fundSheet(), n = sh.getLastRow() - 1;
+    const i = sh.getRange(2, 8, n, 1).getValues().findIndex(x => String(x[0]) === id);
+    if (i < 0) throw new Error('找不到這筆');
+    const cur = String(sh.getRange(i + 2, 10).getValue() || '').split(',').filter(String);
+    sh.getRange(i + 2, 10).setValue(cur.concat([fid]).join(','));
+  });
+  return getFund();
+}
+/** 看收據：只給「班費收支」裡登記過的檔案（不能拿來讀雲端硬碟的其他檔案） */
+function getFundReceipt(fid) {
+  fid = String(fid || '');
+  if (!fid || !fundRows().some(r => r.receipts.indexOf(fid) >= 0)) throw new Error('找不到這張收據');
+  const b = DriveApp.getFileById(fid).getBlob();
+  return { ok: true, d: 'data:' + b.getContentType() + ';base64,' + Utilities.base64Encode(b.getBytes()) };
 }
 function delFund(who, id) {
   if (!who.teacher && !isTreasurer(who.key)) throw new Error('只有總務和導師可以刪除');

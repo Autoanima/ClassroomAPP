@@ -1307,3 +1307,18 @@ body.ww-open { overflow: hidden; }
 .shop-me { position: relative; }
 .shop-me .shop-top { position: absolute; top: 10px; right: 12px; margin: 0; }
 .shop-me .shop-wallet { padding-top: 52px; }
+
+/* 🧾 班費收據 */
+.rcpt-pick { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin: 4px 0; }
+.rcpt-pick .btn { cursor: pointer; }
+.rcpt-prev { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 6px; }
+.rcpt-prev:empty { display: none; }
+.rcpt-thumb { position: relative; display: flex; flex-direction: column; align-items: center; }
+.rcpt-thumb img { width: 76px; height: 76px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+.rcpt-thumb button { position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: var(--bad); color: #fff; font-size: 12px; line-height: 1; }
+.rcpt-thumb small { font-size: 11px; color: var(--muted); }
+.rcpt-btn { display: inline-block; margin-top: 4px; border: 1px solid var(--line); background: var(--bg); color: var(--text); border-radius: 8px; padding: 2px 8px; font: inherit; font-size: 12px; white-space: nowrap; }
+.rcpt-btn.add { color: var(--accent); border-style: dashed; }
+.rcpt-view { display: grid; gap: 10px; }
+.rcpt-view figure { margin: 0; }
+.rcpt-view img { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); background: #fff; }

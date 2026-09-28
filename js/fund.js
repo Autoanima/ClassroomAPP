@@ -48,6 +48,9 @@
           <label>補充說明<input type="text" id="fNote" maxlength="100" placeholder="（可不填）"></label>
         </div>
         <p class="muted small" id="fCalc">金額可以直接打算式，例如 50*44、1200-350、(30+20)*2。</p>
+        <div class="rcpt-pick"><label class="btn">🧾 附上收據／證明<input type="file" id="fRcpt" accept="image/*" multiple hidden></label>
+          <span class="muted small">可不附，最多 3 張；照片會自動壓縮</span></div>
+        <div class="rcpt-prev" id="fRcptPrev">${rcptPrev()}</div>
         <div class="actions"><button type="button" class="btn btn--primary wide" data-f="add">登記</button></div></div>`;
     } else {
       h += `<p class="muted small center">班費由總務登記，這裡只能檢視。</p>`;
@@ -59,26 +62,95 @@
       F.rows.forEach(r => {
         const out = r.type === '支出';
         h += `<tr><td>${esc(r.date.slice(5))}</td><td>${esc(r.item)}</td><td class="plus">${out ? '' : money(r.amount)}</td><td class="minus">${out ? money(r.amount) : ''}</td><td><b>${money(r.balance)}</b></td>
-          <td class="small">${esc(r.note)}${r.by ? `<div class="muted">${esc(r.by)}</div>` : ''}</td>${canFund() ? `<td><button type="button" class="pt-del" data-f="del" data-id="${esc(r.id)}" aria-label="刪除">✕</button></td>` : ''}</tr>`;
+          <td class="small">${esc(r.note)}${r.by ? `<div class="muted">${esc(r.by)}</div>` : ''}
+            ${(r.receipts || []).length ? `<button type="button" class="rcpt-btn" data-f="rcpt" data-id="${esc(r.id)}">🧾 收據 ${r.receipts.length}</button>` : ''}
+            ${canFund() && (r.receipts || []).length < 5 ? `<button type="button" class="rcpt-btn add" data-f="rcptAdd" data-id="${esc(r.id)}">＋🧾</button>` : ''}</td>${canFund() ? `<td><button type="button" class="pt-del" data-f="del" data-id="${esc(r.id)}" aria-label="刪除">✕</button></td>` : ''}</tr>`;
       });
       h += `</tbody></table></div>`;
     }
     root.innerHTML = h + `</div>`;
   }
+  // ── 收據／證明：先在手機上壓縮（長邊最多 1600，看得清楚字），再上傳 ──
+  let pend = [];            // 登記前選好的收據（data URL）
+  let addTo = null;         // 補收據給哪一筆
+  async function shrinkReceipt(file) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error('讀不到這張圖片')); i.src = url; });
+      for (let max = 1600, q = 0.82; max >= 700; max = Math.round(max * 0.85), q = Math.max(0.62, q - 0.04)) {
+        const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+        const cv = document.createElement('canvas');
+        cv.width = Math.round(img.naturalWidth * k); cv.height = Math.round(img.naturalHeight * k);
+        const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0, cv.width, cv.height);
+        const d = cv.toDataURL('image/jpeg', q);
+        if (d.length < 620000) return d;   // 約 450KB 以內
+      }
+      throw new Error('照片太大，請換一張');
+    } finally { URL.revokeObjectURL(url); }
+  }
+  const kb = d => Math.round(d.length * 0.75 / 1024);
+  function rcptPrev() {
+    return pend.map((d, i) => `<span class="rcpt-thumb"><img src="${d}" alt="收據 ${i + 1}"><button type="button" data-f="rcptDel" data-i="${i}" aria-label="拿掉">✕</button><small>${kb(d)} KB</small></span>`).join('');
+  }
+  $('#fundRoot').addEventListener('change', async e => {
+    if (e.target.id !== 'fRcpt' && e.target.id !== 'fRcptAdd') return;
+    const files = [...e.target.files];
+    e.target.value = '';
+    if (!files.length) return;
+    if (e.target.id === 'fRcpt') {
+      const room = 3 - pend.length;
+      if (files.length > room) toast('每一筆登記最多附 3 張，之後可以再用「＋🧾」補');
+      for (const f of files.slice(0, Math.max(0, room))) { try { pend.push(await shrinkReceipt(f)); } catch (err) { toast(err.message); } }
+      $('#fRcptPrev').innerHTML = rcptPrev();
+      return;
+    }
+    // 補收據
+    const id = addTo; addTo = null;
+    if (!id) return;
+    toast('上傳中…');
+    for (const f of files.slice(0, 3)) {
+      try { F = await A.api('addFundReceipt', { id, data: await shrinkReceipt(f) }); } catch (err) { toast(err.message); break; }
+    }
+    toast('✓ 收據已上傳');
+    renderFund();
+  });
+  // 看收據（第一次打開才下載，之後記在這支手機）
+  const rcache = {};
+  async function openReceipts(r) {
+    let h = A.sheetHead(`🧾 收據／證明`, `${r.date}｜${r.item}｜${r.type} ${money(r.amount)} 元`);
+    h += `<div class="rcpt-view">${r.receipts.map((fid, i) => `<figure data-fid="${esc(fid)}">${rcache[fid] ? `<img src="${rcache[fid]}" alt="收據 ${i + 1}">` : '<p class="muted">讀取中…</p>'}</figure>`).join('')}</div>`;
+    A.openSheet({ kind: 'fundRcpt' }, h);
+    for (const fid of r.receipts) {
+      if (!rcache[fid]) { try { rcache[fid] = (await A.api('getFundReceipt', { fid })).d; } catch (err) { rcache[fid] = ''; toast(err.message); } }
+      const fig = document.querySelector(`.rcpt-view [data-fid="${CSS.escape(fid)}"]`);
+      if (fig) fig.innerHTML = rcache[fid] ? `<img src="${rcache[fid]}" alt="收據">` : '<p class="muted">讀不到這張收據</p>';
+    }
+  }
+
   let fType = '收入';
   $('#fundRoot').addEventListener('click', async e => {
     const t = e.target.closest('[data-ft]');
     if (t) { fType = t.dataset.ft; document.querySelectorAll('[data-ft]').forEach(x => x.setAttribute('aria-pressed', x === t)); return; }
     const b = e.target.closest('[data-f]');
     if (!b || b.disabled) return;
+    if (b.dataset.f === 'rcptDel') { pend.splice(Number(b.dataset.i), 1); $('#fRcptPrev').innerHTML = rcptPrev(); return; }
+    if (b.dataset.f === 'rcpt') { const r = F.rows.find(x => x.id === b.dataset.id); if (r) openReceipts(r); return; }
+    if (b.dataset.f === 'rcptAdd') {
+      addTo = b.dataset.id;
+      let inp = $('#fRcptAdd');
+      if (!inp) { inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true; inp.id = 'fRcptAdd'; inp.hidden = true; $('#fundRoot').appendChild(inp); }
+      inp.click();
+      return;
+    }
     if (b.dataset.f === 'add') {
       const amount = calc($('#fAmt').value), item = $('#fItem').value.trim();
       if (!item) return toast('請填品項');
       if (!(amount > 0)) return toast('金額要是正的數字或算式');
       const row = { date: $('#fDate').value.replace(/-/g, '/'), item, amount, type: fType, note: $('#fNote').value.trim() };
-      if (!await A.ask(`登記 ${fType} ${money(amount)} 元\n${row.date}｜${item}${row.note ? '｜' + row.note : ''}`, '登記')) return;
-      b.disabled = true;
-      try { F = await A.api('addFund', { row }); toast('✓ 已登記'); } catch (err) { toast(err.message); b.disabled = false; return; }
+      row.receipts = pend.slice();
+      if (!await A.ask(`登記 ${fType} ${money(amount)} 元\n${row.date}｜${item}${row.note ? '｜' + row.note : ''}${pend.length ? `\n🧾 附收據 ${pend.length} 張` : ''}`, '登記')) return;
+      b.disabled = true; b.textContent = pend.length ? '上傳中…' : '登記中…';
+      try { F = await A.api('addFund', { row }); pend = []; toast('✓ 已登記'); } catch (err) { toast(err.message); b.disabled = false; b.textContent = '登記'; return; }
       renderFund();
     } else if (b.dataset.f === 'del') {
       const r = F.rows.find(x => x.id === b.dataset.id);
@@ -168,7 +240,11 @@
       return { ok: true, rows: rows.reverse(), income: inc, expense: out, balance: inc - out };
     };
     if (action === 'getFund') return fund();
-    if (action === 'addFund') { store.set(FK, [...store.get(FK, []), { ...p.row, by: A.isTeacher() ? '導師' : A.me(), id: Math.random().toString(36).slice(2, 10) }]); return fund(); }
+    const RK = 'indoor.fundrcpt.v1.test', rid = () => Math.random().toString(36).slice(2, 10);
+    const keep = list => { const m = store.get(RK, {}); const ids = list.map(d => { const i = rid(); m[i] = d; return i; }); store.set(RK, m); return ids; };
+    if (action === 'addFund') { const { receipts, ...row } = p.row; store.set(FK, [...store.get(FK, []), { ...row, receipts: keep(receipts || []), by: A.isTeacher() ? '導師' : A.me(), id: rid() }]); return fund(); }
+    if (action === 'addFundReceipt') { const all = store.get(FK, []), x = all.find(r => r.id === p.id); x.receipts = [...(x.receipts || []), ...keep([p.data])]; store.set(FK, all); return fund(); }
+    if (action === 'getFundReceipt') { const d = store.get(RK, {})[p.fid]; if (!d) throw new Error('找不到這張收據'); return { ok: true, d }; }
     if (action === 'delFund') { store.set(FK, store.get(FK, []).filter(r => r.id !== p.id)); return fund(); }
     const R = k => A.jobsOf(k).roles;
     const need = signs => { const head = signs.some(k => R(k).includes('班長')), vice = signs.some(k => R(k).includes('副班長')); const others = signs.filter(k => !R(k).includes('班長') && !R(k).includes('副班長') && R(k).length).length; return { ok: head && vice && others >= 2, hasHead: head, hasVice: vice, others }; };
