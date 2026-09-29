@@ -1598,49 +1598,73 @@
     const cards = check ? [] : outdoorCards();
     // 箭頭：名牌 → 物件，每個物件一條直線（不再共用垂直主幹，線就不會疊在一起）
     // 物件在走廊另一側：不拉長線橫跨走廊，改在那一側放一個小名牌（tags），用短箭頭指過去
-    const tags = [];
+    const tags = [], plans = [];
     // 每個名牌的箭頭用自己的顏色（名牌左邊也有同色色條）：線交叉時也看得出是誰的
     // 同一側由上到下依序配色（相鄰的顏色對比要夠大）：藍、橘、綠、紫、黃、青、粉紅
-    const PAL = ['#1c7ed6', '#e8590c', '#2f9e44', '#ae3ec9', '#f59f00', '#15aabf', '#d6336c'];
-    ['E', 'W'].forEach(sd => cards.filter(c => c.job && c.side === sd).sort((a, b) => a.y - b.y).forEach((c, i) => { c.color = PAL[i % PAL.length]; }));
+    const PAL = ['#1c7ed6', '#e8590c', '#2f9e44', '#ae3ec9', '#f59f00', '#15aabf', '#d6336c', '#82c91e', '#795548'];
+    ['S', 'N'].forEach(z => cards.filter(c => c.job && c.job.zone === z).sort((a, b) => a.y - b.y).forEach((c, i) => { c.color = PAL[i % PAL.length]; }));
     s += `<defs>${PAL.map((col, k) => `<marker id="odA${k}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M1 1 L8 5 L1 9" fill="none" stroke="${col}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></marker>`).join('')}</defs>`;
     let curColor = '#aab4bd';
-    const arrow = (x1, y1, x2, y2) => { const k = PAL.indexOf(curColor); return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${curColor}" stroke-width="3" stroke-linecap="round" marker-end="url(#${k < 0 ? 'odArrow' : 'odA' + k})"/>`; };
+    const arrow = (x1, y1, x2, y2) => path([[x1, y1], [x2, y2]]);
+    // 折線箭頭（先直直穿過別人名牌的下面，再轉彎指過去）
+    const path = pts => { const k = PAL.indexOf(curColor); return `<polyline points="${pts.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="${curColor}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" data-od-arrow marker-end="url(#${k < 0 ? 'odArrow' : 'odA' + k})"/>`; };
+    // 箭頭要碰到物件上的字（字在物件正中間；直寫的字約 ±22 高，橫寫的字依字數算寬度）
+    const FS = 18.4;
+    const labelOf = it => {
+      const r = ovRect(it.hit), v = r[3] > r[2] * 1.2, n = it.floor ? `${it.title}`.replace(/\s/g, '').length + 1 : it.strip ? `${it.name}${it.no}`.length : `${it.name.replace('公佈欄', '')}${it.no}`.length;
+      const [lx, ly] = ovMid(r);
+      if (it.floor) return v ? { lx, ly, hw: FS * 0.6 + 14, hh: Math.min(r[3] / 2 - 4, n * FS * 0.55) } : { lx, ly, hw: n * FS * 0.55 + 14, hh: FS * 0.6 };   // 地板：虛線膠囊
+      return v ? { lx, ly, hw: FS * 0.55, hh: Math.min(r[3] / 2 - 4, n * FS * 0.5) } : { lx, ly, hw: n * FS * 0.5, hh: FS * 0.45 };
+    };
+    // 從 fromX 那一側指向字：x 停在字的邊緣外面一點，y 盡量對齊 wantY（但要在字的範圍內）
+    const labelTip = (it, fromX, wantY) => {
+      const L = labelOf(it), left = fromX < L.lx;
+      return [L.lx + (left ? -1 : 1) * (L.hw - 1), Math.max(L.ly - L.hh + 4, Math.min(L.ly + L.hh - 4, wantY))];
+    };
     const sideOf = it => (it.hit[1] + it.hit[3] / 2 < 330 ? 'W' : 'E');   // 原圖上方＝西側
     const corE = OV.wallE, corW = OV.wallE + 95 * OV.k;                     // 走廊的東、西兩側邊線
     // 同一側的物件（不含地板、水泥平台），用來判斷線會不會穿過別人的工作
     const wallItems = side => cards.filter(c => c.job).flatMap(c => c.its.filter(it => !it.floor && !it.strip && sideOf(it) === side).map(it => ({ c, y: ovMid(ovRect(it.hit))[1] })));
-    cards.forEach(c => {
-      // 一份工作有好幾個同側物件時：只連最接近名牌的那個；中間夾著別人工作的，改用小名牌（線就不會交叉）
-      const cy0 = c.y + c.h / 2;
-      const mine = c.its.filter(it => !it.floor && !it.strip && sideOf(it) === c.side);
-      const near = mine.slice().sort((a, b) => Math.abs(ovMid(ovRect(a.hit))[1] - cy0) - Math.abs(ovMid(ovRect(b.hit))[1] - cy0))[0];
-      const others = c.side ? wallItems(c.side).filter(o => o.c !== c) : [];
-      c.tagged = new Set(mine.filter(it => {
-        if (it === near) return false;
-        const y1 = ovMid(ovRect(near.hit))[1], y2 = ovMid(ovRect(it.hit))[1];
-        return others.some(o => o.y > Math.min(y1, y2) && o.y < Math.max(y1, y2));
-      }));
-    });
+    void wallItems;
     cards.forEach(c => c.its.forEach(it => {
       curColor = c.color || '#aab4bd';
       const r = ovRect(it.hit), E = c.side === 'E', my = ovMid(r)[1];
-      if (it.floor) {                                                       // 地板：水平指進走廊
-        const cy = c.y + c.h / 2;
-        s += arrow(E ? c.x + c.w : c.x, cy, E ? corE + 20 : corW - 20, cy);
+      if (it.floor) {                                                       // 地板：指到走廊中間「牆壁地板掃拖」的字
+        const cy = c.y + c.h / 2, fx = E ? c.x + c.w : c.x, L = labelOf(it);
+        if (cy > L.ly - L.hh + 6 && cy < L.ly + L.hh - 6) { s += arrow(fx, cy, ...labelTip(it, fx, cy)); return; }
+        // 名牌不在字的高度：先水平走進走廊（避開牆邊的玻璃、洗手槽），再轉彎直直指到字的一端
+        const walls = OUT_ITEMS.filter(o => !o.floor && !o.strip).map(o => ovRect(o.hit)).filter(q => q[0] < Math.max(fx, L.lx) && q[0] + q[2] > Math.min(fx, L.lx));
+        const above = L.ly < cy, ys = [];
+        for (let y = above ? c.y + 10 : c.y + c.h - 10; above ? y <= c.y + c.h - 10 : y >= c.y + 10; y += above ? 4 : -4) ys.push(y);
+        const y0 = ys.find(y => !walls.some(q => y > q[1] - 6 && y < q[1] + q[3] + 6)) ?? cy;
+        s += path([[fx, y0], [L.lx, y0], [L.lx, above ? L.ly + L.hh - 1 : L.ly - L.hh + 1]]);
         return;
       }
-      if (sideOf(it) !== c.side || c.tagged?.has(it)) { tags.push({ c, it, side: sideOf(it), y: my, r }); return; }
-      const ex = E ? c.x + c.w : c.x;
-      if (it.strip) {                                                        // 水泥平台（長條）：從名牌水平指到長條外緣，不會穿過中間的字
-        const cy = Math.max(r[1] + 6, Math.min(r[1] + r[3] - 6, c.y + c.h / 2));
-        s += arrow(ex, cy, (E ? r[0] : r[0] + r[2]) - (E ? 3 : -3), cy);
-        return;
-      }
-      const ey = Math.max(c.y + 10, Math.min(c.y + c.h - 10, my));           // 從名牌上最接近物件高度的地方出發
-      const tx = E ? r[0] : r[0] + r[2];
-      s += arrow(ex, ey, tx - (E ? 4 : -4), my);
+      if (sideOf(it) !== c.side) { tags.push({ c, it, side: sideOf(it), y: my, r }); return; }
+      const ex = E ? c.x + c.w : c.x, L = labelOf(it);
+      const down = L.ly > c.y + c.h, up = L.ly < c.y;
+      // 名牌和字之間，同一側有別人的名牌（可以從那張名牌的下面穿過去）
+      const block = (down || up) ? cards.filter(o => o !== c && o.side === c.side && (down ? o.y < L.ly && o.y + o.h > c.y + c.h : o.y + o.h > L.ly && o.y < c.y)) : [];
+      const ey = Math.max(c.y + 10, Math.min(c.y + c.h - 10, L.ly));         // 從名牌上最接近字的高度出發
+      plans.push({ c, it, E, down, block, color: curColor, seg: [[ex, ey], labelTip(it, ex, ey)], dy: Math.abs(L.ly - ey) });
     }));
+    // 直線會和別人的箭頭交叉時：走比較遠的那一條改成「直直穿過中間那張名牌的下面，出來再轉彎指到字」
+    const cross = (a, b) => {
+      const [[x1, y1], [x2, y2]] = a, [[x3, y3], [x4, y4]] = b;
+      const d = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3);
+      if (!d) return false;
+      const t = ((x3 - x1) * (y4 - y3) - (y3 - y1) * (x4 - x3)) / d, u = ((x3 - x1) * (y2 - y1) - (y3 - y1) * (x2 - x1)) / d;
+      return t > 0.02 && t < 0.98 && u > 0.02 && u < 0.98;
+    };
+    plans.forEach(p => {
+      if (!p.block.length) return;
+      const hit = plans.some(q => q.c !== p.c && !q.route && cross(p.seg, q.seg) && (!q.block.length || q.dy <= p.dy));
+      if (!hit) return;
+      const c = p.c, vx = p.E ? c.x + c.w - 14 : c.x + 14;
+      const turn = p.down ? Math.max(...p.block.map(o => o.y + o.h)) + 10 : Math.min(...p.block.map(o => o.y)) - 10;
+      p.route = [[vx, p.down ? c.y + c.h : c.y], [vx, turn], labelTip(p.it, vx, turn)];
+    });
+    plans.forEach(p => { curColor = p.color; s += path(p.route || p.seg); });
     // 另一側的小名牌：放在名牌欄和走廊之間的空隙，高度對齊物件
     tags.forEach(t => {
       const E = t.side === 'E';
@@ -1660,7 +1684,8 @@
       }
       t.y = t.y - t.h / 2;
       curColor = t.c.color || '#aab4bd';
-      s += arrow(E ? t.x + t.w : t.x, t.y + t.h / 2, E ? corE - 1 : corW + 1, itemY);
+      const fx = E ? t.x + t.w : t.x;
+      s += arrow(fx, t.y + t.h / 2, ...labelTip(t.it, fx, itemY));
     });
     s += `</svg>`;
     const edit = !check && canRoster();
