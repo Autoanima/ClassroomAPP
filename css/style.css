@@ -1515,3 +1515,6 @@ body.ww-open { overflow: hidden; }
 .df-face.shake { animation: dfShake .1s linear 6; }
 .df-n { font-size: 15px; font-weight: 700; opacity: .85; margin-left: 6px; }
 .df-hint { color: rgba(255,255,255,.75); font-size: 12px; }
+
+/* 掃地檢查：最後是誰、幾點檢查的 */
+.chk-by { margin: -4px 0 6px; font-size: 13px; color: var(--muted, #6b7280); }

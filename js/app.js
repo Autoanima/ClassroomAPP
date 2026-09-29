@@ -614,6 +614,8 @@
       el.classList.remove('st-good', 'st-bad', 'st-absent', 'st-partial');
       if (s.st !== 'none') el.classList.add('st-' + s.st);
       el.classList.toggle('is-issue', s.issue);
+      const lr = state.records[(unitOf[it.id] || it).id];
+      if (el.tagName === 'BUTTON') el.title = lr?.by && lr.updatedAt ? `${lr.by} 已檢查 ${fmtTime(new Date(lr.updatedAt))}` : '';
       const b = el.querySelector('.badge');
       if (b) b.textContent = BADGE[s.st] || '';
       const mk = el.querySelector('.mk');
@@ -779,6 +781,7 @@
     const r = state.records[item.id] || { status: {}, issue: false, parts: {}, note: '', photos: [] };
     const fItem = focus && itemById[focus];
     let h = sheetHead(esc(item.title), esc(item.group ? `${item.area === 'in' ? '' : item.where + '・'}共 ${item.items.length} 個地方，整組一起記錄` : item.where));
+    if (r.by && r.updatedAt) h += `<p class="chk-by">🕒 ${esc(r.by)} 已檢查 ${fmtTime(new Date(r.updatedAt))}</p>`;
     h += `<h3>清潔程度</h3><div class="owners">`;
     if (!item.owners.length) h += `<p class="empty">尚未指定負責同學。請導師到「工作分配」分頁設定。</p>`;
     item.owners.forEach(o => {
@@ -845,9 +848,12 @@
     sheetBody.scrollTop = scroll;
   }
   function touch(item) {
-    rec(item.id).updatedAt = Date.now();
+    const r = rec(item.id);
+    r.updatedAt = Date.now();
+    r.by = myTag();
     save();
     enqueue(rowsFor(item));
+    pushLive(item);
     refresh();
   }
   let noteTimer;
@@ -1069,6 +1075,15 @@
     }
     if (action === 'setOutdoorSheet') throw new Error('測試模式不會連結外掃試算表');
     if (action === 'uploadPhoto') throw new Error('測試模式不會上傳照片');
+    if (action === 'getCheckLive' || action === 'setCheckLive') {
+      const all = store.get('indoor.live.test', {}), day = all[payload.date] ||= {};
+      if (action === 'setCheckLive') {
+        payload.rows.forEach(x => { if (!day[x.unit] || (day[x.unit].updatedAt || 0) < x.rec.updatedAt) day[x.unit] = x.rec; });
+        store.set('indoor.live.test', all);
+        return { ok: true };
+      }
+      return { ok: true, rows: Object.entries(day).map(([unit, rec]) => ({ unit, rec })) };
+    }
     if (App.testSeatApi) {
       const r = await App.testSeatApi(action, payload);
       if (r) return r;
@@ -1110,7 +1125,7 @@
     if (!r || !state.sessionId) return [];
     const photos = (r.photos || []).filter(p => p.url).map(p => p.url).join('\n');
     return item.owners.map(owner => ({
-      key: `${state.sessionId}|${item.id}|${owner}`,
+      key: `${fmtDate(new Date(state.startedAt))}|${item.id}|${owner}`,   // 用日期：兩個人檢查同一個地方會寫到同一列
       session: state.sessionId,
       date: fmtDate(new Date(state.startedAt)),
       section: item.where,
@@ -1167,6 +1182,68 @@
   const syncText = () => (TEST ? '測試模式：資料不會寫入雲端' : !settings.gasUrl ? '尚未設定雲端，紀錄只存在這支手機。'
     : syncError ? '⚠️ 同步失敗：' + syncError + '（重試中）' : queue.length ? `還有 ${queue.length} 筆等待寫入試算表…` : '✓ 已連線到雲端，所有紀錄都已寫入試算表');
   window.addEventListener('online', () => { flush(); retryPhotos(); });
+
+  // ── 即時同步：導師和檢查幹部互相看得到檢查結果 ──
+  // 每 15 秒在背景拿一次最新狀態，只換掉有變動的格子；檢查視窗開著時暫停（不會打斷打字）；以最後儲存的為準
+  const myTag = () => (isTeacher() ? D.teacherLabel || '導師' : seatCode(settings.me || settings.inspector || '') || '幹部');
+  const liveOn = () => isChecker() && (TEST || !!settings.gasUrl);
+  const driveThumb = id => `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w300`;
+  // 推上去的紀錄：照片只帶雲端網址（手機裡的小圖太大，也還沒上傳的不帶）
+  const liveRec = r => ({
+    status: r.status || {}, issue: !!r.issue, parts: r.parts || {}, note: r.note || '',
+    photos: (r.photos || []).filter(p => p.driveId).map(p => ({ id: p.id, driveId: p.driveId, url: p.url || '', part: p.part || '' })),
+    updatedAt: r.updatedAt || 0, by: r.by || '',
+  });
+  const livePending = new Map();
+  let liveTimer;
+  function pushLive(item) {
+    if (!liveOn()) return;
+    livePending.set(item.id, item);
+    clearTimeout(liveTimer);
+    liveTimer = setTimeout(sendLive, 1200);
+  }
+  async function sendLive() {
+    if (!livePending.size) return;
+    const items = [...livePending.values()];
+    livePending.clear();
+    const date = fmtDate(new Date(state.startedAt || Date.now()));
+    try {
+      await api('setCheckLive', { date, rows: items.filter(it => state.records[it.id]).map(it => ({ unit: it.id, rec: liveRec(state.records[it.id]) })) });
+    } catch {
+      items.forEach(it => { if (!livePending.has(it.id)) livePending.set(it.id, it); });
+      clearTimeout(liveTimer);
+      liveTimer = setTimeout(sendLive, 15e3);
+    }
+  }
+  let liveBusy = false;
+  async function pollLive() {
+    if (liveBusy || !liveOn() || document.hidden || ui.tab !== 'clean' || sheetMode) return;
+    liveBusy = true;
+    try { mergeLive((await api('getCheckLive', { date: fmtDate(new Date()) })).rows || []); } catch { /* 下次再試 */ }
+    liveBusy = false;
+  }
+  function mergeLive(rows) {
+    if (sheetMode) return;   // 拿資料的時候剛好打開了視窗：這次先不換
+    const newer = rows.filter(x => itemById[x.unit] && x.rec && (x.rec.updatedAt || 0) > (state.records[x.unit]?.updatedAt || 0));
+    if (!newer.length) return;
+    // 手機上還是前一天的紀錄：換成今天的一輪
+    const today = fmtDate(new Date());
+    if (state.startedAt && fmtDate(new Date(state.startedAt)) !== today) { flush(); state = emptyState(); }
+    ensureSession();
+    const others = new Set();
+    newer.forEach(x => {
+      const loc = state.records[x.unit], old = new Map((loc?.photos || []).map(p => [p.id, p]));
+      const photos = (x.rec.photos || []).map(p => ({ ...p, thumb: old.get(p.id)?.thumb || driveThumb(p.driveId), st: 'done' }))
+        .concat((loc?.photos || []).filter(p => !p.driveId));   // 自己還沒上傳完的照片留著
+      state.records[x.unit] = { status: x.rec.status || {}, issue: !!x.rec.issue, parts: x.rec.parts || {}, note: x.rec.note || '', photos, updatedAt: x.rec.updatedAt, by: x.rec.by || '' };
+      if (x.rec.by && x.rec.by !== myTag()) others.add(x.rec.by);
+    });
+    save();
+    refresh();
+    if (others.size) toast(`🔄 ${[...others].join('、')} 更新了 ${newer.length} 個地方`);
+  }
+  setInterval(pollLive, 15e3);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) pollLive(); });
 
   // ── 每 20 小時自動清空掃地紀錄 ──
   async function resetSession(auto) {
@@ -2290,6 +2367,7 @@
         if (areas.size === 1) ui.area = [...areas][0];
       }
       renderArea();
+      setTimeout(pollLive, 50);
     };
     mountMap('jobs', 'jobs').el.addEventListener('click', onJobsMapClick);
     tabHooks.jobs = () => renderJobs();

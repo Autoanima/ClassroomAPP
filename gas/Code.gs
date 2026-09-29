@@ -115,7 +115,7 @@ const STUDENT_OK = Object.assign({ getLeave: 1, addLeave: 1, editLeave: 1, leave
 const CADRE_OK = Object.assign({ getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
 const GUEST_OK = { getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
-const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1 };
+const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1, getCheckLive: 1, setCheckLive: 1 };
 const MONITOR_OK = { addDrawLog: 1, getDrawFx: 1, drawUsed: 1 };   // 用學生身分登入的班長、副班長：可以抽籤
 
 function doGet() {
@@ -177,6 +177,8 @@ function doPost(e) {
       case 'getStudents': return json(getStudents());
       case 'saveRecords': return json(saveRecords((req.rows || []).map(r => Object.assign(r, { inspector: who.key }))));
       case 'uploadPhoto': return json(uploadPhoto(req));
+      case 'getCheckLive': return json(getCheckLive(req.date));
+      case 'setCheckLive': return json(setCheckLive(who, req.date, req.rows || []));
       case 'addPoints': return json(addPoints(req.rows || [], who));
       case 'getPoints': return json({ ok: true, rows: getPoints(req.days, who) });
       case 'delPoints': return json(delPoints(req.id, who));
@@ -2123,6 +2125,55 @@ function saveRecords(rows) {
       sh.getRange(start, 1, list.length, 1).setNumberFormat('yyyy/mm/dd');
     }
     return { ok: true, saved: rows.length };
+  });
+}
+
+// ── 掃地檢查即時狀態：導師和檢查幹部互相看得到檢查結果（每天每個檢查單位一列，存整筆紀錄）──
+const SHEET_LIVE = '檢查即時狀態';
+const HEAD_LIVE = ['日期', '單位', '紀錄', '更新時間', '檢查人'];
+const liveSheet = () => textSheet(SHEET_LIVE, HEAD_LIVE, [1, 2, 3, 5]);
+function getCheckLive(date) {
+  const d = String(date || ''), sh = liveSheet(), n = sh.getLastRow() - 1;
+  if (n < 1) return { ok: true, rows: [] };
+  const rows = [];
+  sh.getRange(2, 1, n, 3).getValues().forEach(r => {
+    if (String(r[0]) !== d) return;
+    try { rows.push({ unit: String(r[1]), rec: JSON.parse(r[2]) }); } catch (e) { /* 壞掉的列就跳過 */ }
+  });
+  return { ok: true, rows: rows };
+}
+function setCheckLive(who, date, rows) {
+  const d = String(date || '');
+  if (!/^\d{4}\/\d{2}\/\d{2}$/.test(d)) throw new Error('日期格式不對');
+  return withLock(() => {
+    const sh = liveSheet(), n = sh.getLastRow() - 1;
+    const vals = n > 0 ? sh.getRange(2, 1, n, 4).getValues() : [];
+    const index = new Map(vals.map((r, i) => [String(r[0]) + '|' + r[1], i]));
+    const appends = new Map(), by = who.teacher ? '導師' : String(who.key);
+    let saved = 0;
+    rows.slice(0, 80).forEach(x => {
+      const unit = String(x.unit || ''), rec = x.rec || {}, at = Number(rec.updatedAt) || 0;
+      const s = JSON.stringify(rec);
+      if (!unit || s.length > 40000) return;
+      const row = [d, unit, s, at, by], i = index.get(d + '|' + unit);
+      if (i == null) {   // 新的一列（同一批裡重複的，留最新的）
+        if (!appends.has(unit) || appends.get(unit)[3] < at) appends.set(unit, row);
+      } else if ((Number(vals[i][3]) || 0) < at) {   // 以最後儲存的為準
+        sh.getRange(i + 2, 1, 1, 5).setValues([row]);
+        saved++;
+      }
+    });
+    if (appends.size) {
+      const list = Array.from(appends.values());
+      sh.getRange(sh.getLastRow() + 1, 1, list.length, 5).setValues(list);
+      saved += list.length;
+      // 只留最近 3 天（最舊的在最上面）
+      const cut = Utilities.formatDate(new Date(Date.now() - 3 * 864e5), CONFIG.TIMEZONE, 'yyyy/MM/dd');
+      let old = 0;
+      while (old < vals.length && String(vals[old][0]) < cut) old++;
+      if (old) sh.deleteRows(2, old);
+    }
+    return { ok: true, saved: saved };
   });
 }
 
