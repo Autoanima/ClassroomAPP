@@ -94,9 +94,11 @@
   }
   // 一筆請假：進度（已登記 → 已上傳假卡 → 已確認）＋動作
   function itemHtml(x, teacher, ro) {
-    const back = x.status === '退回', idx = back ? 0 : STEP.indexOf(x.status);
-    const flow = `<ol class="lv-flow">${['APP 登記', '假卡家長簽名', '導師簽名'].map((t, i) => `<li class="${i <= idx ? 'done' : i === idx + 1 ? 'next' : ''}"><span class="n">${i <= idx ? '✓' : i + 1}</span><span class="t">${t}</span></li>`).join('')}</ol>`;
-    const steps = (back ? `<div class="lv-back">↩ 導師退回${x.reply && !x.other ? `：${esc(x.reply)}` : ''}</div>` : '') + flow;
+    // 四個步驟：APP 登記 → 家長簽名 → 導師簽名 → 其他處室簽名；上傳假卡＝紙本全部簽完（四步都完成）
+    const back = x.status === '退回', idx = back || x.status === '已登記' ? 0 : 3;
+    const flow = `<ol class="lv-flow">${['APP 登記', '假卡家長簽名', '導師簽名', '其他處室簽名'].map((t, i) => `<li class="${i <= idx ? 'done' : i === idx + 1 ? 'next' : ''}"><span class="n">${i <= idx ? '✓' : i + 1}</span><span class="t">${t}</span></li>`).join('')}</ol>`;
+    const after = x.status === '已確認' ? '<div class="lv-flow-after ok">✅ 假卡已上傳，導師已在 App 確認</div>' : x.status === '已上傳假卡' ? '<div class="lv-flow-after">📷 假卡已上傳，等導師在 App 確認</div>' : '';
+    const steps = (back ? `<div class="lv-back">↩ 導師退回${x.reply && !x.other ? `：${esc(x.reply)}` : ''}</div>` : '') + flow + after;
     // 班長、副班長看別人的：只看得到誰、哪天、假別、進度（沒有按鈕、說明、假卡照片）
     if (ro && x.other) {
       return `<div class="lv-item${x.status === '已確認' ? ' done' : ''}">
