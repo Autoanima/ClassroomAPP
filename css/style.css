@@ -1501,3 +1501,13 @@ body.ww-open { overflow: hidden; }
 .cal-legend { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 2px; }
 .cal-detail p { margin: 6px 0; font-size: 15px; }
 .cal-detail .cal-big { font-size: 18px; }
+
+/* 外掃區工作分配：物件名字（不能點）、走廊另一側的小名牌 */
+.od .oit.ro { pointer-events: none; }
+.od .oit.ro .olbl { opacity: .9; }
+.od-tag { position: absolute; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border-radius: 6px; white-space: nowrap; overflow: hidden; background: var(--surface); border: 1.5px dashed #aab4bd; color: var(--text); }
+.od-tag.zone-S { border-color: #e8a0a0; }
+.od-tag.zone-N { border-color: #8cc9a0; }
+/* 外掃名牌左邊的色條＝它的箭頭顏色 */
+.od-card[style*="--jc"] { box-shadow: inset 5px 0 0 var(--jc); }
+.od-tag { border-width: 2px; border-style: solid; }

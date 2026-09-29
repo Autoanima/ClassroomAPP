@@ -212,7 +212,7 @@
     };
   }
   // 外掃工作的名稱以外掃試算表裡的為準
-  const outdoorTitle = id => roster?.outdoor?.labels?.[id] || D.outdoor.jobs.find(j => j.id === id)?.title || id;
+  const outdoorTitle = id => D.outdoor.jobs.find(j => j.id === id)?.title || roster?.outdoor?.labels?.[id] || id;
 
   // 試算表「幹部名單」：同學 → 職位；依職位名稱排入幹部欄位（風紀、學藝各兩位；衛生＝環保股長）
   function slotsFromCadres(cadres) {
@@ -1484,6 +1484,14 @@
     cards.forEach(c => { c.x = c.side === 'E' ? 0 : OV.rightX; c.w = OV.cardW; });
     return cards;
   }
+  // 名牌下面的小字：這份工作確切負責哪些物件（例如「飲水機1、平台1、2」「玻璃1、2」）
+  function jobWhat(its) {
+    const short = n => n.replace('公佈欄', '').replace('水泥', '').replace('牆壁', '');
+    const groups = [];
+    its.forEach(it => { const n = short(it.name), g = groups.find(x => x.n === n); if (g) g.nos.push(it.no); else groups.push({ n, nos: [it.no] }); });
+    return groups.map(g => g.n + g.nos.join('、')).join('、');
+  }
+  const seatCode = k => { const m = String(k || '').match(/^(\D*?)(\d+)/); return m ? m[1] + m[2] : String(k || ''); };   // 「料18陳慧潤」→「料18」
   function outdoorDiagram(O, mode = 'jobs') {
     const G = D.outdoor, check = mode === 'check';
     // 檢查時只看走廊（畫面比較大）；工作分配時連兩側名牌一起
@@ -1511,28 +1519,71 @@
     });
     s += `<line x1="${OV.wallE}" y1="608" x2="${OV.wallE + 95 * OV.k}" y2="608" stroke="rgba(0,0,0,.3)" stroke-width="2" stroke-dasharray="8 6"/>`;
     const cards = check ? [] : outdoorCards();
-    // 箭頭：名牌 → 物件（地板、水泥平台直接水平指過去）
+    // 箭頭：名牌 → 物件，每個物件一條直線（不再共用垂直主幹，線就不會疊在一起）
+    // 物件在走廊另一側：不拉長線橫跨走廊，改在那一側放一個小名牌（tags），用短箭頭指過去
+    const tags = [];
+    // 每個名牌的箭頭用自己的顏色（名牌左邊也有同色色條）：線交叉時也看得出是誰的
+    const PAL = ['#e8590c', '#1c7ed6', '#2f9e44', '#ae3ec9', '#f08c00', '#0ca678', '#d6336c'];
+    cards.forEach((c, i) => { if (c.job) c.color = PAL[i % PAL.length]; });
+    s += `<defs>${PAL.map((col, k) => `<marker id="odA${k}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M1 1 L8 5 L1 9" fill="none" stroke="${col}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></marker>`).join('')}</defs>`;
+    let curColor = '#aab4bd';
+    const arrow = (x1, y1, x2, y2) => { const k = PAL.indexOf(curColor); return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${curColor}" stroke-width="3" stroke-linecap="round" marker-end="url(#${k < 0 ? 'odArrow' : 'odA' + k})"/>`; };
+    const sideOf = it => (it.hit[1] + it.hit[3] / 2 < 330 ? 'W' : 'E');   // 原圖上方＝西側
+    const corE = OV.wallE, corW = OV.wallE + 95 * OV.k;                     // 走廊的東、西兩側邊線
     cards.forEach(c => c.its.forEach(it => {
-      const r = ovRect(it.hit), E = c.side === 'E';
-      const ex = E ? c.x + c.w : c.x, cy = c.y + c.h / 2;
+      curColor = c.color || '#aab4bd';
+      const r = ovRect(it.hit), E = c.side === 'E', my = ovMid(r)[1];
+      if (it.floor) {                                                       // 地板：水平指進走廊
+        const cy = c.y + c.h / 2;
+        s += arrow(E ? c.x + c.w : c.x, cy, E ? corE + 20 : corW - 20, cy);
+        return;
+      }
+      if (sideOf(it) !== c.side) { tags.push({ c, it, side: sideOf(it), y: my, r }); return; }
+      const ex = E ? c.x + c.w : c.x;
+      if (it.strip) {                                                        // 水泥平台（長條）：從名牌水平指到長條外緣，不會穿過中間的字
+        const cy = Math.max(r[1] + 6, Math.min(r[1] + r[3] - 6, c.y + c.h / 2));
+        s += arrow(ex, cy, (E ? r[0] : r[0] + r[2]) - (E ? 3 : -3), cy);
+        return;
+      }
+      const ey = Math.max(c.y + 10, Math.min(c.y + c.h - 10, my));           // 從名牌上最接近物件高度的地方出發
       const tx = E ? r[0] : r[0] + r[2];
-      const pts = (it.floor || it.strip) ? [[ex, cy], [tx, cy]]
-        : [[ex, cy], [ex + (E ? 16 : -16), cy], [ex + (E ? 16 : -16), ovMid(r)[1]], [tx, ovMid(r)[1]]];
-      s += `<polyline points="${pts.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="#aab4bd" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#odArrow)"/>`;
+      s += arrow(ex, ey, tx - (E ? 4 : -4), my);
     }));
+    // 另一側的小名牌：放在名牌欄和走廊之間的空隙，高度對齊物件
+    tags.forEach(t => {
+      const E = t.side === 'E';
+      t.h = 24;
+      if (t.it.strip) {
+        // 水泥平台（長條）：小名牌直接貼在長條的上段（避開中間的「水泥平台N」字），不用箭頭
+        t.x = t.r[0] + 2; t.w = t.r[2] - 4; t.y = t.r[1] + 60;
+        return;
+      }
+      t.x = E ? OV.cardW + 4 : corW + 8; t.w = E ? corE - OV.cardW - 12 : OV.rightX - corW - 12;
+      t.y = t.y - t.h / 2;
+      curColor = t.c.color || '#aab4bd';
+      s += arrow(E ? t.x + t.w : t.x, t.y + t.h / 2, E ? corE - 1 : corW + 1, t.y + t.h / 2);
+    });
     s += `</svg>`;
     const edit = !check && canRoster();
     const nameBtn = (key, name, sub) => `<button type="button" class="od-nm${name ? '' : ' empty'}${name && name === settings.me ? ' me' : ''}"${edit ? ` data-od="${key}"` : ' tabindex="-1"'}><b>${esc(name || '未設定')}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</button>`;
     const box = ([x, y, w, h]) => `left:${pct(x - vx, vw)};top:${pct(y, H)};width:${pct(w, vw)};height:${pct(h, H)}`;
     let c = '';
-    if (check) {
-      OUT_ITEMS.forEach(it => {
-        const r = ovRect(it.hit);
-        const lbl = it.floor ? `🧹 ${it.title}` : it.strip ? `${it.name}${it.no}` : `${it.name.replace('公佈欄', '')}${it.no}`;
+    OUT_ITEMS.forEach(it => {
+      const r = ovRect(it.hit);
+      const lbl = it.floor ? `🧹 ${it.title}` : it.strip ? `${it.name}${it.no}` : `${it.name.replace('公佈欄', '')}${it.no}`;
+      if (check) {
         c += `<button type="button" class="it oit${it.floor ? ' ofloor' : ''}${it.strip ? ' ostrip' : ''}" data-id="${it.id}" aria-label="${esc(it.full)}" style="${box(r)}">`
           + `<span class="olbl${r[3] > r[2] * 1.2 ? ' v' : ''}">${esc(lbl)}</span><span class="badge"></span><span class="mk"></span></button>`;
-      });
-    }
+      } else {
+        // 工作分配：只顯示名字（不能點）
+        c += `<div class="it oit ro${it.floor ? ' ofloor' : ''}${it.strip ? ' ostrip' : ''}" style="${box(r)}"><span class="olbl${r[3] > r[2] * 1.2 ? ' v' : ''}">${esc(lbl)}</span></div>`;
+      }
+    });
+    // 另一側的小名牌（例如「料18」）
+    tags.forEach(t => {
+      const names = (O.jobs[t.c.job.id] || []).filter(Boolean).map(seatCode);
+      c += `<div class="od-tag zone-${t.c.job.zone}" style="${box([t.x, t.y, t.w, t.h])};border-color:${t.c.color || '#aab4bd'}" title="${esc(outdoorTitle(t.c.job.id))}">${esc(names.join('、') || '未設定')}</div>`;
+    });
     cards.forEach(cd => {
       const r = [cd.x, cd.y, cd.w, cd.h];
       if (cd.insp) {
@@ -1540,8 +1591,9 @@
         return;
       }
       const j = cd.job, names = O.jobs[j.id] || [];
-      c += `<div class="od-card zone-${j.zone}${j.slots > 1 ? ' two' : ''}" style="${box(r)}" title="${esc(outdoorTitle(j.id))}">`;
-      for (let i = 0; i < j.slots; i++) c += nameBtn(`${j.id}:${i}`, names[i], i === j.slots - 1 ? j.short : '');
+      c += `<div class="od-card zone-${j.zone}${j.slots > 1 ? ' two' : ''}" style="${box(r)};--jc:${cd.color}" title="${esc(outdoorTitle(j.id))}">`;
+      const what = jobWhat(cd.its) || j.short;
+      for (let i = 0; i < j.slots; i++) c += nameBtn(`${j.id}:${i}`, names[i], i === j.slots - 1 ? what : '');
       c += `</div>`;
     });
     return `<div class="od-wrap"><div class="od${edit ? ' editable' : ''}${check ? ' checking' : ''}" style="aspect-ratio:${vw}/${H}">${s}${c}</div></div>`;
