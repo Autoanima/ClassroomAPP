@@ -69,10 +69,10 @@
       ${spark([R.START, ...M.snaps.map(s => s.v)], 140, 44)}
       <div class="inv-facts">
         <span>💰 可用現金 <b>${coin(M.avail)}</b></span>
-        <span>✍️ 投資日記 <b>${M.diary}/${R.DIARY}</b>${M.eligible ? ' ✅' : ''}</span>
+        <span>✍️ 投資日記 <b>${M.diary}</b> 筆${M.eligible ? ' ✅' : ''}</span>
         <span>🏆 名次 <b>${mine?.rank ? `第 ${mine.rank} 名` : '—'}</b></span>
       </div>
-      ${M.eligible ? '' : `<p class="muted small">再成交 ${R.DIARY - M.diary} 筆交易（每筆都要寫理由）就有領獎資格（累計，之後就一直有資格）。</p>`}
+      ${M.eligible ? '' : `<p class="muted small">完成第一筆交易（要寫理由）就會加入排行、有領獎資格。</p>`}
       <p class="muted small">本季報酬率：從 ${month(S.season)} 月初的 ${coin(M.start)} 算起；累計報酬率：從一開始的 ${coin(R.START)} 算起。</p>
     </div>`;
     // 股票
@@ -125,7 +125,7 @@
       <span class="ir-who">${esc(x.code)}${x.name && x.name !== x.code ? ` <span class="muted small">${esc(A.parseKey(x.name).name || x.name)}</span>` : ''}${x.me ? ' <span class="tag">我</span>' : ''}${x.teacher ? ' <span class="muted small">（不領獎）</span>' : ''}</span>
       <span class="ir-ret ${updn(x.ret)}">${pct(x.ret)}</span>
       <span class="ir-val">${coin(x.value)}</span>
-      <span class="ir-tag">${x.prize ? `🏆+${x.prize}` : ''}${x.steady ? ' 🐢穩健' : ''}${x.eligible ? '' : ` ✍️${x.diary}/${R.DIARY}`}</span></div>`;
+      <span class="ir-tag">${x.prize ? `🏆+${x.prize}` : ''}${x.steady ? ' 🐢穩健' : ''}${x.eligible ? '' : ' 尚未交易'}</span></div>`;
     const seg = (v, t) => `<button type="button" data-iv="rk" data-v="${v}" aria-pressed="${(ui.rk || 'season') === v}">${t}</button>`;
     let h = `<div class="inv-nav inv-rk">${seg('season', `🏆 ${month(S.season)} 月（本季）`)}${seg('total', '📈 累計（長期）')}</div>`;
     if (ui.rk === 'total') {
@@ -138,8 +138,8 @@
     }
     h += `<div class="panel"><h3>🏆 ${month(S.season)} 月排行榜 <span class="muted small">${S.final ? '（已結算）' : '（每天收盤後更新）'}</span></h3>
       <div class="inv-row head"><span class="ir-rank">名次</span><span class="ir-who">座號</span><span class="ir-ret">報酬率</span><span class="ir-val">投資幣</span><span class="ir-tag"></span></div>
-      ${el.length ? el.map(row).join('') : '<p class="muted small">還沒有人符合領獎資格（成交 3 筆以上）。</p>'}
-      ${no.length ? `<h3 class="inv-sub">還沒有領獎資格（投資日記未滿 ${R.DIARY} 筆）</h3>${no.map(row).join('')}` : ''}
+      ${el.length ? el.map(row).join('') : '<p class="muted small">還沒有人有交易紀錄。</p>'}
+      ${no.length ? `<h3 class="inv-sub">還沒有交易紀錄</h3>${no.map(row).join('')}` : ''}
       <p class="muted small">名次看「這一季」的報酬率（月初總值 → 月底總值），報酬率一樣的並列。🐢 穩健獎：報酬率是正的、平均至少一半的錢放在股票裡，每天漲跌起伏最小的人。</p></div>`;
     if (S.past?.length) h += `<div class="panel"><h3>📚 歷屆結果</h3>${S.past.map(p => `<details class="inv-past"><summary>${esc(p.season)}（${month(p.season)} 月）${p.mine ? `・我：${pct(p.mine.ret)}${p.mine.points ? `，得到 ${p.mine.points} 點` : ''}` : ''}</summary>
       ${boardList(p)}</details>`).join('')}</div>`;
@@ -161,7 +161,7 @@
       <li><b>手續費</b>：買、賣都收 ${(R.FEE * 100).toFixed(4)}%；<b>賣出</b>另收交易稅：股票 ${R.TAX_STOCK * 100}%、ETF ${R.TAX_ETF * 100}%。</li>
       <li><b>至少持有 ${R.HOLD} 個交易日</b>才能賣（先買的先賣）。</li>
       <li><b>股利</b>：持有的股票除息時，現金股利會自動發到你的現金。</li>
-      <li><b>投資日記</b>：每次買賣都要寫理由。累計有 <b>${R.DIARY} 筆成交</b>的交易，就有領獎資格（之後一直有效，長期持有不用一直買賣）。</li>
+      <li><b>投資日記</b>：每次買賣都要寫理由。只要有<b>成交紀錄</b>（1 筆就可以），就加入排行、有領獎資格（之後一直有效，長期持有不用一直買賣）。導師也在排行榜上，但不參加頒獎。</li>
       <li><b>報酬率一樣就並列</b>。</li>
       <li><b>導師也一起比賽</b>：和大家一樣從 ${coin(R.START)} 枚開始、一起排名，但不領獎，也不佔同學的得獎名額（例如導師第 1 名，同學的第 2 名一樣拿第 1 名的 ${P[0]} 點）。</li>
     </ol>

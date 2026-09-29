@@ -2913,7 +2913,7 @@ function investSettle() {
       st.list.forEach(x => {
         const pts = x.noPrize ? 0 : x.prize + (x.steady ? RU.STEADY : 0) + (x.eligible ? RU.JOIN : 0);
         const award = [x.prize ? '第 ' + x.rank + ' 名' : '', x.steady ? '穩健獎' : '', x.eligible ? '參與獎' : ''].filter(String).join('、');
-        rows.push([season, x.rank || '', x.key, Math.round(x.ret * 1e6) / 1e6, x.value, x.noPrize ? '導師（不領獎）' : award || '（投資日記未滿 ' + RU.DIARY + ' 筆）', pts, now]);
+        rows.push([season, x.rank || '', x.key, Math.round(x.ret * 1e6) / 1e6, x.value, x.noPrize ? '導師（不領獎）' : award || '（還沒有成交紀錄）', pts, now]);
         if (pts) mails.push([x.key, '📈 ' + season + ' 投資競賽結算囉！\n這一季的報酬率：' + (x.ret * 100).toFixed(2) + '%' + (x.rank ? '（第 ' + x.rank + ' 名）' : '') +
           '\n累計報酬率：' + (x.total * 100).toFixed(2) + '%\n獲得：' + award + '，共 ' + pts + ' 點商店點數，已經放進你的商店點數。\n\n投資組合不會歸零，會繼續延續到下一季，長期投資加油！']);
       });
@@ -3247,14 +3247,14 @@ var SelEngine = (function () {
  *   4. 買進、賣出都收手續費 0.1425%；賣出另收交易稅（股票 0.3%、ETF 0.1%）。
  *   5. 買進後至少要持有 3 個交易日才能賣（先買的先賣）。
  *   6. 持有的股票除息時，現金股利會自動發到現金。
- *   7. 累計有 3 筆以上成交的交易（每筆都寫了理由＝投資日記）才有領獎資格；報酬率一樣就並列。
+ *   7. 只要有成交紀錄（至少 1 筆，每筆都寫了理由＝投資日記）就加入排行、有領獎資格；報酬率一樣就並列。
  *   8. 穩健獎：有資格、這一季報酬率是正的、平均至少一半的錢放在股票裡，每天漲跌起伏（波動度）最小的人。
  *   9. noPrize（導師）：一起排名，但不領獎、不佔同學的得獎名額、不參加穩健獎。
  * 日期一律用 'yyyy/MM/dd' 字串；季＝'yyyy/MM'。
  */
 var InvestEngine = (function () {
   var RULES = {
-    START: 1000, FEE: 0.001425, TAX_STOCK: 0.003, TAX_ETF: 0.001, HOLD: 3, DIARY: 3,
+    START: 1000, FEE: 0.001425, TAX_STOCK: 0.003, TAX_ETF: 0.001, HOLD: 3, DIARY: 1,
     PRIZE: [15, 10, 10, 5, 5, 5, 5, 5, 5, 5], STEADY: 5, JOIN: 1, MIN_INV: 0.5, CLOSE: '13:30',
   };
   // group：畫面上依產業分組（可以收合）
