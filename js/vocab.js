@@ -221,6 +221,10 @@
       if (st.touched && Date.now() - st.touched < 8000) { st.done = true; paint(); } else close();
     };
   };
+  // 擂台賽用：全部 4 級單字、五十音（平假名／片假名）
+  A.vocabAll = () => Promise.all([1, 2, 3, 4].map(loadLevel)).then(a => a.flat());
+  A.vocabWarm = () => { A.vocabAll().catch(() => {}); };
+  A.kanaAll = kata => allKana(kata).map(c => [...c]);
   A.openVocab = extra => open(Object.assign({ standalone: true }, extra));
   // 上方「切換視角」右邊的 📚：隨時打開小練習
   $('#vocabBtn')?.addEventListener('click', () => A.openVocab());

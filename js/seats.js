@@ -116,7 +116,8 @@
     const wx = weather.filter(w => w.to === k && w.exp >= today);
     const wxHtml = ['sun', 'rain'].filter(t => wx.some(w => w.kind === t)).map(t => `<span class="wx wx-${t}" title="${esc(wx.filter(w => w.kind === t).map(w => w.by).join('、'))}">${t === 'sun' ? '☀️' : '☂️'}</span>`).join('');
     // 大頭照滿版，底下兩行小字：組別 座號／姓名
-    return `<span class="photo">${faceHtml(k)}</span>${wxHtml}<span class="sn"><b>${esc(code.replace(/(\d+)$/, ' $1'))}</b><span>${esc(name)}</span></span>${extra}`;
+    // 擂台賽：贏的人戴皇冠、輸的人插一支劍（一天）
+    return `<span class="photo${A.arenaLost?.(k) ? ' ar-lost' : ''}">${faceHtml(k)}</span>${wxHtml}${A.arenaBadges?.(k) || ''}<span class="sn"><b>${esc(code.replace(/(\d+)$/, ' $1'))}</b><span>${esc(name)}</span></span>${extra}`;
   }
   function seatClass(s) {
     const c = [];

@@ -14,6 +14,10 @@
   const nm = k => { const p = A.parseKey(k); return p.code ? `${p.code.replace(/(\d+)$/, ' $1')} ${p.name}` : k; };
   const today = () => A.fmtDate(new Date());
   const isT = () => A.isTeacher();
+  // 排序：資料科在前、多媒科在後，同一科座號小的在前（同一個人維持原本的順序）
+  const DEPT_ORDER = { 料: 0, 多: 1 };
+  const rankOf = k => { const c = A.parseKey(k).code || '', m = c.match(/^(\D*)(\d+)/); return m ? [DEPT_ORDER[m[1].charAt(0)] ?? 2, Number(m[2])] : [3, 0]; };
+  const byKey = (a, b) => { const x = rankOf(a), y = rankOf(b); return x[0] - y[0] || x[1] - y[1]; };
 
   async function load(quiet) {
     try { L = await A.api('getLeave'); lAt = Date.now(); } catch (e) { if (!quiet) toast('請假資料讀取失敗：' + e.message); }
@@ -33,6 +37,7 @@
     const root = $('#leaveRoot');
     if (!root) return;
     if (!L) { root.innerHTML = `<div class="panel"><p class="muted">讀取中…</p></div>`; return; }
+    L.rows.sort((a, b) => byKey(a.key, b.key));
     let h = rulesHtml();
     h += formHtml();
     // 導師：總表（可以確認、退回）；班長、副班長：自己的請假＋唯讀的總表；其他同學：自己的請假
@@ -53,7 +58,7 @@
   }
   function formHtml() {
     const pOpt = sel => PERIODS.map(p => `<option value="${p}"${p === sel ? ' selected' : ''}>${pName(p)}</option>`).join('');
-    const who = isT() ? `<label class="lv-f"><span>同學</span><select id="lvKey"><option value="">— 選擇同學 —</option>${A.students().map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join('')}</select></label>` : '';
+    const who = isT() ? `<label class="lv-f"><span>同學</span><select id="lvKey"><option value="">— 選擇同學 —</option>${A.students().slice().sort(byKey).map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join('')}</select></label>` : '';
     return `<details class="panel lv-new"${isT() ? '' : ' open'}><summary><b>${isT() ? '➕ 幫同學登記請假' : '📝 我要請假'}</b></summary>
       ${who}
       <div class="lv-types">${TYPES.map((t, i) => `<button type="button" data-lv="type" data-v="${t}" aria-pressed="${i === 0}">${t}</button>`).join('')}</div>
@@ -198,7 +203,7 @@
     // 統計：每位同學各假別的節數（已取消的不算）
     const stat = {};
     L.rows.forEach(x => { const s = (stat[x.key] ||= {}); s[x.type] = (s[x.type] || 0) + periods(x); });
-    const keys = Object.keys(stat).sort();
+    const keys = Object.keys(stat).sort(byKey);
     if (keys.length) {
       h += `<details class="panel"><summary><b>📊 請假統計（節數）</b></summary><div class="admin-wrap"><table class="admin lv-stat"><thead><tr><th>同學</th>${TYPES.map(t => `<th>${t}</th>`).join('')}<th>合計</th></tr></thead><tbody>
         ${keys.map(k => `<tr><td>${esc(nm(k))}</td>${TYPES.map(t => `<td>${stat[k][t] || ''}</td>`).join('')}<td><b>${Object.values(stat[k]).reduce((a, b) => a + b, 0)}</b></td></tr>`).join('')}

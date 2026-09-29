@@ -110,9 +110,9 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
 const GUEST_OK = { getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1, getCheckLive: 1, setCheckLive: 1 };
@@ -149,6 +149,11 @@ function doPost(e) {
       case 'ping': return json(ping());
       case 'getRoster': return json({ ok: true, roster: rosterWithOutdoor(), grade: PropertiesService.getScriptProperties().getProperty('CLASS_GRADE') || '' });
       case 'getLeave': return json(getLeave(who));
+      case 'arenaState': return json(arenaState(who));
+      case 'arenaChallenge': return json(arenaChallenge(who, req.to, String(req.subj || '')));
+      case 'arenaRespond': return json(arenaRespond(who, req.id, String(req.act || '')));
+      case 'arenaReady': return json(arenaReady(who, req.id));
+      case 'arenaProgress': return json(arenaProgress(who, String(req.id || ''), req.n, req.ms, req.done));
       case 'addLeave': return json(addLeave(who, req.row || {}));
       case 'leaveCard': return json(leaveCard(who, String(req.id || ''), req.data));
       case 'getLeaveCard': return json(getLeaveCard(who, req.fid));
@@ -2175,6 +2180,167 @@ function setCheckLive(who, date, rows) {
     }
     return { ok: true, saved: saved };
   });
+}
+
+// ── ⚔️ 擂台賽：同學互相挑戰（英文單字／日文五十音）；雙方接受後同時開始，同一組題目、每題 5 秒，
+//    先答錯（或超時）就停，答對多的贏（一樣多比總作答時間）；贏的人得到商店點數 1 點。同一對同學每天只能比 1 場。──
+const SHEET_ARENA = '擂台賽';
+const HEAD_ARENA = ['編號', '建立時間', '挑戰者', '對手', '科目', '狀態', '種子', '開始時間', '挑戰者成績', '對手成績', '勝方', '結束時間'];
+const ARENA_BOT = '⚔️ 擂台賽';
+const ARENA = { MAX_Q: 50, SEC: 5, WAIT_MIN: 30, SHOW_H: 24 };
+const ARENA_SUBJ = { en: '英文', jp: '日文' };
+const arenaSheet = () => textSheet(SHEET_ARENA, HEAD_ARENA, [1, 3, 4, 5, 6, 9, 10, 11]);
+const arenaJson = s => { try { return s ? JSON.parse(s) : null; } catch (e) { return null; } };
+function arenaRows() {
+  const sh = arenaSheet(), n = sh.getLastRow() - 1;
+  if (n < 1) return [];
+  return sh.getRange(2, 1, n, HEAD_ARENA.length).getValues().map((r, i) => ({
+    row: i + 2, id: String(r[0]), t: r[1] instanceof Date ? r[1].getTime() : Number(r[1]) || 0, a: String(r[2]), b: String(r[3]),
+    subj: String(r[4]), status: String(r[5]), seed: Number(r[6]) || 0, start: Number(r[7]) || 0,
+    ra: arenaJson(r[8]), rb: arenaJson(r[9]), win: String(r[10]), end: Number(r[11]) || 0,
+  })).filter(x => x.id);
+}
+const arenaCache = () => CacheService.getScriptCache();
+const arenaProg = (id, k) => arenaJson(arenaCache().get('ar:pg:' + id + ':' + k));
+const arenaReadyOf = (id, k) => !!arenaCache().get('ar:rd:' + id + ':' + k);
+const arenaDeadline = x => x.start + ARENA.MAX_Q * ARENA.SEC * 1000 + 90e3;
+function arenaSet(x, cols) {   // cols：{ 欄位編號: 值 }
+  const sh = arenaSheet();
+  Object.keys(cols).forEach(c => sh.getRange(x.row, Number(c)).setValue(cols[c]));
+}
+/** 比完了：決定勝負、發 1 點商店點數、寄飛鴿傳書 */
+function arenaFinish(x) {
+  const ra = x.ra || arenaProg(x.id, x.a) || { n: 0, ms: 0 }, rb = x.rb || arenaProg(x.id, x.b) || { n: 0, ms: 0 };
+  let win = '平手';
+  if (ra.n !== rb.n) win = ra.n > rb.n ? x.a : x.b;
+  else if (ra.n > 0 && ra.ms !== rb.ms) win = ra.ms < rb.ms ? x.a : x.b;
+  const now = Date.now();
+  arenaSet(x, { 6: '完成', 9: JSON.stringify({ n: ra.n, ms: ra.ms }), 10: JSON.stringify({ n: rb.n, ms: rb.ms }), 11: win, 12: now });
+  Object.assign(x, { status: '完成', ra: ra, rb: rb, win: win, end: now });
+  const subj = ARENA_SUBJ[x.subj] || x.subj, score = ra.n + '：' + rb.n;
+  const url = '\n' + CONFIG.SITE_URL + '#tab=arena';
+  if (win === '平手') {
+    botMail([[x.a, '⚔️ 你和 ' + x.b + ' 的' + subj + '擂台賽平手（' + score + '，時間也一樣）！' + url], [x.b, '⚔️ 你和 ' + x.a + ' 的' + subj + '擂台賽平手（' + score + '，時間也一樣）！' + url]], ARENA_BOT);
+    return x;
+  }
+  const lose = win === x.a ? x.b : x.a, wr = win === x.a ? ra : rb, lr = win === x.a ? rb : ra;
+  const d = new Date(now);
+  const sh = pointsSheet(), at = sh.getLastRow() + 1;
+  sh.getRange(at, 1, 1, HEAD_POINTS.length).setValues([[d, win, 1, '擂台賽', subj + '擂台賽打敗 ' + faceCode(lose) + '（' + wr.n + '：' + lr.n + '）', ARENA_BOT, d, 'AR-' + x.id]]);
+  sh.getRange(at, 1).setNumberFormat('yyyy/mm/dd');
+  sh.getRange(at, 7).setNumberFormat('yyyy/mm/dd hh:mm');
+  const tie = wr.n === lr.n ? '（答對題數一樣，你比較快）' : '';
+  botMail([
+    [win, '👑 你在' + subj + '擂台賽打敗了 ' + lose + '！（' + wr.n + '：' + lr.n + '）' + tie + '\n獲得商店點數 1 點，座位上也戴上了皇冠（顯示一天）。' + url],
+    [lose, '🗡️ 你在' + subj + '擂台賽輸給了 ' + win + '（' + lr.n + '：' + wr.n + '）。\n別灰心，多練習「📚 小練習」，明天再來挑戰！' + url],
+  ], ARENA_BOT);
+  return x;
+}
+/** 逾時的邀請、比太久沒結束的比賽：整理一下（要在 withLock 裡面呼叫） */
+function arenaTidy(rows) {
+  const now = Date.now();
+  rows.forEach(x => {
+    if ((x.status === '邀請' || x.status === '接受') && now - x.t > ARENA.WAIT_MIN * 60e3) { arenaSet(x, { 6: '逾時' }); x.status = '逾時'; }
+    else if (x.status === '進行中' && now > arenaDeadline(x)) arenaFinish(x);
+    else if (x.status === '進行中') {
+      const pa = x.ra || arenaProg(x.id, x.a), pb = x.rb || arenaProg(x.id, x.b);
+      if (pa && pa.done && pb && pb.done) { x.ra = pa; x.rb = pb; arenaFinish(x); }
+    }
+  });
+  return rows;
+}
+const arenaActive = s => s === '邀請' || s === '接受' || s === '進行中';
+function arenaState(who) {
+  const me = who.teacher || who.role === 'G' ? '' : who.key, now = Date.now();
+  let rows = arenaRows();
+  if (rows.some(x => (arenaActive(x.status)))) rows = withLock(() => arenaTidy(arenaRows()));
+  const mine = rows.filter(x => me && (x.a === me || x.b === me) && (arenaActive(x.status) || (x.status === '完成' && now - x.end < 10 * 60e3)))
+    .map(x => {
+      const opp = x.a === me ? x.b : x.a;
+      return {
+        id: x.id, a: x.a, b: x.b, subj: x.subj, status: x.status, t: x.t, start: x.start, seed: x.status === '進行中' ? x.seed : 0,
+        readyA: arenaReadyOf(x.id, x.a), readyB: arenaReadyOf(x.id, x.b),
+        opp: x.status === '完成' ? (x.a === opp ? x.ra : x.rb) : arenaProg(x.id, opp), win: x.win,
+        ra: x.status === '完成' ? x.ra : null, rb: x.status === '完成' ? x.rb : null,
+      };
+    });
+  const recent = rows.filter(x => x.status === '完成' && now - x.end < ARENA.SHOW_H * 3600e3)
+    .map(x => ({ id: x.id, a: x.a, b: x.b, subj: x.subj, win: x.win, na: (x.ra || {}).n || 0, nb: (x.rb || {}).n || 0, end: x.end }));
+  let wins = 0, losses = 0;
+  if (me) rows.forEach(x => { if (x.status !== '完成' || (x.a !== me && x.b !== me) || x.win === '平手') return; if (x.win === me) wins++; else losses++; });
+  const today = ymd(new Date());
+  const played = me ? rows.filter(x => (x.a === me || x.b === me) && ymd(new Date(x.t)) === today && (arenaActive(x.status) || x.status === '完成')).map(x => (x.a === me ? x.b : x.a)) : [];
+  return { ok: true, me: me, now: Date.now(), mine: mine, recent: recent, wins: wins, losses: losses, played: played, rules: ARENA };
+}
+function arenaChallenge(who, to, subj) {
+  if (who.teacher) throw new Error('導師不能參加擂台賽');
+  to = String(to || '');
+  if (!ARENA_SUBJ[subj]) throw new Error('請選英文或日文');
+  if (!to || to === who.key) throw new Error('請選一位同學');
+  if (getStudents().students.indexOf(to) < 0) throw new Error('名單裡找不到這位同學');
+  withLock(() => {
+    const rows = arenaTidy(arenaRows()), today = ymd(new Date());
+    const pair = rows.find(x => ((x.a === who.key && x.b === to) || (x.a === to && x.b === who.key)) && ymd(new Date(x.t)) === today && (arenaActive(x.status) || x.status === '完成'));
+    if (pair) throw new Error(pair.status === '完成' ? '你們今天已經比過了，明天再來挑戰！' : '你們之間已經有一場挑戰還沒結束');
+    const id = Utilities.getUuid().slice(0, 8), sh = arenaSheet(), at = sh.getLastRow() + 1;
+    sh.getRange(at, 1, 1, HEAD_ARENA.length).setValues([[id, new Date(), who.key, to, subj, '邀請', '', '', '', '', '', '']]);
+    botMail([[to, '⚔️ ' + who.key + ' 向你發起「' + ARENA_SUBJ[subj] + '擂台賽」挑戰！\n' + ARENA.WAIT_MIN + ' 分鐘內到「⚔️ 擂台」按「接受」，兩個人都按「我準備好了」就開始。' + '\n' + CONFIG.SITE_URL + '#tab=arena']], ARENA_BOT);
+  });
+  return arenaState(who);
+}
+function arenaRespond(who, id, act) {
+  withLock(() => {
+    const x = arenaTidy(arenaRows()).find(r => r.id === String(id));
+    if (!x) throw new Error('找不到這場挑戰');
+    if (act === 'cancel') {
+      if (x.a !== who.key && x.b !== who.key) throw new Error('這不是你的挑戰');
+      if (x.status !== '邀請' && x.status !== '接受') throw new Error('比賽已經開始或結束了');
+      arenaSet(x, { 6: '取消' });
+      botMail([[x.a === who.key ? x.b : x.a, '⚔️ ' + who.key + ' 取消了和你的' + (ARENA_SUBJ[x.subj] || '') + '擂台賽。']], ARENA_BOT);
+      return;
+    }
+    if (x.b !== who.key) throw new Error('只有被挑戰的人可以接受或拒絕');
+    if (x.status !== '邀請') throw new Error('這場挑戰已經' + x.status);
+    if (act === 'no') {
+      arenaSet(x, { 6: '拒絕' });
+      botMail([[x.a, '⚔️ ' + who.key + ' 這次沒有接受你的' + (ARENA_SUBJ[x.subj] || '') + '擂台賽挑戰。']], ARENA_BOT);
+      return;
+    }
+    arenaSet(x, { 6: '接受' });
+    botMail([[x.a, '⚔️ ' + who.key + ' 接受了你的' + (ARENA_SUBJ[x.subj] || '') + '擂台賽挑戰！到「⚔️ 擂台」按「我準備好了」就開始。\n' + CONFIG.SITE_URL + '#tab=arena']], ARENA_BOT);
+  });
+  return arenaState(who);
+}
+/** 我準備好了：兩個人都準備好，就決定題目（種子）和開始時間（4 秒後，兩邊一起倒數） */
+function arenaReady(who, id) {
+  withLock(() => {
+    const x = arenaTidy(arenaRows()).find(r => r.id === String(id));
+    if (!x || (x.a !== who.key && x.b !== who.key)) throw new Error('找不到這場挑戰');
+    if (x.status !== '接受') return;
+    arenaCache().put('ar:rd:' + x.id + ':' + who.key, '1', 1800);
+    const other = x.a === who.key ? x.b : x.a;
+    if (!arenaReadyOf(x.id, other)) return;
+    arenaSet(x, { 6: '進行中', 7: Math.floor(Math.random() * 2147483647) + 1, 8: Date.now() + 4000 });
+  });
+  return arenaState(who);
+}
+/** 作答進度（每答一題送一次；存在快取，不寫試算表）；done＝答錯或超時，比賽結束 */
+function arenaProgress(who, id, n, ms, done) {
+  n = Math.max(0, Math.min(ARENA.MAX_Q, Math.floor(Number(n) || 0)));
+  ms = Math.max(0, Math.floor(Number(ms) || 0));
+  const p = { n: n, ms: ms, done: !!done };
+  arenaCache().put('ar:pg:' + id + ':' + who.key, JSON.stringify(p), 3600);
+  if (done) withLock(() => {
+    const x = arenaRows().find(r => r.id === String(id));
+    if (!x || x.status !== '進行中' || (x.a !== who.key && x.b !== who.key)) return;
+    if (n > 0 && ms < n * 250) p.n = 0;   // 太快了（不可能的速度）不算
+    const col = x.a === who.key ? 9 : 10;
+    arenaSet(x, { [col]: JSON.stringify(p) });
+    x[col === 9 ? 'ra' : 'rb'] = p;
+    const other = col === 9 ? (x.rb || arenaProg(x.id, x.b)) : (x.ra || arenaProg(x.id, x.a));
+    if (other && other.done) { if (col === 9) x.rb = other; else x.ra = other; arenaFinish(x); }
+  });
+  return arenaState(who);
 }
 
 /** 把多個照片網址變成可點的「照片1、照片2…」（同一格、分行） */
