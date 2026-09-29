@@ -130,7 +130,7 @@
     const swapFree = held['交換位置卡'] || 0;
     const specialsHtml = `<div class="panel"><h3>特殊道具</h3><p class="muted small">有 🎁 的道具可以買來送給同學，對方可以免費使用。</p><div class="specials">
       ${sp('firework', '煙火', '', '🎆', '煙火', '放在同學的座位上，大家下次打開 App 時都會看到', `💰 ${S.fireworkPrice} 點`, S.coins >= S.fireworkPrice)}
-      ${sp('swap', '交換位置卡', 'swap', '🔀', '交換位置卡', banned ? `你被扣了 ${S.minus} 分（超過 ${S.swapBan} 分），不能使用` : S.unlimited ? '和另一位同學強制對調座位（導師請按「送人」）' : '和另一位同學強制對調座位', `💰 ${S.swapPrice || 20} 點`, !banned && (swapFree || S.coins >= (S.swapPrice || 20)))}
+      ${sp('swap', '交換位置卡', 'swap', '🔀', '交換位置卡', banned ? `你被扣了 ${S.minus} 分（超過 ${S.swapBan} 分），不能使用` : S.unlimited ? '和另一位同學強制對調座位（導師請按「送人」）' : '和另一位同學強制對調座位', `💰 ${S.swapPrice || 100} 點`, !banned && (swapFree || S.coins >= (S.swapPrice || 100)))}
       ${sp('steal', '竊盜卡', 'steal', '🦹', '竊盜卡', `把別人的一個配件變成你的（到期日不變）${othersN ? '' : '｜目前沒有人有配件'}`, `💰 ${S.stealPrice} 點`, S.coins >= S.stealPrice && othersN)}
       ${sp('sun', '小太陽卡', 'wx', '☀️', '小太陽卡', `放在一位同學的座位上方，維持 ${S.weatherDays || 5} 天`, `💰 ${S.weatherPrice || 5} 點`, S.coins >= (S.weatherPrice || 5))}
       ${sp('rain', '小雨傘卡', 'wx', '☂️', '小雨傘卡', `放在一位同學的座位上方，維持 ${S.weatherDays || 5} 天`, `💰 ${S.weatherPrice || 5} 點`, S.coins >= (S.weatherPrice || 5))}
@@ -224,7 +224,7 @@
   });
 
   // ── 買特殊道具送人 ──
-  const CARD_PRICE = () => ({ 交換位置卡: S.swapPrice || 20, 竊盜卡: S.stealPrice || 10, 抽籤必中卡: S.surePrice || 30, 煙火: S.fireworkPrice || 1, 小太陽卡: S.weatherPrice || 5, 小雨傘卡: S.weatherPrice || 5 });
+  const CARD_PRICE = () => ({ 交換位置卡: S.swapPrice || 100, 竊盜卡: S.stealPrice || 10, 抽籤必中卡: S.surePrice || 30, 煙火: S.fireworkPrice || 1, 小太陽卡: S.weatherPrice || 5, 小雨傘卡: S.weatherPrice || 5 });
   function openCardGift(card, ico) {
     const price = CARD_PRICE()[card];
     let h = A.sheetHead(`🎁 送一張${card}`, `花 ${price} 點買給同學，對方可以免費使用`);
@@ -406,11 +406,11 @@
     if (S.unlimited) return openCardGift('交換位置卡', '🔀'); // 導師沒有座位：直接送人
     if (!A.useSwapCard) return openSwapList();
     if (!A.seatOf?.(S.me)) return toast('你還沒有座位，不能用交換位置卡');
-    A.useSwapCard((S.held?.['交換位置卡'] || S.freeSwap) ? 0 : S.swapPrice || 20);
+    A.useSwapCard((S.held?.['交換位置卡'] || S.freeSwap) ? 0 : S.swapPrice || 100);
   }
   function openSwapList() {
     const mine = A.seatOf?.(S.me);
-    let h = A.sheetHead(`🔀 交換位置卡（${S.swapPrice || 20} 點）`, mine ? `你現在坐在 ${mine}` : '你還沒有座位，不能交換');
+    let h = A.sheetHead(`🔀 交換位置卡（${S.swapPrice || 100} 點）`, mine ? `你現在坐在 ${mine}` : '你還沒有座位，不能交換');
     h += `<div class="field"><select id="swapTo"><option value="">— 要和誰對調？ —</option>${S.classmates.map(k => {
       const at = A.seatOf?.(k);
       return `<option value="${esc(k)}"${at ? '' : ' disabled'}>${esc(k)}${at ? `（${at}）` : '（沒有座位）'}</option>`;
@@ -423,7 +423,7 @@
     if (act !== 'swapOk') return;
     const to = $('#swapTo').value;
     if (!to) return toast('請選擇同學');
-    if (!await A.ask(`花 ${S.swapPrice || 20} 點，和 ${to} 對調座位？\n（${A.seatOf?.(S.me)} ⇄ ${A.seatOf?.(to)}）`, '對調！', true)) return;
+    if (!await A.ask(`花 ${S.swapPrice || 100} 點，和 ${to} 對調座位？\n（${A.seatOf?.(S.me)} ⇄ ${A.seatOf?.(to)}）`, '對調！', true)) return;
     b.disabled = true;
     try {
       S = await doing('swapSeatCard', { to });
@@ -807,7 +807,7 @@
         const t = trs.pop();
         return { transfer: t ? { to: t.target, until: ymd(new Date(t.t + 10 * 86400e3)) } : null, sure: sp.filter(x => x.use === '抽籤必中卡' && x.who === me && !/^已使用/.test(x.note)).map(x => ({ target: x.target })) };
       })(),
-      swapPrice: 20, swapped: spend.filter(x => x.use === '交換位置卡' && x.target === me).map(x => ({ time: x.time, by: x.who, note: x.note })),
+      swapPrice: 100, swapped: spend.filter(x => x.use === '交換位置卡' && x.target === me).map(x => ({ time: x.time, by: x.who, note: x.note })),
       plus: [{ date: today, points: 10, reason: '🧪 測試模式送的點數' }, ...plus.map(r => ({ date: r.date, points: r.points, reason: r.reason }))],
       classmates: A.DEMO_STUDENTS.filter(k => k !== me),
       inv: inv2.filter(x => x.owner === me).map(x => ({ ...x, expired: x.exp < today })),
@@ -887,14 +887,14 @@
       const st = await testState();
       if (st.minus > 10) throw new Error(`你被扣的分數已經 ${st.minus} 分（超過 10 分），不能使用交換位置卡`);
       const freeCard = (st.held?.['交換位置卡'] || 0) > 0;
-      if (!freeCard && st.coins < 20) throw new Error(`點數不夠（交換位置卡要 20 點，你有 ${st.coins} 點）`);
+      if (!freeCard && st.coins < 100) throw new Error(`點數不夠（交換位置卡要 100 點，你有 ${st.coins} 點）`);
       const chart = store.get('indoor.testchart.v1.test', {});
       const mine = Object.keys(chart).find(id => chart[id] === me), theirs = Object.keys(chart).find(id => chart[id] === p.to);
       if (!mine || !theirs) throw new Error('兩個人都要有座位才能交換');
       chart[mine] = p.to; chart[theirs] = me;
       store.set('indoor.testchart.v1.test', chart);
       const t = new Date();
-      store.set(K.spend, [...store.get(K.spend, []), { id: Math.random().toString(36).slice(2, 10), who: me, points: freeCard ? 0 : 20, use: '交換位置卡', target: p.to, note: `${mine} ⇄ ${theirs}`, time: `${A.pad2(t.getMonth() + 1)}/${A.pad2(t.getDate())} ${A.fmtTime(t)}`, t: Date.now() }]);
+      store.set(K.spend, [...store.get(K.spend, []), { id: Math.random().toString(36).slice(2, 10), who: me, points: freeCard ? 0 : 100, use: '交換位置卡', target: p.to, note: `${mine} ⇄ ${theirs}`, time: `${A.pad2(t.getMonth() + 1)}/${A.pad2(t.getDate())} ${A.fmtTime(t)}`, t: Date.now() }]);
       return testState();
     }
     if (action === 'stealAcc' || action === 'buyFirework') {

@@ -38,7 +38,7 @@ const CONFIG = {
   ACC_DAYS: 10,                       // 配件有效天數（從購買當天算起，週末、假日都算）
   STEAL_PRICE: 10,                    // 竊盜卡：奪取別人的配件
   FIREWORK_PRICE: 1,                  // 煙火：放在某位同學的座位上，大家下次打開 App 時會看到
-  SWAP_PRICE: 20,                     // 交換位置卡：和另一位同學強制對調座位
+  SWAP_PRICE: 100,                    // 交換位置卡：和另一位同學強制對調座位
   RANK_CARDS: { 1: 2, 2: 1, 3: 1, 4: 1, 5: 1 }, // 段考排名前五名自動獲得免費交換位置卡（第一名 2 張）；每份新的排名只發一次
   TRANSFER_PRICE: 20,                 // 抽籤轉移卡：設定替身，抽籤抽到自己時由替身上場（次數不限）
   TRANSFER_DAYS: 10,                  // 抽籤轉移卡有效天數
@@ -1051,7 +1051,7 @@ function buyFirework(who, to) {
   });
   return shopState(who);
 }
-/** 交換位置卡：花 20 點，和另一位同學強制對調座位（兩個人都要已經有座位） */
+/** 交換位置卡：花 100 點，和另一位同學強制對調座位（兩個人都要已經有座位） */
 function swapSeatCard(who, to) {
   if (who.teacher) throw new Error('導師沒有座位，請用「座位 → 交換位置」');
   if (to === who.key) throw new Error('請選擇另一位同學');
