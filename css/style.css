@@ -1481,7 +1481,6 @@ body.ww-open { overflow: hidden; }
 .lv-back { color: var(--bad); font-weight: 700; }
 .lv-btns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .lv-btns .btn { padding: 6px 12px; font-size: 14px; }
-.lv-btns .btn.lv-up { max-width: 15em; font-size: 12px; line-height: 1.3; white-space: normal; text-align: center; padding: 4px 10px; }
 .lv-stat td, .lv-stat th { text-align: center; white-space: nowrap; }
 .lv-stat td:first-child { text-align: left; }
 
@@ -1656,3 +1655,22 @@ body.ww-open { overflow: hidden; }
 .hw-nm.late { background: #ffe3e3; border-color: #e03131; color: #c92a2a; }
 .hw-nm.late span { color: #c92a2a; font-weight: 700; }
 .hw-dt input { min-width: 0; }
+
+/* 請假進度：編號圓圈＋連接線（由左到右的先後順序） */
+.lv-flow { list-style: none; display: flex; margin: 10px 0 6px; padding: 0; }
+.lv-flow li { flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; font-size: 12px; color: var(--muted); }
+.lv-flow li + li::before { content: ''; position: absolute; top: 13px; right: 50%; width: 100%; height: 3px; background: var(--line); z-index: 0; }
+.lv-flow li.done + li::before { background: var(--good); }
+.lv-flow li + li::after { content: '▶'; position: absolute; top: 5px; left: -6px; font-size: 11px; color: var(--line); z-index: 1; }
+.lv-flow li.done + li::after { color: var(--good); }
+.lv-flow .n { position: relative; z-index: 1; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--line); background: var(--surface); font-weight: 800; font-size: 13px; }
+.lv-flow li.done .n { background: var(--good); border-color: var(--good); color: #fff; }
+.lv-flow li.done .t { color: var(--good); font-weight: 700; }
+.lv-flow li.next .n { border-color: var(--accent); color: var(--accent); }
+.lv-flow li.next .t { color: var(--text); font-weight: 700; }
+.lv-back { margin: 6px 0 0; }
+/* 按鈕：另外一個區塊（標題＋淡底色），和上面的流程分開 */
+.lv-acts { margin: 10px 0 6px; padding: 8px 10px 10px; border-radius: 12px; background: var(--bg); border: 1px dashed var(--line); }
+.lv-acts-h { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .08em; margin-bottom: 6px; }
+.lv-took { display: block; margin-top: 2px; font-size: 13px; }
+.lv-steps { display: block; }

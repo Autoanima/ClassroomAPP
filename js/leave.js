@@ -89,14 +89,14 @@
         <label class="lv-f"><span>&nbsp;</span><select id="lvToP">${pOpt(7)}</select></label>
       </div>
       <label class="lv-f"><span>說明（可不填）</span><input type="text" id="lvNote" maxlength="200" placeholder="例如：看醫生、家裡有事"></label>
-      <p class="muted small">假卡流程：家長簽名 → 導師簽名 → 教官室（特殊情形再送學務處、校長室）。全部簽完後，在下面按「📷 上傳假卡」。</p>
+      <p class="muted small">假卡流程：家長簽名 → 導師簽名 → 教官室（特殊情形再送學務處、校長室）。全部簽完後，在下面按「📷 學生上傳假卡」。</p>
       <div class="actions"><button type="button" class="btn btn--primary wide" data-lv="add">送出請假登記</button></div></details>`;
   }
   // 一筆請假：進度（已登記 → 已上傳假卡 → 已確認）＋動作
   function itemHtml(x, teacher, ro) {
     const back = x.status === '退回', idx = back ? 0 : STEP.indexOf(x.status);
-    const steps = back ? `<span class="lv-back">↩ 退回${x.reply && !x.other ? `：${esc(x.reply)}` : ''}</span>`
-      : STEP.map((s, i) => `<span class="lv-step${i <= idx ? ' on' : ''}">${['APP 登記', '假卡家長簽名', '導師簽名'][i]}</span>`).join('<i>›</i>');
+    const flow = `<ol class="lv-flow">${['APP 登記', '假卡家長簽名', '導師簽名'].map((t, i) => `<li class="${i <= idx ? 'done' : i === idx + 1 ? 'next' : ''}"><span class="n">${i <= idx ? '✓' : i + 1}</span><span class="t">${t}</span></li>`).join('')}</ol>`;
+    const steps = (back ? `<div class="lv-back">↩ 導師退回${x.reply && !x.other ? `：${esc(x.reply)}` : ''}</div>` : '') + flow;
     // 班長、副班長看別人的：只看得到誰、哪天、假別、進度（沒有按鈕、說明、假卡照片）
     if (ro && x.other) {
       return `<div class="lv-item${x.status === '已確認' ? ' done' : ''}">
@@ -108,7 +108,7 @@
     if (x.cards.length) btns.push(`<button type="button" class="btn" data-lv="cards" data-id="${esc(x.id)}">🖼 假卡 ${x.cards.length}</button>`);
     // 順序：確認 → 上傳假卡 → 退回 → 取消 → 編輯
     if (teacher && x.status !== '已確認') btns.push(`<button type="button" class="btn btn--primary" data-lv="ok" data-id="${esc(x.id)}">✓ 導師確認</button>`);
-    if (x.status !== '已確認') btns.push(`<button type="button" class="btn lv-up${!teacher && !x.cards.length ? ' btn--primary' : ''}" data-lv="upload" data-id="${esc(x.id)}">📷 教官室等處室簽核完成，<br>學生上傳假卡</button>`);
+    if (x.status !== '已確認') btns.push(`<button type="button" class="btn lv-up${!teacher && !x.cards.length ? ' btn--primary' : ''}" data-lv="upload" data-id="${esc(x.id)}">📷 學生上傳假卡</button>`);
     if (teacher && x.status !== '退回' && x.status !== '已確認') btns.push(`<button type="button" class="btn" data-lv="back" data-id="${esc(x.id)}">↩ 導師退回</button>`);
     if (teacher && x.status !== '已確認') btns.push(`<button type="button" class="btn" data-lv="remind" data-id="${esc(x.id)}">📨 提醒上傳假卡</button>`);
     if (x.status !== '已確認' || teacher) {
@@ -120,15 +120,15 @@
       ${x.note ? `<div class="small">${esc(x.note)}</div>` : ''}
       <div class="lv-steps">${steps}</div>
       ${x.reply && !back ? `<div class="small muted">導師：${esc(x.reply)}</div>` : ''}
-      <div class="lv-btns">${btns.join('')}</div>
-      <div class="muted small">${esc(x.time)} 由 ${esc(x.by === x.key ? '本人' : x.by)} 登記・${periods(x)} 節${timerText(x)}</div></div>`;
+      ${btns.length ? `<div class="lv-acts"><div class="lv-acts-h">可以做的事</div><div class="lv-btns">${btns.join('')}</div></div>` : ''}
+      <div class="muted small">${esc(x.time)} 由 ${esc(x.by === x.key ? '本人' : x.by)} 登記・${periods(x)} 節</div>${timerText(x)}</div>`;
   }
   // ── 計時：從登記請假到上傳假卡，總共花了幾天 ──
   const took = x => (x.cardT && x.t ? x.cardT - x.t : null);
   const durText = ms => (ms < 86400e3 ? `不到 1 天（${Math.max(1, Math.round(ms / 3600e3))} 小時）` : `${(ms / 86400e3).toFixed(1)} 天`);
   function timerText(x) {
-    if (took(x) != null) return `・<span class="lv-took${took(x) >= 3 * 86400e3 ? ' slow' : ''}">⏱ 登記到上傳假卡花了 ${durText(took(x))}</span>`;
-    if (x.t && (x.status === '已登記' || x.status === '退回')) return `・<span class="lv-took">⏱ 登記後已經過了 ${durText(Date.now() - x.t)}，還沒上傳假卡</span>`;
+    if (took(x) != null) return `<div class="lv-took${took(x) >= 3 * 86400e3 ? ' slow' : ''}">⏱ 登記到上傳假卡花了 ${durText(took(x))}</div>`;
+    if (x.t && (x.status === '已登記' || x.status === '退回')) return `<div class="lv-took">⏱ 登記後已經過了 ${durText(Date.now() - x.t)}，還沒上傳假卡</div>`;
     return '';
   }
   // 這位同學上一次（不算 exceptId 這一筆）從登記到上傳假卡花了多久
