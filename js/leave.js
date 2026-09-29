@@ -48,8 +48,28 @@
     root.innerHTML = h;
   }
   // 請假規則：預設收起來；導師可以編輯
+  // 預設的請假規則（學校的「學生請假注意事項」）；導師在 App 裡改過就用改過的
+  const DEFAULT_RULES = `學生請假注意事項
+
+（一）學生如因病或重要事故不能上課或不能參加各種集會活動時，均須請假。
+（二）學生假分事假、病假、喪假、公假、生理假等假別。
+（三）本證辦理流程：註明請假時間及假別 → 家長簽章 → 導師簽章（適時檢核相關證明）→ 生輔組（學務組）簽章核准（依請假日數由學務主任或校長簽章核准）。
+（四）學生應於請假日前完成請假程序，因臨時之事（病）假未能到校，須由家長（監護人）來電向導師或學務處請假，並應於返校 3 日內完成請假手續，逾期不予辦理。
+（五）請假 3 日（含）以下必經導師及生活輔導組長（學務組長）核准，4 日（含）以上 7 日（含）以下必經學務主任核准，8 日以上者須經校長核准。
+（六）連續病假 2 天以上時，須檢附就醫證明始得請假。
+（七）公假應於請假日前完成請假手續，如有特殊原因可由師長代辦補請假事宜。
+（八）校外公務以學生請假證辦理，校內公務以學生公差單辦理；另半天以內校外公務且有師長陪同可以學生公差單辦理。
+（九）學生到校後，因臨時之事（病）假而必須請假者，須經班導師及生活輔導組長（學務組長）核准及辦理臨時外出單後方得離校，返校後仍須補辦請假手續。
+（十）請假理由及檢附證明文件或家長簽章如有虛構偽造等情事，除缺席之時數視同曠課外，並依本校獎懲規定懲處。
+（十一）學生除公假外，全學期缺課節數達修習總節數二分之一，或曠課累積達四十二節者，經提學生事務相關會議後，應依法令規定進行適性輔導及適性教育處置。
+（十二）學生請假事宜以本校學生請假管制實施要點為主要依據。
+
+註：
+（一）本證為辦理請假及據以銷缺曠課時適用，銷缺曠課時請持本證至學務處辦理，註明逾期則視同未完成請假程序。
+（二）本證為重要請假憑據請妥善保管，若遺失、毀損或汙損而造成相關權益受損請自行負責。
+（三）請假證於上課時間及午休時間不予辦理。`;
   function rulesHtml() {
-    const txt = L.rules || '';
+    const txt = L.rules || DEFAULT_RULES;
     let body = rulesEdit
       ? `<textarea id="lvRules" rows="8" maxlength="5000" placeholder="例如：\n1. 事假要事先請，病假回校後 3 天內補請…\n2. 假卡流程：家長簽名 → 導師簽名 → 教官室…">${esc(txt)}</textarea>
          <div class="actions"><button type="button" class="btn btn--primary" data-lv="rulesSave">儲存</button><button type="button" class="btn" data-lv="rulesCancel">取消</button></div>`
@@ -65,7 +85,7 @@
       <div class="lv-grid">
         <label class="lv-f"><span>從</span><input type="date" id="lvFrom" value="${today().replace(/\//g, '-')}"></label>
         <label class="lv-f"><span>&nbsp;</span><select id="lvFromP">${pOpt(1)}</select></label>
-        <label class="lv-f"><span>到</span><input type="date" id="lvTo" value="${today().replace(/\//g, '-')}"></label>
+        <label class="lv-f"><span>到</span><input type="date" id="lvTo" value="${today().replace(/\//g, '-')}" min="${today().replace(/\//g, '-')}"></label>
         <label class="lv-f"><span>&nbsp;</span><select id="lvToP">${pOpt(7)}</select></label>
       </div>
       <label class="lv-f"><span>說明（可不填）</span><input type="text" id="lvNote" maxlength="200" placeholder="例如：看醫生、家裡有事"></label>
@@ -211,7 +231,7 @@
       <div class="lv-grid">
         <label class="lv-f"><span>從</span><input type="date" id="edFrom" value="${x.from.replace(/\//g, '-')}"></label>
         <label class="lv-f"><span>&nbsp;</span><select id="edFromP">${pOpt(x.fromP)}</select></label>
-        <label class="lv-f"><span>到</span><input type="date" id="edTo" value="${x.to.replace(/\//g, '-')}"></label>
+        <label class="lv-f"><span>到</span><input type="date" id="edTo" value="${x.to.replace(/\//g, '-')}" min="${x.from.replace(/\//g, '-')}"></label>
         <label class="lv-f"><span>&nbsp;</span><select id="edToP">${pOpt(x.toP)}</select></label>
       </div>
       <label class="lv-f"><span>說明</span><input type="text" id="edNote" maxlength="200" value="${esc(x.note || '')}"></label>
@@ -358,6 +378,15 @@
   $('#leaveRoot').addEventListener('toggle', e => { if (e.target.classList?.contains('lv-total')) totalOpen = e.target.open; }, true);
   $('#leaveRoot').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.dataset?.lv === 'calDay') { e.preventDefault(); e.target.click(); } });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && zoom) { zoom = null; paintZoom(); } });
+  // 選了「從」的日期：「到」至少要從同一天開始（早於的話自動改成同一天）
+  document.addEventListener('change', e => {
+    const to = { lvFrom: 'lvTo', edFrom: 'edTo' }[e.target.id];
+    if (!to || !e.target.value) return;
+    const t = document.getElementById(to);
+    if (!t) return;
+    t.min = e.target.value;
+    if (!t.value || t.value < e.target.value) t.value = e.target.value;
+  });
   A.tabHooks.leave = () => { render(); if (Date.now() - lAt > 30e3) load(); };
   A.addPrefetch('leave', () => (A.isGuest() ? null : load(true)));
 
