@@ -707,18 +707,21 @@
   function playFlash(keys) {
     let el = $('#decoFlash');
     if (!el) { el = document.createElement('div'); el.id = 'decoFlash'; document.body.append(el); el.addEventListener('click', () => { el.hidden = true; }); }
-    el.innerHTML = `<div class="df-title">✨ 新造型</div><div class="df-face"></div>`;
+    el.innerHTML = `<div class="df-title">✨ 新造型 <span class="df-n"></span></div><div class="df-face"></div><div class="df-hint">點一下可以跳過</div>`;
     el.hidden = false;
-    const box = el.querySelector('.df-face');
+    const box = el.querySelector('.df-face'), n = el.querySelector('.df-n');
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const step = still ? 600 : 100;                               // 每張 0.1 秒
-    const total = Math.max(1000, keys.length * step) + (still ? 0 : 300); // 至少震動 1 秒
-    box.classList.toggle('shake', !still);
+    const step = 1000;                                            // 依序展示：一個人一秒（人多也不會變快）
     let i = 0;
-    const show = () => { const k = keys[i++ % keys.length]; box.innerHTML = `${A.faceHtml(k)}<span class="df-nm">${esc(k)}</span>`; };
+    const show = () => {
+      const k = keys[i++];
+      box.innerHTML = `${A.faceHtml(k)}<span class="df-nm">${esc(k)}</span>`;
+      n.textContent = keys.length > 1 ? `${i}／${keys.length}` : '';
+      if (!still) { box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake'); }   // 每換一個人重新震動
+    };
     show();
-    const t = setInterval(show, step);
-    setTimeout(() => { clearInterval(t); el.classList.add('out'); setTimeout(() => { el.hidden = true; el.classList.remove('out'); }, 250); }, total);
+    const t = setInterval(() => { if (i >= keys.length || el.hidden) { clearInterval(t); return; } show(); }, step);
+    setTimeout(() => { clearInterval(t); if (el.hidden) return; el.classList.add('out'); setTimeout(() => { el.hidden = true; el.classList.remove('out'); }, 250); }, keys.length * step);
   }
   A.flashTest = () => playFlash(A.students().filter(k => A.decoOf(k).length).slice(0, 12)); // 除錯用
 

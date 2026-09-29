@@ -1574,9 +1574,16 @@
         return;
       }
       t.x = E ? OV.cardW + 4 : corW + 8; t.w = E ? corE - OV.cardW - 12 : OV.rightX - corW - 12;
+      const itemY = t.y;
+      // 這個空隙也是水泥平台的位置：小名牌要避開中間直寫的「水泥平台N」字
+      const strip = OUT_ITEMS.find(x => x.strip && sideOf(x) === t.side && x.zone === t.it.zone);
+      if (strip) {
+        const sr = ovRect(strip.hit), sc = sr[1] + sr[3] / 2, LBL = 66;
+        if (Math.abs(itemY - sc) < LBL + t.h / 2) t.y = sc + (itemY >= sc ? 1 : -1) * (LBL + t.h / 2 + 4);
+      }
       t.y = t.y - t.h / 2;
       curColor = t.c.color || '#aab4bd';
-      s += arrow(E ? t.x + t.w : t.x, t.y + t.h / 2, E ? corE - 1 : corW + 1, t.y + t.h / 2);
+      s += arrow(E ? t.x + t.w : t.x, t.y + t.h / 2, E ? corE - 1 : corW + 1, itemY);
     });
     s += `</svg>`;
     const edit = !check && canRoster();

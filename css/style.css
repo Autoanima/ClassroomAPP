@@ -1511,3 +1511,7 @@ body.ww-open { overflow: hidden; }
 /* 外掃名牌左邊的色條＝它的箭頭顏色 */
 .od-card[style*="--jc"] { box-shadow: inset 5px 0 0 var(--jc); }
 .od-tag { border-width: 2px; border-style: solid; }
+/* 新造型：依序一人一秒；每換一個人抖 0.6 秒後停住，看得清楚 */
+.df-face.shake { animation: dfShake .1s linear 6; }
+.df-n { font-size: 15px; font-weight: 700; opacity: .85; margin-left: 6px; }
+.df-hint { color: rgba(255,255,255,.75); font-size: 12px; }
