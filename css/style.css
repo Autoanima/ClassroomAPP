@@ -1481,6 +1481,7 @@ body.ww-open { overflow: hidden; }
 .lv-back { color: var(--bad); font-weight: 700; }
 .lv-btns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .lv-btns .btn { padding: 6px 12px; font-size: 14px; }
+.lv-btns .btn.lv-up { max-width: 15em; font-size: 12px; line-height: 1.3; white-space: normal; text-align: center; padding: 4px 10px; }
 .lv-stat td, .lv-stat th { text-align: center; white-space: nowrap; }
 .lv-stat td:first-child { text-align: left; }
 
@@ -1603,3 +1604,13 @@ body.ww-open { overflow: hidden; }
 .shop-item .shop-admin { flex-wrap: wrap; gap: 4px; max-width: 100%; }
 .shop-item .mini-btn { padding: 2px 7px; font-size: 11.5px; }
 .shop-item [data-s="buy"] { margin-top: auto; }
+
+/* 請假計時：登記到上傳假卡花了幾天；警示畫面 */
+.lv-took { color: var(--accent); font-weight: 700; }
+.lv-took.slow { color: #e03131; }
+.lv-warn { position: fixed; inset: 0; z-index: 82; background: rgba(15,15,25,.55); display: grid; place-items: center; padding: 16px; }
+.lv-warn-card { width: min(100%, 400px); background: var(--surface); color: var(--text); border-radius: 18px; padding: 18px; box-shadow: var(--shadow); border-top: 6px solid #f59f00; text-align: center; }
+.lv-warn-card h3 { margin: 4px 0 8px; font-size: 19px; }
+.lv-warn-card p { margin: 8px 0; line-height: 1.6; }
+.lv-warn-card b { color: #e03131; font-size: 18px; }
+.lv-warn-ico { font-size: 44px; }
