@@ -1594,3 +1594,12 @@ body.ww-open { overflow: hidden; }
 .ag-opt.dim { opacity: .45; }
 .ag-end { font-size: 26px; font-weight: 800; text-align: center; margin: 18px 0 6px; }
 .ag-res { font-size: 80px; text-align: center; margin-top: 8px; }
+
+/* 商店格子：電腦版比較寬、按鈕不超出卡片、價格按鈕都對齊在最下面 */
+.shop-grid { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); }
+@media (min-width: 700px) { .shop-grid { grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 10px; } }
+.shop-item { min-width: 0; }
+.shop-item > b { line-height: 1.3; min-height: 2.6em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+.shop-item .shop-admin { flex-wrap: wrap; gap: 4px; max-width: 100%; }
+.shop-item .mini-btn { padding: 2px 7px; font-size: 11.5px; }
+.shop-item [data-s="buy"] { margin-top: auto; }
