@@ -1523,13 +1523,28 @@
     // 物件在走廊另一側：不拉長線橫跨走廊，改在那一側放一個小名牌（tags），用短箭頭指過去
     const tags = [];
     // 每個名牌的箭頭用自己的顏色（名牌左邊也有同色色條）：線交叉時也看得出是誰的
-    const PAL = ['#e8590c', '#1c7ed6', '#2f9e44', '#ae3ec9', '#f08c00', '#0ca678', '#d6336c'];
-    cards.forEach((c, i) => { if (c.job) c.color = PAL[i % PAL.length]; });
+    // 同一側由上到下依序配色（相鄰的顏色對比要夠大）：藍、橘、綠、紫、黃、青、粉紅
+    const PAL = ['#1c7ed6', '#e8590c', '#2f9e44', '#ae3ec9', '#f59f00', '#15aabf', '#d6336c'];
+    ['E', 'W'].forEach(sd => cards.filter(c => c.job && c.side === sd).sort((a, b) => a.y - b.y).forEach((c, i) => { c.color = PAL[i % PAL.length]; }));
     s += `<defs>${PAL.map((col, k) => `<marker id="odA${k}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M1 1 L8 5 L1 9" fill="none" stroke="${col}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></marker>`).join('')}</defs>`;
     let curColor = '#aab4bd';
     const arrow = (x1, y1, x2, y2) => { const k = PAL.indexOf(curColor); return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${curColor}" stroke-width="3" stroke-linecap="round" marker-end="url(#${k < 0 ? 'odArrow' : 'odA' + k})"/>`; };
     const sideOf = it => (it.hit[1] + it.hit[3] / 2 < 330 ? 'W' : 'E');   // 原圖上方＝西側
     const corE = OV.wallE, corW = OV.wallE + 95 * OV.k;                     // 走廊的東、西兩側邊線
+    // 同一側的物件（不含地板、水泥平台），用來判斷線會不會穿過別人的工作
+    const wallItems = side => cards.filter(c => c.job).flatMap(c => c.its.filter(it => !it.floor && !it.strip && sideOf(it) === side).map(it => ({ c, y: ovMid(ovRect(it.hit))[1] })));
+    cards.forEach(c => {
+      // 一份工作有好幾個同側物件時：只連最接近名牌的那個；中間夾著別人工作的，改用小名牌（線就不會交叉）
+      const cy0 = c.y + c.h / 2;
+      const mine = c.its.filter(it => !it.floor && !it.strip && sideOf(it) === c.side);
+      const near = mine.slice().sort((a, b) => Math.abs(ovMid(ovRect(a.hit))[1] - cy0) - Math.abs(ovMid(ovRect(b.hit))[1] - cy0))[0];
+      const others = c.side ? wallItems(c.side).filter(o => o.c !== c) : [];
+      c.tagged = new Set(mine.filter(it => {
+        if (it === near) return false;
+        const y1 = ovMid(ovRect(near.hit))[1], y2 = ovMid(ovRect(it.hit))[1];
+        return others.some(o => o.y > Math.min(y1, y2) && o.y < Math.max(y1, y2));
+      }));
+    });
     cards.forEach(c => c.its.forEach(it => {
       curColor = c.color || '#aab4bd';
       const r = ovRect(it.hit), E = c.side === 'E', my = ovMid(r)[1];
@@ -1538,7 +1553,7 @@
         s += arrow(E ? c.x + c.w : c.x, cy, E ? corE + 20 : corW - 20, cy);
         return;
       }
-      if (sideOf(it) !== c.side) { tags.push({ c, it, side: sideOf(it), y: my, r }); return; }
+      if (sideOf(it) !== c.side || c.tagged?.has(it)) { tags.push({ c, it, side: sideOf(it), y: my, r }); return; }
       const ex = E ? c.x + c.w : c.x;
       if (it.strip) {                                                        // 水泥平台（長條）：從名牌水平指到長條外緣，不會穿過中間的字
         const cy = Math.max(r[1] + 6, Math.min(r[1] + r[3] - 6, c.y + c.h / 2));
