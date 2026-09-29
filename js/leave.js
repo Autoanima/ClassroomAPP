@@ -10,7 +10,7 @@
   const PERIODS = [0, 1, 2, 3, 4, 5, 6, 7];   // 早自習、第 1～7 節（這個班沒有第 8 節）
   const pName = p => (Number(p) === 0 ? '早自習' : `第${p}節`);
   const STEP = ['已登記', '已上傳假卡', '已確認'];
-  let L = null, lAt = 0, view = 'todo', rulesEdit = false;
+  let L = null, lAt = 0, view = 'todo', rulesEdit = false, totalOpen = false;
   const nm = k => { const p = A.parseKey(k); return p.code ? `${p.code.replace(/(\d+)$/, ' $1')} ${p.name}` : k; };
   const today = () => A.fmtDate(new Date());
   const isT = () => A.isTeacher();
@@ -36,10 +36,10 @@
     let h = rulesHtml();
     h += formHtml();
     // 導師：總表（可以確認、退回）；班長、副班長：自己的請假＋唯讀的總表；其他同學：自己的請假
-    h += isT() ? teacherHtml() : L.monitor ? mineHtml() + teacherHtml(true) : mineHtml();
-    // 月曆放在請假列表的下面
-    const cal = calendarHtml(), stat = h.indexOf('<details class="panel"><summary><b>📊');
-    h = stat >= 0 ? h.slice(0, stat) + cal + h.slice(stat) : h + cal;
+    if (!isT()) h += mineHtml();
+    h += calendarHtml();
+    if (isT() || L.monitor) h += teacherHtml(!isT());
+    h += `<div id="calZoomHost">${zoomHtml()}</div>`;
     root.innerHTML = h;
   }
   // 請假規則：預設收起來；導師可以編輯
@@ -122,24 +122,44 @@
     for (let dd = 1; dd <= days; dd++) {
       const d = ymdStr(new Date(y, m - 1, dd)), wd = new Date(y, m - 1, dd).getDay();
       const on = L.rows.filter(x => dayRange(x, d));
-      cells.push(`<div class="cal-cell${d === td ? ' today' : ''}${wd % 6 === 0 ? ' wkend' : ''}"><span class="cal-d">${dd}</span>
-        ${on.map(x => `<button type="button" class="cal-nm ${TYPE_CLS[x.type] || ''}" data-lv="calItem" data-id="${esc(x.id)}" data-d="${d}" title="${esc(x.type)}">${esc(A.parseKey(x.key).name || x.key)}</button>`).join('')}</div>`);
+      cells.push(`<div class="cal-cell${d === td ? ' today' : ''}${wd % 6 === 0 ? ' wkend' : ''}${on.length ? ' has' : ''}"${on.length ? ` data-lv="calDay" data-d="${d}" role="button" tabindex="0" aria-label="${m}月${dd}日 ${on.length} 人請假"` : ''}><span class="cal-d">${dd}</span>
+        ${on.map(x => `<span class="cal-nm ${deptCls(x.key)} ${TYPE_CLS[x.type] || ''}">${esc(A.parseKey(x.key).name || x.key)}</span>`).join('')}</div>`);
     }
     return `<div class="panel lv-cal"><div class="cal-head"><button type="button" class="btn" data-lv="calPrev" aria-label="上個月">‹</button>
         <b>📅 ${y} 年 ${m} 月</b><button type="button" class="btn" data-lv="calNext" aria-label="下個月">›</button></div>
       <div class="cal-grid">${'日一二三四五六'.split('').map(w => `<div class="cal-w">${w}</div>`).join('')}${cells.join('')}</div>
-      <div class="cal-legend">${TYPES.map(t => `<span class="lv-type ${TYPE_CLS[t]}">${t}</span>`).join('')}</div>
-      <p class="muted small">點名字可以看那一天請了第幾節到第幾節。</p></div>`;
+      <div class="cal-legend"><span class="cal-nm dp-data">資料科</span><span class="cal-nm dp-mm">多媒科</span><span class="muted small">左邊色條＝假別：</span>${TYPES.map(t => `<span class="cal-tl ${TYPE_CLS[t]}">${t}</span>`).join('')}</div>
+      <p class="muted small">點一下日期，會放大那一天，再點名字看詳細。</p></div>`;
   }
-  function openCalItem(x, d) {
-    const r = dayRange(x, d) || { a: x.fromP, b: x.toP };
-    let h = A.sheetHead(`${nm(x.key)}｜${x.type}`, `${d.slice(5)}（週${'日一二三四五六'[new Date(d.replace(/\//g, '-') + 'T12:00').getDay()]}）`);
-    h += `<div class="cal-detail"><p class="cal-big">這一天：<b>${rangeText(r)}</b></p>
-      <p>整筆請假：${esc(when(x))}（共 ${periods(x)} 節）</p>
-      <p>進度：${esc(x.status)}</p>${x.note ? `<p>說明：${esc(x.note)}</p>` : ''}</div>`;
-    A.openSheet({ kind: 'leaveCal' }, h);
+  // 科別底色：料＝資料科（洋紅）、多＝多媒科（深藍）
+  const deptCls = k => ({ 料: 'dp-data', 多: 'dp-mm' }[(A.parseKey(k).code || '').charAt(0)] || '');
+  // ── 放大的一天（畫面中間）：大大的名字，點名字看詳細 ──
+  let zoom = null;   // { d, id }
+  const wdName = d => '日一二三四五六'[new Date(d.replace(/\//g, '-') + 'T12:00').getDay()];
+  function zoomHtml() {
+    if (!zoom || !L) return '';
+    const d = zoom.d, on = L.rows.filter(x => dayRange(x, d));
+    const x = zoom.id && on.find(r => r.id === zoom.id);
+    const title = `${Number(d.slice(5, 7))}/${Number(d.slice(8))}（週${wdName(d)}）`;
+    let body;
+    if (x) {
+      const r = dayRange(x, d);
+      const full = isT() ? itemHtml(x, true) : L.monitor ? itemHtml(x, false, true) : itemHtml(x, false);
+      body = `<div class="cz-who ${deptCls(x.key)} ${TYPE_CLS[x.type] || ''}"><b>${esc(nm(x.key))}</b><span>${esc(x.type)}・這一天 ${rangeText(r)}</span></div>${full}`;
+    } else {
+      body = on.length ? `<div class="cz-list">${on.map(y => `<button type="button" class="cz-nm ${deptCls(y.key)} ${TYPE_CLS[y.type] || ''}" data-lv="zoomItem" data-id="${esc(y.id)}">
+          <b>${esc(A.parseKey(y.key).name || y.key)}</b><span>${esc(A.parseKey(y.key).code || '')}・${esc(y.type)}・${rangeText(dayRange(y, d))}</span></button>`).join('')}</div>`
+        : '<p class="muted">這一天沒有人請假。</p>';
+    }
+    return `<div class="cal-zoom${zoom.pop ? ' pop' : ''}" data-lv="zoomClose"><div class="cz-box" data-lv="zoomBox" role="dialog" aria-label="${title} 請假">
+      <div class="cz-head">${x ? '<button type="button" class="btn" data-lv="zoomBack" aria-label="回到名單">‹</button>' : ''}<b>📅 ${title}${x ? '' : `・${on.length} 人請假`}</b><button type="button" class="close-btn" data-lv="zoomClose" aria-label="關閉">✕</button></div>
+      ${body}</div></div>`;
   }
-
+  function paintZoom() {
+    const host = $('#calZoomHost');
+    if (host) host.innerHTML = zoomHtml();
+    document.body.style.overflow = zoom ? 'hidden' : '';
+  }
   // ── 編輯（假別、日期、節次、說明）──
   function openEdit(x) {
     const pOpt = sel => PERIODS.map(p => `<option value="${p}"${p === sel ? ' selected' : ''}>${pName(p)}</option>`).join('');
@@ -170,9 +190,11 @@
     const pick = { todo: x => x.status !== '已確認', month: x => x.from.slice(0, 7) === month || x.to.slice(0, 7) === month, all: () => true };
     const list = L.rows.filter(pick[view]);
     const tab = (v, t, n) => `<button type="button" data-lv="view" data-v="${v}" aria-pressed="${view === v}">${t}${n != null ? ` <span class="lv-n">${n}</span>` : ''}</button>`;
-    let h = `<div class="panel"><h3>📋 請假總表${ro ? ' <span class="muted small">（班長、副班長可以看；說明和假卡只有導師看得到）</span>' : ''}</h3>
-      <div class="lv-views">${tab('todo', '待處理', L.rows.filter(pick.todo).length)}${tab('month', '本月')}${tab('all', '全部')}</div>
-      ${list.length ? list.map(x => itemHtml(x, !ro, ro)).join('') : `<p class="muted small">${view === 'todo' ? '沒有待處理的請假 🎉' : '沒有紀錄。'}</p>`}</div>`;
+    const todo = L.rows.filter(pick.todo).length;
+    let h = `<details class="panel lv-total"${totalOpen ? ' open' : ''}><summary><b>📋 請假總表</b>${todo ? ` <span class="lv-n">待處理 ${todo}</span>` : ''}</summary>
+      ${ro ? '<p class="muted small">班長、副班長可以看；說明和假卡只有導師看得到。</p>' : ''}
+      <div class="lv-views">${tab('todo', '待處理', todo)}${tab('month', '本月')}${tab('all', '全部')}</div>
+      ${list.length ? list.map(x => itemHtml(x, !ro, ro)).join('') : `<p class="muted small">${view === 'todo' ? '沒有待處理的請假 🎉' : '沒有紀錄。'}</p>`}</details>`;
     // 統計：每位同學各假別的節數（已取消的不算）
     const stat = {};
     L.rows.forEach(x => { const s = (stat[x.key] ||= {}); s[x.type] = (s[x.type] || 0) + periods(x); });
@@ -233,6 +255,11 @@
     const b = e.target.closest('[data-lv]');
     if (!b || b.disabled) return;
     const act = b.dataset.lv, x = L?.rows.find(r => r.id === b.dataset.id);
+    if (act === 'zoomBox') return;
+    if (act === 'calDay') { zoom = { d: b.dataset.d, id: null, pop: true }; paintZoom(); zoom.pop = false; return; }
+    if (act === 'zoomClose') { zoom = null; paintZoom(); return; }
+    if (act === 'zoomBack') { zoom.id = null; paintZoom(); return; }
+    if (act === 'zoomItem') { zoom.id = b.dataset.id; paintZoom(); return; }
     if (act === 'type') { lvType = b.dataset.v; b.parentElement.querySelectorAll('button').forEach(y => y.setAttribute('aria-pressed', y === b)); return; }
     if (act === 'view') { view = b.dataset.v; render(); return; }
     if (act === 'calPrev' || act === 'calNext') {
@@ -259,7 +286,6 @@
     }
     if (!x) return;
     if (act === 'cards') return openCards(x);
-    if (act === 'calItem') return openCalItem(x, b.dataset.d);
     if (act === 'edit') return openEdit(x);
     if (act === 'upload') { upId = x.id; fileInput().click(); return; }
     if (act === 'ok' || act === 'back') {
@@ -277,6 +303,9 @@
     }
   });
 
+  $('#leaveRoot').addEventListener('toggle', e => { if (e.target.classList?.contains('lv-total')) totalOpen = e.target.open; }, true);
+  $('#leaveRoot').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.dataset?.lv === 'calDay') { e.preventDefault(); e.target.click(); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && zoom) { zoom = null; paintZoom(); } });
   A.tabHooks.leave = () => { render(); if (Date.now() - lAt > 30e3) load(); };
   A.addPrefetch('leave', () => (A.isGuest() ? null : load(true)));
 

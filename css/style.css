@@ -1518,3 +1518,34 @@ body.ww-open { overflow: hidden; }
 
 /* 掃地檢查：最後是誰、幾點檢查的 */
 .chk-by { margin: -4px 0 6px; font-size: 13px; color: var(--muted, #6b7280); }
+
+/* 請假月曆：名字底色＝科別（資料科洋紅、多媒科深藍），左邊色條＝假別；點日期放大 */
+.cal-cell.has { cursor: pointer; }
+.cal-cell.has:active { background: var(--accent-soft); }
+.cal-nm { display: block; cursor: inherit; border-left: 3px solid transparent; }
+.cal-nm.dp-data { background: #a8326e; color: #fff; }
+.cal-nm.dp-mm { background: #243c7c; color: #fff; }
+.cal-nm.t-a, .cz-nm.t-a, .cz-who.t-a, .cal-tl.t-a { border-left-color: #ffc53d; }
+.cal-nm.t-b, .cz-nm.t-b, .cz-who.t-b, .cal-tl.t-b { border-left-color: #ff6b6b; }
+.cal-nm.t-c, .cz-nm.t-c, .cz-who.t-c, .cal-tl.t-c { border-left-color: #4dabf7; }
+.cal-nm.t-d, .cz-nm.t-d, .cz-who.t-d, .cal-tl.t-d { border-left-color: #adb5bd; }
+.cal-nm.t-e, .cz-nm.t-e, .cz-who.t-e, .cal-tl.t-e { border-left-color: #f783ac; }
+.cal-nm.t-f, .cz-nm.t-f, .cz-who.t-f, .cal-tl.t-f { border-left-color: #69db7c; }
+.cal-legend { align-items: center; }
+.cal-legend .cal-nm { display: inline-block; padding: 2px 8px; }
+.cal-tl { font-size: 12px; padding: 1px 6px; border-left: 5px solid; background: var(--bg); border-radius: 4px; }
+.cal-zoom { position: fixed; inset: 0; z-index: 35; background: rgba(15,15,25,.5); display: grid; place-items: center; padding: 16px; }
+.cal-zoom.pop { animation: sheet-in .15s ease-out; }
+.cz-box { width: min(100%, 440px); max-height: calc(100vh - 32px); overflow-y: auto; background: var(--surface); color: var(--text); border-radius: 18px; padding: 14px; box-shadow: var(--shadow); }
+.cz-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 20px; }
+.cz-head b { flex: 1; }
+.cz-head .btn { padding: 4px 14px; font-size: 20px; }
+.cz-list { display: grid; gap: 8px; }
+.cz-nm, .cz-who { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; min-height: 56px; padding: 8px 14px; border: 0; border-left: 8px solid transparent; border-radius: 12px; font: inherit; text-align: left; background: var(--accent-soft); color: var(--accent); cursor: pointer; }
+.cz-nm b, .cz-who b { font-size: 21px; line-height: 1.2; }
+.cz-nm span, .cz-who span { font-size: 14px; opacity: .92; }
+.cz-nm:active { filter: brightness(1.15); }
+.cz-nm.dp-data, .cz-who.dp-data { background: #a8326e; color: #fff; }
+.cz-nm.dp-mm, .cz-who.dp-mm { background: #243c7c; color: #fff; }
+.cz-who { cursor: default; margin-bottom: 8px; }
+.lv-total > summary .lv-n { margin-left: 4px; }
