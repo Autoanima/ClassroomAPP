@@ -304,9 +304,13 @@
     render();
   }
   const cardCache = {};
+  // 可以刪假卡：導師隨時；同學在導師確認前可以刪自己的
+  const canDelCard = x => isT() || (x.key === L.me && x.status !== '已確認');
   async function openCards(x) {
     let h = A.sheetHead('🖼 假卡', `${nm(x.key)}｜${x.type}｜${when(x)}`);
-    h += `<div class="rcpt-view">${x.cards.map(fid => `<figure data-fid="${esc(fid)}">${cardCache[fid] ? `<img src="${cardCache[fid]}" alt="假卡">` : '<p class="muted">讀取中…</p>'}</figure>`).join('')}</div>`;
+    const del = fid => (canDelCard(x) ? `<button type="button" class="btn btn--danger lv-delcard" data-act="lvDelCard" data-id="${esc(x.id)}" data-fid="${esc(fid)}">🗑 刪除這張</button>` : '');
+    h += `<div class="rcpt-view">${x.cards.map((fid, i) => `<div class="lv-card-box"><figure data-fid="${esc(fid)}">${cardCache[fid] ? `<img src="${cardCache[fid]}" alt="假卡">` : '<p class="muted">讀取中…</p>'}</figure><div class="lv-card-bar"><span class="muted small">第 ${i + 1} 張</span>${del(fid)}</div></div>`).join('')}</div>`;
+    if (canDelCard(x)) h += `<p class="muted small">傳錯了可以刪掉，再按「📷 學生上傳假卡」重新上傳（刪掉的照片還會留在導師的雲端硬碟裡）。</p>`;
     A.openSheet({ kind: 'leaveCards' }, h);
     for (const fid of x.cards) {
       if (!cardCache[fid]) { try { cardCache[fid] = (await A.api('getLeaveCard', { fid })).d; } catch (err) { cardCache[fid] = ''; toast(err.message); } }
@@ -315,6 +319,18 @@
     }
   }
 
+  A.sheetHandlers.leaveCards = async (act, b) => {
+    if (act !== 'lvDelCard') return;
+    if (!await A.ask('刪除這張假卡照片？\n刪掉之後可以再重新上傳。', '刪除', true)) return;
+    b.disabled = true;
+    try {
+      L = await A.api('delLeaveCard', { id: b.dataset.id, fid: b.dataset.fid });
+      toast('已刪除這張假卡');
+      const x = L.rows.find(r => r.id === b.dataset.id);
+      if (x?.cards.length) openCards(x); else A.closeSheet();
+    } catch (err) { toast(err.message); b.disabled = false; }
+    render();
+  };
   let lvType = TYPES[0];
   $('#leaveRoot').addEventListener('click', async e => {
     const b = e.target.closest('[data-lv]');
@@ -396,7 +412,7 @@
   const prevTest = A.testSeatApi;
   A.testSeatApi = async (action, p = {}) => {
     const KEY = 'indoor.leave.v1.test', RK = 'indoor.leaverules.v1.test', CK = 'indoor.leavecard.v1.test';
-    if (!['getLeave', 'addLeave', 'editLeave', 'leaveCard', 'getLeaveCard', 'setLeaveStatus', 'cancelLeave', 'setLeaveRules'].includes(action)) return prevTest ? prevTest(action, p) : null;
+    if (!['getLeave', 'addLeave', 'editLeave', 'leaveCard', 'getLeaveCard', 'delLeaveCard', 'setLeaveStatus', 'cancelLeave', 'setLeaveRules'].includes(action)) return prevTest ? prevTest(action, p) : null;
     const me = A.isTeacher() ? '導師' : A.me();
     const all = store.get(KEY, []);
     const find = id => all.find(x => x.id === id);
@@ -405,6 +421,7 @@
     if (action === 'leaveCard') { const x = find(p.id), cid = 'c' + Date.now(); store.set(CK, { ...store.get(CK, {}), [cid]: p.data }); x.cards.push(cid); x.status = '已上傳假卡'; x.cardT ||= Date.now(); }
     if (action === 'getLeaveCard') { const d = store.get(CK, {})[p.fid]; if (!d) throw new Error('找不到這張假卡'); return { ok: true, d }; }
     if (action === 'setLeaveStatus') { const x = find(p.id); x.status = p.status; x.reply = p.reply || ''; }
+    if (action === 'delLeaveCard') { const x = find(p.id); x.cards = x.cards.filter(c => c !== p.fid); if (!x.cards.length && x.status === '已上傳假卡') x.status = '已登記'; }
     if (action === 'cancelLeave') { const x = find(p.id); x.status = '已取消'; }
     if (action === 'editLeave') { const x = find(p.id); Object.assign(x, { type: p.row.type, from: p.row.from, fromP: p.row.fromP, to: p.row.to, toP: p.row.toP, note: p.row.note || '' }); }
     if (action === 'setLeaveRules') store.set(RK, p.text || '');

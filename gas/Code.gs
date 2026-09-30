@@ -46,6 +46,7 @@ const CONFIG = {
   WEATHER_DAYS: 5,                    // 小太陽卡／小雨傘卡有效天數（從購買當天算起，週末、假日都算）
   SURE_PRICE: 30,                     // 抽籤必中卡：指定一位同學，下一次抽籤第一位一定是他（只有一次）
   SWAP_BAN_MINUS: 10,
+  ABSENT_PER: 0.1,                    // 掃地檢查「未出席」：另外扣 0.1 分（「不好」照扣分統計 B3 的分數扣）
   PENALTY_PER: 2,                     // 每被扣 2 分，商店點數減 1 點（最少扣到 0 點，不會變負的）
   PENALTY_FROM: '2026/09/26',         // 這天以後的扣分才會扣點數（之前的不算）
   DRAW_BOOST: 0.1,                    // 抽籤加權：每被扣 1 分，被抽中的機率增加 10%
@@ -57,7 +58,7 @@ const CONFIG = {
 };
 
 const SHEET_RECORDS = '檢查紀錄';
-const HEAD_RECORDS = ['日期', '處所', '負責同學', '說明', '照片', '檢查人', '紀錄編號'];
+const HEAD_RECORDS = ['日期', '處所', '負責同學', '說明', '照片', '檢查人', '紀錄編號', '狀態'];
 const COL_PHOTO = 5, COL_KEY = 7;
 const SHEET_SCORE = '扣分統計';
 const SCORE_START_ROW = 10;
@@ -110,9 +111,9 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
 const GUEST_OK = { getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1, getCheckLive: 1, setCheckLive: 1 };
@@ -162,6 +163,7 @@ function doPost(e) {
       case 'addLeave': return json(addLeave(who, req.row || {}));
       case 'leaveCard': return json(leaveCard(who, String(req.id || ''), req.data));
       case 'getLeaveCard': return json(getLeaveCard(who, req.fid));
+      case 'delLeaveCard': return json(delLeaveCard(who, String(req.id || ''), String(req.fid || '')));
       case 'setLeaveStatus': return json(setLeaveStatus(who, String(req.id || ''), String(req.status || ''), req.reply));
       case 'cancelLeave': return json(cancelLeave(who, String(req.id || '')));
       case 'remindLeaveCard': return json(remindLeaveCard(who, String(req.id || '')));
@@ -2239,7 +2241,7 @@ function stuMutate(key, fn) {
   return { ok: true, sel: SelEngine.view(S, key, Date.now()), now: Date.now() };
 }
 
-// ── 檢查紀錄：只保留「不好」；改成其他狀態時會自動刪掉那一列 ──
+// ── 檢查紀錄：只保留「不好」和「未出席」（狀態欄寫「不好」「好、未出席」…）；改成其他狀態時會自動刪掉那一列 ──
 function saveRecords(rows) {
   return withLock(() => {
     const sh = getRecordsSheet();
@@ -2247,15 +2249,17 @@ function saveRecords(rows) {
     const keys = last > 1 ? sh.getRange(2, COL_KEY, last - 1, 1).getValues().map(r => String(r[0])) : [];
     const index = new Map(keys.map((k, i) => [k, i + 2]));
     const updates = [], deletes = [], appends = new Map();
+    if (!sh.getRange(1, 8).getValue()) sh.getRange(1, 8).setValue('狀態').setFontWeight('bold').setBackground('#ede7fb');   // 舊的工作表補上欄位名稱
     rows.forEach(r => {
       const row = index.get(r.key);
-      if (r.status !== '不好') {
+      const st = String(r.status || '');
+      if (st.indexOf('不好') < 0 && st.indexOf('未出席') < 0) {
         if (row) deletes.push(row);
         appends.delete(r.key);
         return;
       }
       const note = (r.issue ? '【有狀況】' : '') + (r.note || '');
-      const vals = [toDate(r.date), r.item, r.owner, note, '', r.inspector || '', r.key];
+      const vals = [toDate(r.date), r.item, r.owner, note, '', r.inspector || '', r.key, st];
       if (row) updates.push({ row: row, vals: vals, photos: r.photos });
       else appends.set(r.key, { vals: vals, photos: r.photos });
     });
@@ -2585,19 +2589,21 @@ function computeScores() {
   const last = rec.getLastRow();
   const data = last > 1 ? rec.getRange(2, 1, last - 1, HEAD_RECORDS.length).getValues() : [];
   const seen = {}, stats = {};
+  const absentPer = Number(CONFIG.ABSENT_PER) || 0.1;
   data.forEach(r => {
     const d = r[0] instanceof Date ? r[0] : new Date(r[0]);
     const place = String(r[1]), who = String(r[2]).trim();
     if (!who || who === '值日生' || isNaN(d)) return;
     const t = d.getTime();
     if (t < fromT || t > toT || recTime(d, r[6]) < rst) return;
-    // 同一天、同一處、同一人只算一次（避免導師與股長重複記錄）
+    // 狀態欄是空的＝舊紀錄（那時只記「不好」）
+    const st = String(r[7] || ''), bad = !st || st.indexOf('不好') >= 0, absent = st.indexOf('未出席') >= 0;
+    const s = stats[who] || (stats[who] = { n: 0, list: [], a: 0, alist: [] });
+    const day = Utilities.formatDate(d, CONFIG.TIMEZONE, 'M/d');
+    // 同一天、同一處、同一人只算一次（避免導師與股長重複記錄）；不好、未出席分開算
     const k = Utilities.formatDate(d, CONFIG.TIMEZONE, 'yyyyMMdd') + '|' + place + '|' + who;
-    if (seen[k]) return;
-    seen[k] = true;
-    const s = stats[who] || (stats[who] = { n: 0, list: [] });
-    s.n++;
-    s.list.push({ t: t, day: Utilities.formatDate(d, CONFIG.TIMEZONE, 'M/d') });
+    if (bad && !seen[k + '|bad']) { seen[k + '|bad'] = true; s.n++; s.list.push({ t: t, day: day }); }
+    if (absent && !seen[k + '|absent']) { seen[k + '|absent'] = true; s.a++; s.alist.push({ t: t, day: day }); }
   });
   // 加扣分紀錄：依類別加總（整潔類併入整潔欄）
   const pts = {};
@@ -2623,15 +2629,18 @@ function computeScores() {
   try { const st = getStudents(); roster = st.students; className = st.className; } catch (e) { err = String(e.message || e); }
   Object.keys(stats).concat(Object.keys(pts)).forEach(who => { if (roster.indexOf(who) < 0) roster.push(who); });
   const rows = roster.map(who => {
-    const s = stats[who] || { n: 0, list: [] };
+    const s = stats[who] || { n: 0, list: [], a: 0, alist: [] };
     const q = pts[who] || { clean: 0, order: 0, other: 0, list: [] };
     const m = who.match(/^(\D*?)(\d+)(.*)$/) || [who, '', '', who];
     const days = [], count = {};
     s.list.sort((a, b) => a.t - b.t).forEach(x => { if (!count[x.day]) days.push(x.day); count[x.day] = (count[x.day] || 0) + 1; });
     const bad = days.map(dd => (count[dd] > 1 ? dd + '(' + count[dd] + ')' : dd)).join('、');
-    const clean = -s.n * per + q.clean;
-    const total = clean + q.order + q.other;
-    const detail = (bad ? '整潔不好：' + bad : '') + (q.list.length ? (bad ? '\n' : '') + q.list.sort((a, b) => a.t - b.t).map(x => x.text).join('\n') : '');
+    const adays = [], acount = {};
+    s.alist.sort((a, b) => a.t - b.t).forEach(x => { if (!acount[x.day]) adays.push(x.day); acount[x.day] = (acount[x.day] || 0) + 1; });
+    const absentTxt = adays.map(dd => (acount[dd] > 1 ? dd + '(' + acount[dd] + ')' : dd)).join('、');
+    const clean = Math.round((-s.n * per - s.a * absentPer + q.clean) * 100) / 100;   // 未出席每次 −0.1
+    const total = Math.round((clean + q.order + q.other) * 100) / 100;
+    const detail = [bad ? '整潔不好：' + bad : '', absentTxt ? '掃地未出席（每次 −' + absentPer + '）：' + absentTxt : '', q.list.sort((a, b) => a.t - b.t).map(x => x.text).join('\n')].filter(String).join('\n');
     const ex = exams[m[1] + '|' + m[2] + '|' + m[3]] || ['', '', ''];
     return [m[1], m[2], m[3], s.n, clean, q.order, q.other, total, ex[0], ex[1], ex[2], detail];
   });
@@ -3056,6 +3065,21 @@ function getLeaveCard(who, fid) {
   if (!x || (!who.teacher && x.key !== who.key)) throw new Error('找不到這張假卡');
   const b = DriveApp.getFileById(fid).getBlob();
   return { ok: true, d: 'data:' + b.getContentType() + ';base64,' + Utilities.base64Encode(b.getBytes()) };
+}
+/** 刪除一張假卡（只是從這筆請假拿掉，雲端硬碟「請假卡」資料夾裡的檔案保留）：同學在導師確認前可以刪自己的；導師隨時可以刪 */
+function delLeaveCard(who, id, fid) {
+  const x = leaveRows().find(r => r.id === id);
+  if (!x || (!who.teacher && x.key !== who.key)) throw new Error('找不到這筆請假');
+  if (!who.teacher && x.status === '已確認') throw new Error('導師已經確認了，要修改請直接跟導師說');
+  if (x.cards.indexOf(fid) < 0) throw new Error('找不到這張假卡');
+  withLock(() => {
+    const sh = leaveSheet();
+    const left = String(sh.getRange(x.row, 11).getValue() || '').split(',').filter(c => c && c !== fid);
+    sh.getRange(x.row, 11).setValue(left.join(','));
+    if (!left.length && x.status === '已上傳假卡') sh.getRange(x.row, 10).setValue('已登記');   // 全部刪掉：回到還沒交假卡
+    sh.getRange(x.row, 14).setValue(new Date());
+  });
+  return getLeave(who);
 }
 /** 導師：確認（已確認）或退回（寫原因）；同學會收到飛鴿傳書 */
 function setLeaveStatus(who, id, status, reply) {
