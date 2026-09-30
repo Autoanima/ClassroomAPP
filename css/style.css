@@ -1687,3 +1687,23 @@ body.ww-open { overflow: hidden; }
 
 .rpt-opt { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 0 0 6px; }
 .rpt-opt input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+/* 商店「成員點數」：不要擠成一個字一行，改成可以左右滑；同學那一欄固定在左邊 */
+.admin-wrap table.admin th, .admin-wrap table.admin td { white-space: nowrap; }
+.admin-wrap table.admin th:first-child, .admin-wrap table.admin td:first-child { position: sticky; left: 0; background: var(--surface); z-index: 1; }
+/* 📊 加扣分紀錄 */
+.pb-seg { margin: 6px 0; }
+.pb-wrap { overflow-x: auto; margin-top: 8px; }
+table.pb { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.pb th, table.pb td { padding: 6px 6px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+table.pb th:first-child, table.pb td:first-child { text-align: left; }
+table.pb th { font-size: 12px; color: var(--muted); }
+table.pb tfoot td { border-bottom: 0; font-weight: 700; }
+.pb-name { border: 0; background: none; color: var(--text); font: inherit; font-weight: 700; padding: 0; cursor: pointer; text-align: left; }
+.pb-n { display: inline-flex; flex-direction: column; align-items: flex-end; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); font: inherit; font-weight: 800; font-size: 15px; padding: 3px 10px; cursor: pointer; line-height: 1.2; }
+.pb-n small { font-size: 10px; font-weight: 400; color: var(--muted); }
+.pb-n.plus, .pb-plus { color: #2f9e44; }
+.pb-n.minus, .pb-minus { color: #e03131; }
+.pb-list { list-style: none; padding: 0; margin: 0; }
+.pb-list li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.pb-p { min-width: 44px; font-weight: 800; font-size: 16px; text-align: right; }

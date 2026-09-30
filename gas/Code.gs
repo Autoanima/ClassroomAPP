@@ -111,9 +111,9 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
 const GUEST_OK = { getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1, getCheckLive: 1, setCheckLive: 1 };
@@ -194,6 +194,7 @@ function doPost(e) {
       case 'setCheckLive': return json(setCheckLive(who, req.date, req.rows || []));
       case 'addPoints': return json(addPoints(req.rows || [], who));
       case 'getPoints': return json({ ok: true, rows: getPoints(req.days, who) });
+      case 'pointsBoard': return json(pointsBoard(who));
       case 'delPoints': return json(delPoints(req.id, who));
       case 'shopState': return json(shopState(who));
       case 'accImages': return json(accImages(req.have || {}));
@@ -2571,6 +2572,41 @@ function ensureScoreButtons(sh) {
   sh.getRange('D8').setValue(errs.length ? '按鈕建立失敗（請改用選單「內掃檢查」）：' + errs.join('；') : '').setFontColor('#b42318');
 }
 const resetAt = () => Number(PropertiesService.getScriptProperties().getProperty('SCORE_RESET_AT') || 0);
+// ── 📊 加扣分紀錄（最右邊的分頁）：每位同學的加分、扣分、合計，點數字看每一筆的原因、時間、登記人 ──
+//    包含「加扣分紀錄」工作表，和掃地檢查的扣分（不好：扣分統計 B3 的分數；未出席：ABSENT_PER）。從「重置扣分統計」之後開始算。
+function pointsBoard(who) {
+  const rst = resetAt(), tz = CONFIG.TIMEZONE, out = [];
+  const mine = k => who.teacher || k === who.key;
+  const psh = pointsSheet();
+  if (psh.getLastRow() > 1) psh.getRange(2, 1, psh.getLastRow() - 1, HEAD_POINTS.length).getValues().forEach(r => {
+    const k = String(r[1]).trim(), p = Number(r[2]) || 0;
+    if (!k || !p || !mine(k)) return;
+    const t = r[6] instanceof Date ? r[6].getTime() : r[0] instanceof Date ? r[0].getTime() : 0;
+    if (t < rst) return;
+    out.push({ key: k, p: p, cat: String(r[3]).trim(), reason: String(r[4]).trim(), by: String(r[5]).trim(), t: t,
+      day: r[0] instanceof Date ? Utilities.formatDate(r[0], tz, 'yyyy/MM/dd') : '', time: t ? Utilities.formatDate(new Date(t), tz, 'MM/dd HH:mm') : '' });
+  });
+  // 掃地檢查：同一天、同一處、同一人只算一次（和扣分統計一樣）
+  const ssh = getSS().getSheetByName(SHEET_SCORE);
+  const per = (ssh && Number(ssh.getRange('B3').getValue())) || 1, absentPer = Number(CONFIG.ABSENT_PER) || 0.1;
+  const rec = getSS().getSheetByName(SHEET_RECORDS), seen = {};
+  if (rec && rec.getLastRow() > 1) rec.getRange(2, 1, rec.getLastRow() - 1, HEAD_RECORDS.length).getValues().forEach(r => {
+    const d = r[0] instanceof Date ? r[0] : new Date(r[0]), place = String(r[1]), k = String(r[2]).trim();
+    if (!k || k === '值日生' || isNaN(d) || !mine(k) || recTime(d, r[6]) < rst) return;
+    const st = String(r[7] || ''), day = Utilities.formatDate(d, tz, 'yyyy/MM/dd'), base = day + '|' + place + '|' + k;
+    const add = (kind, p, why) => {
+      if (seen[base + kind]) return;
+      seen[base + kind] = true;
+      out.push({ key: k, p: -p, cat: '整潔', reason: why + '：' + place + (r[3] ? '（' + String(r[3]).replace(/\s+/g, ' ') + '）' : ''), by: String(r[5]).trim() || '掃地檢查', t: d.getTime(), day: day, time: Utilities.formatDate(d, tz, 'MM/dd'), check: true });
+    };
+    if (!st || st.indexOf('不好') >= 0) add('|bad', per, '掃地檢查不好');
+    if (st.indexOf('未出席') >= 0) add('|absent', absentPer, '掃地未出席');
+  });
+  out.sort((a, b) => b.t - a.t);
+  return { ok: true, rows: out, all: !!who.teacher, students: who.teacher ? getStudents().students : [who.key],
+    since: rst ? Utilities.formatDate(new Date(rst), tz, 'yyyy/MM/dd') : '' };
+}
+
 /** 檢查紀錄的時間：紀錄編號開頭是那一次檢查的開始時間（S20260924-0011…），沒有就用日期 */
 function recTime(d, key) {
   const m = String(key || '').match(/^S(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})/);

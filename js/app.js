@@ -581,9 +581,9 @@
   paintCompact();
 
   // ── 分頁 ──
-  const TABS = ['points', 'clean', 'seats', 'lunch', 'leave', 'hw', 'shop', 'fund', 'invest', 'arena', 'draw', 'line', 'jobs'];
+  const TABS = ['points', 'clean', 'seats', 'lunch', 'leave', 'hw', 'shop', 'fund', 'invest', 'arena', 'draw', 'line', 'jobs', 'pboard'];
   const tabHooks = {};
-  const allowedTabs = () => (isGuest() ? ['draw', 'seats'] : isStudent() ? ['seats', 'clean', 'draw', 'shop', 'invest', 'arena', 'line', 'jobs', 'lunch', 'leave', 'hw', 'fund']
+  const allowedTabs = () => (isGuest() ? ['draw', 'seats'] : isStudent() ? ['seats', 'clean', 'draw', 'shop', 'invest', 'arena', 'line', 'jobs', 'lunch', 'leave', 'hw', 'fund', 'pboard']
     : TABS.filter(t => (t === 'points' ? canPoints() : true)));
   const isViewer = () => !isChecker(); // 不能檢查的人（學生、一般幹部）：掃地地圖只能看
   function showTab(name) {
