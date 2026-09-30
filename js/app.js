@@ -624,7 +624,7 @@
       if (b) b.textContent = BADGE[s.st] || '';
       const mk = el.querySelector('.mk');
       if (mk) {
-        mk.innerHTML = (s.issue ? '<span class="flag">!</span>' : '')
+        mk.innerHTML = waveHtml(it) + (s.issue ? '<span class="flag">!</span>' : '')
           + (s.photos.length ? `<span class="phc" data-lb="${(unitOf[it.id] || it).id}" data-i="${(state.records[(unitOf[it.id] || it).id]?.photos || []).indexOf(s.photos[0])}" role="button" aria-label="查看照片">📷${s.photos.length > 1 ? s.photos.length : ''}</span>` : '');
       }
     });
@@ -647,6 +647,10 @@
   }
 
   function onCleanClick(e) {
+    const w = e.target.closest('[data-wave]');
+    if (w) { e.stopPropagation(); return openWave(w.dataset.wave); }
+    const tk = e.target.closest('[data-talk]');
+    if (tk) { e.stopPropagation(); return openTalk(tk.dataset.talk); }
     const t = e.target.closest('[data-lb]');
     if (t) { e.stopPropagation(); openLightbox(t.dataset.lb, Math.max(0, +t.dataset.i || 0)); return; }
     const o = e.target.closest('[data-id]');
@@ -664,9 +668,88 @@
     const mine = owners.includes(settings.me);
     let h = sheetHead(esc(it.full), out ? '外掃區' : '內掃區');
     h += `<div class="job-card big${mine ? ' mine' : ''}"><div class="jt">${esc(title)}</div><div class="jn">${nameChips(owners, !out && jobById[it.job]?.fixed)}</div></div>`;
-    if (mine) h += `<p class="center"><b>⭐ 這是你負責的打掃區域</b></p>`;
+    if (mine) {
+      h += `<p class="center"><b>⭐ 這是你負責的打掃區域</b></p>`;
+      const u = unitOf[it.id] || it, done = checkins.find(c => c.unit === u.id && c.key === settings.me);
+      h += `<div class="ci-box">${done
+        ? `<p class="ci-done">👋 你今天 ${esc(done.time)} 已經簽到了（掃區乾淨）</p>`
+        : `<label class="ci-clean"><input type="checkbox" id="ciClean"> 我已經掃好了，<b>掃區乾淨</b></label>
+           <button type="button" class="btn btn--primary wide" data-act="ciSend" data-unit="${esc(u.id)}" data-place="${esc(u.full || u.title || it.full)}" disabled>👋 簽到送出</button>`}
+        <p class="muted small">簽到會在地圖上顯示 👋，讓大家知道你來過、掃好了；僅供參考，最後還是以檢查的同學檢查的結果為準。</p></div>`;
+    }
+    const uu = unitOf[it.id] || it, rr = state.records[uu.id];
+    if (rr && (mine || isChecker())) {
+      const res = uu.owners.map(o => ({ o, x: stOf(rr, o) })).filter(y => y.x.base || y.x.absent);
+      if (res.length || unitSummary(uu).issue) {
+        h += `<div class="ap-res"><b>🧹 今天的檢查結果</b>${rr.by ? `<span class="muted small">（${esc(rr.by)} ${rr.updatedAt ? fmtTime(new Date(rr.updatedAt)) : ''}）</span>` : ''}
+          ${res.map(y => `<div class="ap-line"><span>${esc(y.o)}</span><span class="tag ${y.x.base === '不好' ? 'bad' : y.x.absent ? 'absent' : 'good'}">${esc(stText(y.x))}</span></div>`).join('')}
+          ${unitSummary(uu).issue && rr.note ? `<div class="small">⚠️ ${esc(rr.note)}</div>` : ''}</div>`;
+      }
+    }
+    if (canTalk(uu)) {
+      const n = appeals.filter(a => a.unit === uu.id).length;
+      h += `<div class="actions"><button type="button" class="btn${n ? '' : ' btn--primary'} wide" data-act="talk" data-unit="${esc(uu.id)}">💬 ${n ? `看意見對話（${n}）` : '對檢查結果有意見'}</button></div>`;
+    }
+    const others = checkins.filter(c => c.unit === (unitOf[it.id] || it).id && c.key !== settings.me);
+    if (others.length) h += `<p class="muted small">👋 ${others.map(c => `${esc(seatCode(c.key))} ${esc(c.time)}`).join('、')} 簽到了</p>`;
     openSheet({ kind: 'jobinfo' }, h);
   }
+  // ── 👋 掃區打卡 ──
+  let checkins = [], appeals = [], ciAt = 0;
+  async function loadCheckins(quiet = true) {
+    if (isGuest() || (!settings.gasUrl && !TEST)) return;
+    try { const r = await api('getCheckins', { date: fmtDate(new Date()) }); checkins = r.rows || []; appeals = r.appeals || []; ciAt = Date.now(); refresh(); } catch (e) { if (!quiet) toast('打卡資料讀取失敗：' + e.message); }
+  }
+  // 整組的單位只在第一個地方顯示一次
+  function waveHtml(it) {
+    const u = unitOf[it.id] || it;
+    if (u.group && u.items[0].id !== it.id) return '';
+    const n = checkins.filter(c => c.unit === u.id).length, m = canTalk(u) ? appeals.filter(a => a.unit === u.id).length : 0;
+    return (n ? `<span class="wave" data-wave="${esc(u.id)}" role="button" aria-label="${n} 人簽到">👋${n > 1 ? n : ''}</span>` : '')
+      + (m ? `<span class="talk" data-talk="${esc(u.id)}" role="button" aria-label="${m} 則意見">💬${m}</span>` : '');
+  }
+  // ── 💬 掃區意見對話：負責的同學留言，檢查的人（導師）回覆 ──
+  const canTalk = u => !isGuest() && (isChecker() || (!!settings.me && (u?.owners || []).includes(settings.me)));
+  let talkUnit = null;
+  function talkHtml(unitId) {
+    const u = itemById[unitId], list = appeals.filter(a => a.unit === unitId), meKey = isTeacher() ? (D.teacherLabel || '導師') : settings.me;
+    let h = sheetHead(`💬 ${esc(u?.full || u?.title || '')}`, '對檢查結果的意見');
+    h += `<div class="talk-box">${list.length ? list.map(a => `<div class="bubble ${a.key === meKey ? 'me' : a.role === '負責' ? 'owner' : 'checker'}"><div class="b-who">${esc(a.role === '導師' ? '導師' : nm2(a.key))}<span>${a.role === '負責' ? '負責同學' : a.role === '導師' ? '' : '檢查'}・${esc(a.time)}</span></div><div class="b-text">${esc(a.text)}</div></div>`).join('')
+      : '<p class="muted small center">還沒有人留言。對檢查的結果有意見，可以在下面寫下來。</p>'}</div>`;
+    if (canTalk(u)) h += `<textarea id="talkText" maxlength="300" placeholder="${isChecker() ? '回覆負責的同學…' : '例如：我有來掃，只是先去倒垃圾了…'}"></textarea>
+      <div class="actions"><button type="button" class="btn btn--primary wide" data-act="talkSend" data-unit="${esc(unitId)}">送出</button></div>
+      <p class="muted small">${isChecker() ? '回覆後，留言的同學會收到飛鴿傳書。' : '送出後，檢查的人會收到飛鴿傳書；最後的加扣分還是由檢查的人決定。'}</p>`;
+    return h;
+  }
+  function openTalk(unitId) { talkUnit = unitId; openSheet({ kind: 'talk' }, talkHtml(unitId)); const tb = sheetBody.querySelector('.talk-box'); if (tb) tb.scrollTop = tb.scrollHeight; }
+  // 通知誰：同學留言 → 檢查的人（找不到就通知導師）；檢查的人回覆 → 留過言的同學（沒有就通知負責的同學）
+  function talkTargets(u) {
+    const r = state.records[u.id], T = D.teacherLabel || '導師';
+    if (!isChecker()) return [r?.by && r.by !== T ? r.by : T];   // 座號（例如「料26」），伺服器會找到是誰
+    const posted = appeals.filter(a => a.unit === u.id && a.role === '負責').map(a => a.key);
+    return posted.length ? posted : u.owners;
+  }
+  const talkSend = async (act, b) => {
+    if (act !== 'talkSend') return;
+    const text = $('#talkText').value.trim();
+    if (!text) return toast('請先寫下內容');
+    const u = itemById[b.dataset.unit];
+    b.disabled = true; b.textContent = '送出中…';
+    try {
+      const r = await api('postAppeal', { unit: u.id, place: u.full || u.title, text, to: talkTargets(u) });
+      checkins = r.rows || checkins; appeals = r.appeals || appeals;
+      refresh(); openTalk(u.id); toast('💬 已送出，對方會收到飛鴿傳書');
+    } catch (err) { toast(err.message); b.disabled = false; b.textContent = '送出'; }
+  };
+  function openWave(unitId) {
+    const u = itemById[unitId], list = checkins.filter(c => c.unit === unitId);
+    let h = sheetHead(`👋 ${esc(u?.full || u?.title || '')}`, '今天的簽到');
+    h += `<ul class="ci-list">${list.map(c => `<li><b>${esc(nm2(c.key))}</b><span>${esc(c.time)} 簽到${c.clean ? '・掃區乾淨' : ''}</span></li>`).join('')}</ul>
+      <p class="muted small">這是同學自己簽到的，僅供參考；最後以檢查的同學檢查的結果為準。</p>`;
+    openSheet({ kind: 'wave' }, h);
+  }
+  const nm2 = k => { const m = String(k).match(/^(\D*?)(\d+)(.*)$/); return m ? `${m[1]}${m[2]} ${m[3]}` : k; };
+  setInterval(() => { if (ui.tab === 'clean' && !document.hidden && !sheetMode && started) loadCheckins(); }, 30e3);
   // 自己負責的地方：地圖上標黃色；上方提示「你的打掃工作」
   function paintMine() {
     const me = settings.me, root = $('#tab-clean');
@@ -735,6 +818,19 @@
   let sheetMode = null;
   const sheetHandlers = {};   // kind → (act, button, event)
   const changeHandlers = {};  // kind → (event)
+  sheetHandlers.talk = (act, b) => talkSend(act, b);
+  // 掃區打卡：勾「掃區乾淨」才能按簽到
+  changeHandlers.jobinfo = e => { if (e.target.id === 'ciClean') { const b = sheetBody.querySelector('[data-act="ciSend"]'); if (b) b.disabled = !e.target.checked; } };
+  sheetHandlers.jobinfo = async (act, b) => {
+    if (act === 'talk') return openTalk(b.dataset.unit);
+    if (act !== 'ciSend') return;
+    if (!$('#ciClean')?.checked) return toast('請先勾選「掃區乾淨」');
+    b.disabled = true; b.textContent = '送出中…';
+    try {
+      checkins = (await api('checkin', { unit: b.dataset.unit, place: b.dataset.place, clean: true })).rows || checkins;
+      closeSheet(); refresh(); toast('👋 已簽到！地圖上會顯示你來過了');
+    } catch (err) { toast(err.message); b.disabled = false; b.textContent = '👋 簽到送出'; }
+  };
 
   function openSheet(mode, html) {
     if (sheetMode?.kind === 'item') commitNote();
@@ -786,6 +882,10 @@
     const fItem = focus && itemById[focus];
     let h = sheetHead(esc(item.title), esc(item.group ? `${item.area === 'in' ? '' : item.where + '・'}共 ${item.items.length} 個地方，整組一起記錄` : item.where));
     if (r.by && r.updatedAt) h += `<p class="chk-by">🕒 ${esc(r.by)} 已檢查 ${fmtTime(new Date(r.updatedAt))}</p>`;
+    const ci = checkins.filter(c => c.unit === item.id);
+    const ap = appeals.filter(a => a.unit === item.id);
+    if (ap.length) h += `<button type="button" class="btn wide chk-talk" data-act="talk">💬 負責同學的意見（${ap.length}）：${esc(ap[ap.length - 1].text.slice(0, 30))}${ap[ap.length - 1].text.length > 30 ? '…' : ''}</button>`;
+    if (ci.length) h += `<p class="chk-ci">👋 ${ci.map(c => `${esc(seatCode(c.key))} ${esc(c.time)}`).join('、')} 簽到・自己說掃區乾淨<span class="muted">（僅供參考）</span></p>`;
     h += `<h3>清潔程度</h3><div class="owners">`;
     if (!item.owners.length) h += `<p class="empty">尚未指定負責同學。請導師到「工作分配」分頁設定。</p>`;
     item.owners.forEach(o => {
@@ -909,6 +1009,8 @@
       touch(item);
       // 只有一位負責人且標「好」（沒有未出席）時自動關閉；「不好」通常還要拍照，所以不關
       if (item.owners.length === 1 && now.base === '好' && !now.absent && !r.issue) setTimeout(() => { if (sheetMode?.id === item.id) closeSheet(); }, 350);
+    } else if (act === 'talk') {
+      openTalk(item.id);
     } else if (act === 'photo') {
       fileTarget = { id: item.id, part: item.group ? sheetMode.focus : '' };
       $('#fileInput').click();
@@ -1085,6 +1187,22 @@
     }
     if (action === 'setOutdoorSheet') throw new Error('測試模式不會連結外掃試算表');
     if (action === 'uploadPhoto') throw new Error('測試模式不會上傳照片');
+    if (action === 'getCheckins' || action === 'checkin') {
+      const all = store.get('indoor.checkin.test', {}), day = all[fmtDate(new Date())] ||= [];
+      if (action === 'checkin') {
+        const me = settings.me || settings.inspector, i = day.findIndex(c => c.unit === payload.unit && c.key === me), c = { unit: payload.unit, place: payload.place, key: me, time: fmtTime(new Date()), clean: true };
+        if (i >= 0) day[i] = c; else day.push(c);
+        store.set('indoor.checkin.test', all);
+      }
+      return { ok: true, rows: day, appeals: (store.get('indoor.appeal.test', {})[fmtDate(new Date())] || []) };
+    }
+    if (action === 'postAppeal') {
+      const all = store.get('indoor.appeal.test', {}), day = all[fmtDate(new Date())] ||= [];
+      day.push({ unit: payload.unit, place: payload.place, key: isTeacher() ? (D.teacherLabel || '導師') : settings.me, role: isTeacher() ? '導師' : isChecker() ? '檢查' : '負責', text: payload.text, time: fmtTime(new Date()) });
+      store.set('indoor.appeal.test', all);
+      return { ok: true, rows: store.get('indoor.checkin.test', {})[fmtDate(new Date())] || [], appeals: day };
+    }
+    if (action === 'notifyCheck') return { ok: true, sent: payload.list.length };
     if (action === 'getCheckLive' || action === 'setCheckLive') {
       const all = store.get('indoor.live.test', {}), day = all[payload.date] ||= {};
       if (action === 'setCheckLive') {
@@ -1227,7 +1345,11 @@
   }
   let liveBusy = false;
   async function pollLive() {
-    if (liveBusy || !liveOn() || document.hidden || ui.tab !== 'clean' || sheetMode) return;
+    if (liveBusy || document.hidden || ui.tab !== 'clean' || sheetMode) return;
+    if (!liveOn()) {   // 同學：唯讀，看得到今天的檢查結果（前一天的清掉）
+      if (isGuest() || !settings.me || (!settings.gasUrl && !TEST)) return;
+      if (state.startedAt && fmtDate(new Date(state.startedAt)) !== fmtDate(new Date())) { state = emptyState(); save(); refresh(); }
+    }
     liveBusy = true;
     try { mergeLive((await api('getCheckLive', { date: fmtDate(new Date()) })).rows || []); } catch { /* 下次再試 */ }
     liveBusy = false;
@@ -1252,7 +1374,7 @@
     refresh();
     if (others.size) toast(`🔄 ${[...others].join('、')} 更新了 ${newer.length} 個地方`);
   }
-  setInterval(pollLive, 15e3);
+  setInterval(() => { if (liveOn() || Date.now() % 30e3 < 15e3) pollLive(); }, 15e3);   // 檢查的人每 15 秒、同學大約每 30 秒
   document.addEventListener('visibilitychange', () => { if (!document.hidden) pollLive(); });
 
   // ── 每 20 小時自動清空掃地紀錄 ──
@@ -1448,14 +1570,37 @@
     } else if (act === 'share') {
       if (TEST) return toast('測試模式不能傳送 LINE 通知');
       const saving = saveReportToSheet();
+      notifyProblems(R);
       if (navigator.share) {
         navigator.share({ text: msg }).catch(e => { if (e.name !== 'AbortError') toast('無法分享：' + e.message); });
       } else if (await copyText(msg)) toast('已複製，請貼到 LINE 群組');
       await saving;
     } else if (act === 'copy') {
       toast(await copyText(msg) ? '已複製訊息' : '複製失敗，請手動選取');
+      notifyProblems(R);
     }
   };
+  async function notifyProblems(R) {
+    if (!R.problems.size) return;
+    const sent = state.notified ||= {}, day = fmtDateW(R.d), list = [];
+    R.problems.forEach((arr, o) => {
+      const fresh = arr.filter(x => !sent[`${o}|${x.item.id}|${x.st}`]);
+      if (!fresh.length) return;
+      const lines = fresh.map(x => {
+        const r = state.records[x.item.id], note = r?.note && unitSummary(x.item).issue ? `（${r.note.replace(/\s+/g, ' ')}）` : '';
+        return `・${x.item.full}：${x.st.includes('不好') ? '掃區不乾淨' : ''}${x.st.includes('不好') && x.st.includes('未出席') ? '、' : ''}${x.st.includes('未出席') ? '未出席' : ''}${note}`;
+      });
+      const absent = fresh.some(x => x.st.includes('未出席'));
+      list.push({ to: o, keys: fresh.map(x => `${o}|${x.item.id}|${x.st}`), text: `🧹 ${day} ${R.areaName}檢查結果：\n${lines.join('\n')}\n${absent ? '未出席每次另外扣 0.1 分。' : ''}有問題請找檢查人${settings.inspector ? ' ' + settings.inspector : ''}。` });
+    });
+    if (!list.length) return;
+    try {
+      const r = await api('notifyCheck', { list: list.map(({ to, text }) => ({ to, text })) });
+      list.forEach(x => x.keys.forEach(k => { sent[k] = 1; }));
+      save();
+      toast(`📨 已發飛鴿傳書通知 ${r.sent ?? list.length} 位同學（不好／未出席）`);
+    } catch (err) { toast('通知同學失敗：' + err.message); }
+  }
   async function saveReportToSheet() {
     const st = $('#saveStatus');
     const say = t => { if (st) st.textContent = t; };
@@ -2415,6 +2560,7 @@
       }
       renderArea();
       setTimeout(pollLive, 50);
+      if (Date.now() - ciAt > 20e3) loadCheckins();
     };
     mountMap('jobs', 'jobs').el.addEventListener('click', onJobsMapClick);
     tabHooks.jobs = () => renderJobs();

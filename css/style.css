@@ -1707,3 +1707,30 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .pb-list { list-style: none; padding: 0; margin: 0; }
 .pb-list li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .pb-p { min-width: 44px; font-weight: 800; font-size: 16px; text-align: right; }
+
+/* 👋 掃區打卡 */
+.it .wave { position: absolute; top: -6px; left: -6px; z-index: 5; font-size: 18px; line-height: 1; background: #fff3bf; border: 2px solid #fab005; border-radius: 999px; padding: 2px 4px; box-shadow: 0 1px 4px rgba(0,0,0,.3); cursor: pointer; pointer-events: auto; animation: waveHi 1.6s ease-in-out infinite; transform-origin: 70% 80%; }
+@keyframes waveHi { 0%, 60%, 100% { transform: rotate(0); } 70% { transform: rotate(14deg); } 80% { transform: rotate(-8deg); } 90% { transform: rotate(10deg); } }
+@media (prefers-reduced-motion: reduce) { .it .wave { animation: none; } }
+.ci-box { margin-top: 12px; padding: 12px; border-radius: 12px; background: var(--bg); border: 1px dashed #fab005; }
+.ci-clean { display: flex; align-items: center; gap: 10px; font-size: 17px; margin-bottom: 10px; }
+.ci-clean input { width: 24px; height: 24px; accent-color: #2f9e44; }
+.ci-done { font-size: 16px; font-weight: 700; color: #e67700; margin: 0 0 6px; }
+.ci-list { list-style: none; padding: 0; margin: 0; }
+.ci-list li { display: flex; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+.chk-ci { margin: -2px 0 6px; font-size: 13px; color: #e67700; font-weight: 700; }
+
+/* 💬 掃區意見 */
+.it .talk { position: absolute; top: -6px; right: -6px; z-index: 5; font-size: 13px; line-height: 1; background: #e7f5ff; color: #1971c2; font-weight: 800; border: 2px solid #4dabf7; border-radius: 999px; padding: 2px 5px; box-shadow: 0 1px 4px rgba(0,0,0,.3); cursor: pointer; pointer-events: auto; }
+.ap-res { margin: 10px 0; padding: 10px 12px; border-radius: 12px; background: var(--bg); }
+.ap-line { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
+.talk-box { max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 6px 2px 10px; }
+.bubble { max-width: 85%; padding: 8px 12px; border-radius: 14px; background: var(--bg); border: 1px solid var(--line); }
+.bubble.owner { align-self: flex-start; border-bottom-left-radius: 4px; }
+.bubble.checker { align-self: flex-start; background: #e7f5ff; color: #1c3d5a; border-color: #a5d8ff; border-bottom-left-radius: 4px; }
+.bubble.me { align-self: flex-end; background: var(--accent); color: #fff; border-color: var(--accent); border-bottom-right-radius: 4px; }
+.b-who { font-size: 12px; font-weight: 700; opacity: .85; margin-bottom: 2px; }
+.b-who span { font-weight: 400; margin-left: 6px; }
+.b-text { font-size: 15px; white-space: pre-wrap; word-break: break-word; }
+#talkText { width: 100%; min-height: 70px; }
+.chk-talk { margin: 0 0 8px; font-size: 14px; text-align: left; }

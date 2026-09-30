@@ -111,12 +111,12 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
 const GUEST_OK = { getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
-const CHECKER_OK = { saveRecords: 1, uploadPhoto: 1, getCheckLive: 1, setCheckLive: 1 };
+const CHECKER_OK = { notifyCheck: 1, saveRecords: 1, uploadPhoto: 1, getCheckLive: 1, setCheckLive: 1 };
 const MONITOR_OK = { addDrawLog: 1, getDrawFx: 1, drawUsed: 1 };   // 用學生身分登入的班長、副班長：可以抽籤
 
 function doGet() {
@@ -190,6 +190,10 @@ function doPost(e) {
       case 'getStudents': return json(getStudents());
       case 'saveRecords': return json(saveRecords((req.rows || []).map(r => Object.assign(r, { inspector: who.key }))));
       case 'uploadPhoto': return json(uploadPhoto(req));
+      case 'getCheckins': return json(getCheckins(req.date));
+      case 'checkin': return json(checkin(who, req.unit, req.place, !!req.clean));
+      case 'notifyCheck': return json(notifyCheck(who, req.list));
+      case 'postAppeal': return json(postAppeal(who, req.unit, req.place, req.text, req.to));
       case 'getCheckLive': return json(getCheckLive(req.date));
       case 'setCheckLive': return json(setCheckLive(who, req.date, req.rows || []));
       case 'addPoints': return json(addPoints(req.rows || [], who));
@@ -2283,6 +2287,68 @@ function saveRecords(rows) {
   });
 }
 
+// ── 👋 掃區打卡：負責的同學點自己的區域 → 勾「掃區乾淨」→ 簽到；大家在地圖上看到招手圖示（僅供參考，以檢查結果為準）──
+const SHEET_CHECKIN = '掃區打卡';
+const HEAD_CHECKIN = ['日期', '單位', '地方', '同學', '時間', '乾淨'];
+const CHECK_BOT = '🧹 掃地檢查';
+const checkinSheet = () => textSheet(SHEET_CHECKIN, HEAD_CHECKIN, [1, 2, 3, 4, 5]);
+function getCheckins(date) {
+  const d = String(date || ymd(new Date())), sh = getSS().getSheetByName(SHEET_CHECKIN);
+  if (!sh || sh.getLastRow() < 2) return { ok: true, rows: [], appeals: appealsOf(d) };
+  const rows = sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_CHECKIN.length).getValues()
+    .filter(r => String(r[0]) === d)
+    .map(r => ({ unit: String(r[1]), place: String(r[2]), key: String(r[3]), time: String(r[4]), clean: r[5] === true || String(r[5]) === 'TRUE' }));
+  return { ok: true, rows: rows, appeals: appealsOf(d) };
+}
+function checkin(who, unit, place, clean) {
+  if (who.teacher) throw new Error('導師不用打卡');
+  unit = String(unit || '').slice(0, 60); place = String(place || '').slice(0, 60);
+  if (!unit) throw new Error('請選擇打掃的區域');
+  if (!clean) throw new Error('請先勾選「掃區乾淨」');
+  const d = ymd(new Date()), t = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'HH:mm');
+  withLock(() => {
+    const sh = checkinSheet(), n = sh.getLastRow() - 1;
+    const vals = n > 0 ? sh.getRange(2, 1, n, 4).getValues() : [];
+    const i = vals.findIndex(r => String(r[0]) === d && String(r[1]) === unit && String(r[3]) === who.key);
+    if (i >= 0) sh.getRange(i + 2, 5, 1, 2).setValues([[t, true]]);
+    else sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_CHECKIN.length).setValues([[d, unit, place, who.key, t, true]]);
+  });
+  return getCheckins(d);
+}
+// ── 💬 掃區意見：負責的同學對檢查結果有意見可以留言；檢查的人、導師可以回覆（像對話一樣）──
+const SHEET_APPEAL = '掃區意見';
+const HEAD_APPEAL = ['日期', '單位', '地方', '留言的人', '身分', '內容', '時間'];
+const appealSheet = () => textSheet(SHEET_APPEAL, HEAD_APPEAL, [1, 2, 3, 4, 5, 6, 7]);
+function appealsOf(d) {
+  const sh = getSS().getSheetByName(SHEET_APPEAL);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_APPEAL.length).getValues().filter(r => String(r[0]) === d)
+    .map(r => ({ unit: String(r[1]), place: String(r[2]), key: String(r[3]), role: String(r[4]), text: String(r[5]), time: String(r[6]) }));
+}
+function postAppeal(who, unit, place, text, to) {
+  unit = String(unit || '').slice(0, 60); place = String(place || '').slice(0, 60); text = String(text || '').trim().slice(0, 300);
+  if (!unit || !text) throw new Error('請寫下你的意見');
+  const me = who.teacher ? CONFIG.TEACHER_NAME : who.key;
+  const role = who.teacher ? '導師' : isInspector(who.key) ? '檢查' : '負責';
+  const d = ymd(new Date()), t = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'HH:mm');
+  withLock(() => { appealSheet().appendRow([d, unit, place, me, role, text, t]); });
+  const students = getStudents().students, ok = students.concat([CONFIG.TEACHER_NAME]);
+  // 收件人可以是完整的名字，或只是座號（例如「料26」）
+  const resolve = k => (ok.indexOf(k) >= 0 ? k : k === '導師' ? CONFIG.TEACHER_NAME : students.find(s => faceCode(s) === faceCode(k)) || '');
+  const list = (to || []).map(k => resolve(String(k))).filter((k, i, a) => k && k !== me && a.indexOf(k) === i).slice(0, 10);
+  botMail(list.map(k => [k, '💬 ' + (who.teacher ? '導師' : me) + ' 對「' + place + '」的掃地檢查' + (role === '負責' ? '有意見' : '回覆了') + '：\n' + text + '\n' + CONFIG.SITE_URL + '#tab=clean']), CHECK_BOT);
+  return getCheckins(d);
+}
+
+/** 檢查的人送出報表：不好（掃區不乾淨）、未出席的同學各收到一封飛鴿傳書 */
+function notifyCheck(who, list) {
+  const students = getStudents().students;
+  const mails = (list || []).slice(0, 80).filter(x => x && students.indexOf(String(x.to)) >= 0 && x.text)
+    .map(x => [String(x.to), String(x.text).slice(0, 1500) + '\n' + CONFIG.SITE_URL + '#tab=clean']);
+  botMail(mails, CHECK_BOT);
+  return { ok: true, sent: mails.length };
+}
+
 // ── 掃地檢查即時狀態：導師和檢查幹部互相看得到檢查結果（每天每個檢查單位一列，存整筆紀錄）──
 const SHEET_LIVE = '檢查即時狀態';
 const HEAD_LIVE = ['日期', '單位', '紀錄', '更新時間', '檢查人'];
@@ -3115,6 +3181,9 @@ function delLeaveCard(who, id, fid) {
     if (!left.length && x.status === '已上傳假卡') sh.getRange(x.row, 10).setValue('已登記');   // 全部刪掉：回到還沒交假卡
     sh.getRange(x.row, 14).setValue(new Date());
   });
+  // 同學刪掉假卡：通知導師
+  const n = x.cards.length - 1;
+  if (!who.teacher) botMail([[CONFIG.TEACHER_NAME, '🗑 ' + x.key + ' 刪除了一張假卡照片\n' + leaveText(x) + '\n' + (n ? '還剩 ' + n + ' 張假卡。' : '已經沒有假卡了，等同學重新上傳。') + '\n（刪掉的照片還在雲端硬碟「請假卡」資料夾）\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
   return getLeave(who);
 }
 /** 導師：確認（已確認）或退回（寫原因）；同學會收到飛鴿傳書 */
@@ -3165,6 +3234,9 @@ function cancelLeave(who, id) {
   if (!x || (!who.teacher && x.key !== who.key)) throw new Error('找不到這筆請假');
   if (!who.teacher && x.status === '已確認') throw new Error('導師已經確認了，要取消請直接跟導師說');
   withLock(() => { const sh = leaveSheet(); sh.getRange(x.row, 10).setValue('已取消'); sh.getRange(x.row, 14).setValue(new Date()); });
+  // 同學自己取消：通知導師（導師幫同學取消：通知同學）
+  if (!who.teacher) botMail([[CONFIG.TEACHER_NAME, '🗑 ' + x.key + ' 取消了請假\n' + leaveText(x) + (x.cards.length ? '\n（原本已上傳假卡 ' + x.cards.length + ' 張）' : '') + '\n紀錄還留在試算表「請假」工作表（狀態：已取消）。\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
+  else botMail([[x.key, '🗑 導師取消了你的請假\n' + leaveText(x) + '\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
   return getLeave(who);
 }
 function setLeaveRules(who, text) {
