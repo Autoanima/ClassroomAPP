@@ -1,7 +1,7 @@
 'use strict';
 /* ⚔️ 擂台賽：同學互相挑戰英文單字（高中職 4000 字）或日文五十音發音。
    發起挑戰 → 對方接受 → 兩個人都按「我準備好了」→ 一起倒數開始；同一組題目、每題 5 秒，先答錯（或超時）就停，
-   答對多的贏（一樣多比總作答時間）。贏的人得到商店點數 1 點，座位上戴皇冠；輸的人座位插一支劍（都顯示一天）。
+   答對多的贏（一樣多比總作答時間）。贏的人得到商店點數 1 點，座位上名字旁邊出現皇冠；輸的人出現昏頭的圖示（都顯示一天）。
    同一對同學每天只能比 1 場。 */
 (() => {
   const A = window.App;
@@ -12,8 +12,8 @@
   const canPlay = () => !A.isGuest() && !A.isTeacher() && !!A.me();
   const nm = k => { const p = A.parseKey(k); return p.code ? `${p.code} ${p.name}` : k; };
   const code = k => A.parseKey(k).code || k;
-  // 同一場比賽：皇冠和劍用同一種顏色
-  const HUES = ['#e8590c', '#1c7ed6', '#2f9e44', '#ae3ec9', '#e67700', '#0c8599', '#d6336c', '#5f3dc4'];
+  // 同一場比賽：皇冠和昏頭用同一種顏色
+  const HUES = ['#ff6b6b', '#4dabf7', '#51cf66', '#da77f2', '#ffa94d', '#3bc9db', '#f783ac', '#9775fa'];   // 亮一點：在名字的深色底上也看得清楚
   const colorOf = id => HUES[[...String(id)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7) % HUES.length];
   const serverNow = () => Date.now() + off;
 
@@ -32,7 +32,7 @@
     })();
     return loading;
   }
-  // 讀到新狀態之後：畫面、座位上的皇冠和劍、有沒有要開始的比賽、新的挑戰通知
+  // 讀到新狀態之後：畫面、座位上的皇冠和昏頭、有沒有要開始的比賽、新的挑戰通知
   let seenInv = new Set(store.get('indoor.arena.seen', [])), badgeKey = '';
   function after() {
     if (A.currentTab() === 'arena') render();
@@ -70,7 +70,7 @@
         <li><b>一起開始</b>：兩個人都按「⚔️ 我準備好了」，倒數 3 秒後同時開始，兩個人的題目完全一樣。</li>
         <li><b>作答</b>：每題四選一、限時 <b>${SEC} 秒</b>。<b>答錯或超時就停止</b>，最多 ${MAX_Q} 題。</li>
         <li><b>勝負</b>：答對題數多的人獲勝；一樣多的話，<b>總作答時間比較短</b>的人獲勝。</li>
-        <li><b>獎勵</b>：獲勝的人得到 <b>商店點數 1 點</b>，座位表上的大頭照戴上 <b>👑 皇冠</b>；輸的人座位插上一支 <b>🗡️ 劍</b>。都顯示一天，同一場比賽的皇冠和劍是同一種顏色，點一下可以再看一次比賽結果。</li>
+        <li><b>獎勵</b>：獲勝的人得到 <b>商店點數 1 點</b>，座位表上名字旁邊出現 <b>👑 皇冠</b>；輸的人出現 <b>😵 昏頭</b>的圖示。都顯示一天，同一場比賽的皇冠和昏頭是同一種顏色，點一下可以再看一次比賽結果。</li>
         <li><b>限制</b>：同一對同學<b>每天只能比 1 場</b>（誰挑戰誰都算）。比賽中請不要離開 App，離開也不會暫停計時。</li>
       </ol></details>`;
   }
@@ -104,7 +104,7 @@
         <label class="lv-f"><span>挑戰誰？</span><select id="arTo"><option value="">— 選一位同學 —</option>${opts}</select></label>
         <div class="ar-subj">${['en', 'jp'].map(s => `<button type="button" data-ar="subj" data-v="${s}" aria-pressed="${subj === s}">${s === 'en' ? '🔤 英文單字' : '🗾 日文五十音'}</button>`).join('')}</div>
         <div class="actions"><button type="button" class="btn btn--primary wide" data-ar="challenge">送出挑戰</button></div>
-        <p class="muted small">我的戰績：👑 勝 ${S.wins || 0} 場・🗡️ 敗 ${S.losses || 0} 場</p></div>`;
+        <p class="muted small">我的戰績：👑 勝 ${S.wins || 0} 場・😵 敗 ${S.losses || 0} 場</p></div>`;
     } else if (A.isTeacher()) {
       h += `<div class="panel"><p class="muted small">導師可以看比賽結果；擂台賽只有同學可以參加。</p></div>`;
     }
@@ -278,10 +278,10 @@
     } else if (game.phase === 'result') {
       const x = game.result, me = S.me, mine = x.a === me ? x.ra : x.rb, theirs = x.a === me ? x.rb : x.ra;
       const win = x.win === me, tie = x.win === '平手';
-      body = `<div class="ag-res ${tie ? 'tie' : win ? 'win' : 'lose'}">${tie ? '🤝' : win ? '👑' : '🗡️'}</div>
+      body = `<div class="ag-res ${tie ? 'tie' : win ? 'win' : 'lose'}">${tie ? '🤝' : win ? '👑' : '😵'}</div>
         <h2 class="center">${tie ? '平手！' : win ? '你贏了！' : '輸了，再接再厲！'}</h2>
         <p class="center">你 <b>${mine?.n ?? game.n}</b> 題（${((mine?.ms ?? game.ms) / 1000).toFixed(1)} 秒）・${esc(nm(game.opp))} <b>${theirs?.n ?? 0}</b> 題（${((theirs?.ms || 0) / 1000).toFixed(1)} 秒）</p>
-        ${win ? '<p class="center">獲得 <b>商店點數 1 點</b>，座位上也戴上了皇冠 👑</p>' : tie ? '' : '<p class="center muted">座位上插了一支劍 🗡️（顯示一天）。多用「📚 小練習」練習，明天再來！</p>'}
+        ${win ? '<p class="center">獲得 <b>商店點數 1 點</b>，座位上名字旁邊出現了皇冠 👑</p>' : tie ? '' : '<p class="center muted">座位上名字旁邊出現昏頭的圖示 😵（顯示一天）。多用「📚 小練習」練習，明天再來！</p>'}
         <div class="actions"><button type="button" class="btn btn--primary wide" data-ag="close">好</button></div>`;
     }
     box.innerHTML = `<div class="ag-card">${game.phase === 'count' ? '' : scoreHtml()}${body}</div>`;
@@ -293,14 +293,16 @@
     if (b && !b.disabled) answer(b.dataset.v);
   }
 
-  // ── 座位表：贏的人戴皇冠、輸的人插一支劍＋落魄的樣子（一天）；點一下再看比賽結果 ──
+  // ── 座位表：名字右邊的小圖示（一天）——贏的人皇冠、輸的人昏頭；同一場比賽同一個顏色；點一下再看比賽結果 ──
+  const CROWN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18 4.6 7.5 9.4 12 12 5l2.6 7 4.8-4.5L21 18Z" fill="currentColor"/><rect x="3" y="19.2" width="18" height="2.6" rx="1.2" fill="currentColor"/></svg>';
+  const DIZZY = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.6"/><path d="m7.2 8 3 3m0-3-3 3m6.6-3 3 3m0-3-3 3M7.6 16.2q1.1-1.6 2.2 0t2.2 0 2.2 0 2.2 0"/></svg>';
   A.arenaBadges = k => {
     if (!S?.recent?.length) return '';
     const w = S.recent.filter(x => x.win === k).sort((a, b) => b.end - a.end)[0];
     const l = S.recent.filter(x => x.win && x.win !== '平手' && x.win !== k && (x.a === k || x.b === k)).sort((a, b) => b.end - a.end)[0];
     let h = '';
-    if (w) h += `<span class="ar-crown" data-arena="${esc(w.id)}" style="--ac:${colorOf(w.id)}" title="擂台賽冠軍">👑</span>`;
-    if (l) h += `<span class="ar-sword" data-arena="${esc(l.id)}" style="--ac:${colorOf(l.id)}" title="擂台賽落敗">🗡️</span><span class="ar-sad" aria-hidden="true">😵‍💫</span>`;
+    if (w) h += `<span class="ar-ico" data-arena="${esc(w.id)}" style="color:${colorOf(w.id)}" title="擂台賽獲勝" role="button">${CROWN}</span>`;
+    if (l) h += `<span class="ar-ico" data-arena="${esc(l.id)}" style="color:${colorOf(l.id)}" title="擂台賽落敗" role="button">${DIZZY}</span>`;
     return h;
   };
   A.arenaLost = k => !!S?.recent?.some(x => x.win && x.win !== '平手' && x.win !== k && (x.a === k || x.b === k));
@@ -312,7 +314,7 @@
     if (x) flash([x], 2500);
   }, true);
 
-  // ── 上方的比賽消息：打開 App 時出現約 1 秒後自動消失；點皇冠或劍可以再看 ──
+  // ── 上方的比賽消息：打開 App 時出現約 1 秒後自動消失；點皇冠或昏頭可以再看 ──
   let msgT = null;
   function flash(list, ms) {
     let el = $('#arenaMsg');

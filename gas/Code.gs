@@ -2477,7 +2477,7 @@ function arenaFinish(x) {
   const tie = wr.n === lr.n ? '（答對題數一樣，你比較快）' : '';
   botMail([
     [win, '👑 你在' + subj + '擂台賽打敗了 ' + lose + '！（' + wr.n + '：' + lr.n + '）' + tie + '\n獲得商店點數 1 點，座位上也戴上了皇冠（顯示一天）。' + url],
-    [lose, '🗡️ 你在' + subj + '擂台賽輸給了 ' + win + '（' + lr.n + '：' + wr.n + '）。\n別灰心，多練習「📚 小練習」，明天再來挑戰！' + url],
+    [lose, '😵 你在' + subj + '擂台賽輸給了 ' + win + '（' + lr.n + '：' + wr.n + '）。\n別灰心，多練習「📚 小練習」，明天再來挑戰！' + url],
   ], ARENA_BOT);
   return x;
 }
