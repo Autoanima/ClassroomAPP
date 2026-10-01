@@ -910,7 +910,7 @@
       });
       h += `</div><textarea class="note-own" data-note-owner="${esc(o)}" rows="2" placeholder="給 ${esc(nm2(o))} 的說明（可不填）">${esc(r.notes?.[o] || '')}</textarea></div>`;
     });
-    h += `</div>${item.owners.length ? '<p class="muted small st-hint">「好／有瑕疵／不好」選一個；「未出席」可以一起選（未出席另外扣 0.1 分）。燈號：上排出席（白＝有出席、灰＝沒出席），下排表現；最右邊是今天。</p>' : ''}`;
+    h += `</div>${item.owners.length ? '<p class="muted small st-hint">「好／有瑕疵／不好」選一個；「未出席」可以一起選（未出席另外扣 0.1 分）。燈號：上排出席（白燈＝有出席、不亮＝沒出席），下排表現；最右邊是今天。</p>' : ''}`;
     // 舊的整區說明（以前大家共用一格）：還有內容才顯示，可以改或清掉
     if ((r.note || '').trim()) h += `<h3>整區共同說明 <span class="muted small">（舊的寫法，會算到每一位負責人）</span></h3><textarea id="noteInput" class="note-free">${esc(r.note)}</textarea>`;
     const photos = r.photos.map((p, i) => ({ p, i }));
