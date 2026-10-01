@@ -46,6 +46,8 @@ const CONFIG = {
   WEATHER_DAYS: 5,                    // 小太陽卡／小雨傘卡有效天數（從購買當天算起，週末、假日都算）
   SURE_PRICE: 30,                     // 抽籤必中卡：指定一位同學，下一次抽籤第一位一定是他（只有一次）
   SWAP_BAN_MINUS: 10,
+  LEAVE_LATE_DAYS: 3,                 // 請假：登記後超過 3 天還沒上傳假卡＝逾期（自動提醒、標紅色）
+  LEAVE_LATE_PER: 0.1,                // 逾期後每一天扣 0.1 分（上傳假卡就停止）
   HW_LATE_PER: 0.1,                   // 繳交追蹤：超過截止沒交，每一天扣 0.1 分（交了就停止；截止後 1 小時也算 1 天）
   ABSENT_PER: 0.1,                    // 掃地檢查「未出席」：另外扣 0.1 分（「不好」照扣分統計 B3 的分數扣）
   PENALTY_PER: 2,                     // 每被扣 2 分，商店點數減 1 點（最少扣到 0 點，不會變負的）
@@ -2726,6 +2728,13 @@ function pointsBoard(who) {
     if (st.indexOf('未出席') >= 0) add('|absent', absentPer, '掃地未出席');
   });
   try {
+    leaveLatePenalties(rst).forEach(x => {
+      if (!mine(x.key)) return;
+      out.push({ key: x.key, p: x.p, cat: '請假', reason: '假卡' + (x.done ? '晚交 ' : '逾期未交 ') + x.days + ' 天（' + x.text + '）', by: '系統', t: x.t,
+        day: Utilities.formatDate(new Date(x.t), tz, 'yyyy/MM/dd'), time: Utilities.formatDate(new Date(x.t), tz, 'MM/dd'), check: false });
+    });
+  } catch (e) { /* 請假資料讀不到就先不算 */ }
+  try {
     hwLatePenalties(rst).forEach(x => {
       if (!mine(x.key)) return;
       out.push({ key: x.key, p: x.p, cat: '繳交', reason: '「' + x.name + '」' + (x.done ? '遲交 ' : '逾期未交 ') + x.days + ' 天（每天 −' + (Number(CONFIG.HW_LATE_PER) || 0.1) + '）', by: x.to, t: x.end,
@@ -2788,6 +2797,15 @@ function computeScores() {
     });
   }
 
+  // 請假：登記超過 3 天還沒上傳假卡，每天扣分，算進「其他」
+  try {
+    leaveLatePenalties(rst).forEach(x => {
+      if (x.t < fromT || x.t > toT) return;
+      const s = pts[x.key] || (pts[x.key] = { clean: 0, order: 0, other: 0, list: [] });
+      s.other = Math.round((s.other + x.p) * 100) / 100;
+      s.list.push({ t: x.t, text: Utilities.formatDate(new Date(x.t), CONFIG.TIMEZONE, 'M/d') + ' 請假' + x.p + ' 假卡' + (x.done ? '晚交 ' : '逾期未交 ') + x.days + ' 天（' + x.text + '）' });
+    });
+  } catch (e) { Logger.log('請假逾期扣分計算失敗：' + e); }
   // 繳交追蹤：逾期每天扣分，算進「其他」
   try {
     hwLatePenalties(rst).forEach(x => {
@@ -3178,7 +3196,32 @@ function leaveRows() {
 const leavePub = x => ({ id: x.id, time: x.time, t: x.t, cardT: x.cardT, key: x.key, type: x.type, from: x.from, fromP: x.fromP, to: x.to, toP: x.toP, note: x.note, status: x.status, cards: x.cards, reply: x.reply, by: x.by });
 const PERIOD = p => (Number(p) === 0 ? '早自習' : '第' + p + '節');
 const leaveText = x => x.type + '：' + x.from.slice(5) + ' ' + PERIOD(x.fromP) + (x.from === x.to ? (x.fromP === x.toP ? '' : '～' + PERIOD(x.toP)) : ' ～ ' + x.to.slice(5) + ' ' + PERIOD(x.toP));
+/** 請假逾期：登記後超過 LEAVE_LATE_DAYS 天還沒上傳假卡 → 寄一次飛鴿傳書給同學和導師（任何人打開 App 讀請假時檢查） */
+function leaveTick() {
+  const props = PropertiesService.getScriptProperties(), K = 'LEAVE_LATE_SENT';
+  const sent = JSON.parse(props.getProperty(K) || '[]'), lim = (Number(CONFIG.LEAVE_LATE_DAYS) || 3) * 864e5, now = Date.now();
+  const due = leaveRows().filter(x => (x.status === '已登記' || x.status === '退回') && x.t && !x.cardT && now - x.t >= lim && sent.indexOf(x.id) < 0);
+  if (!due.length) return;
+  const per = Number(CONFIG.LEAVE_LATE_PER) || 0.1, days = Number(CONFIG.LEAVE_LATE_DAYS) || 3;
+  botMail(due.map(x => [x.key, '⚠️ 你的請假已經登記超過 ' + days + ' 天，還沒有上傳假卡！\n' + leaveText(x) + '\n請盡快跑完簽核流程（家長 → 導師 → 教官室等處室），把蓋好章的假卡拍照上傳。\n從現在起每多一天扣 ' + per + ' 分，上傳假卡就停止。\n' + CONFIG.SITE_URL + '#tab=leave'])
+    .concat(due.map(x => [CONFIG.TEACHER_NAME, '⚠️ ' + x.key + ' 的請假登記超過 ' + days + ' 天還沒上傳假卡（已提醒同學）\n' + leaveText(x) + '\n' + CONFIG.SITE_URL + '#tab=leave'])), LEAVE_BOT);
+  props.setProperty(K, JSON.stringify(sent.concat(due.map(x => x.id)).slice(-300)));
+}
+/** 請假逾期扣分：登記滿 LEAVE_LATE_DAYS 天後，每一天（不滿一天算一天）扣 LEAVE_LATE_PER 分，到上傳假卡為止 */
+function leaveLatePenalties(rst) {
+  const lim = (Number(CONFIG.LEAVE_LATE_DAYS) || 3) * 864e5, per = Number(CONFIG.LEAVE_LATE_PER) || 0.1, now = Date.now(), out = [];
+  leaveRows().forEach(x => {
+    if (!x.t || x.t < (rst || 0) || x.status === '已取消') return;
+    const stop = x.cardT || ((x.status === '已登記' || x.status === '退回') ? now : 0);   // 導師直接確認、沒有假卡的：不扣
+    if (!stop) return;
+    const days = Math.ceil((stop - x.t - lim) / 864e5);
+    if (days <= 0) return;
+    out.push({ key: x.key, days: days, p: -Math.round(days * per * 100) / 100, t: x.t + lim, text: leaveText(x), done: !!x.cardT });
+  });
+  return out;
+}
 function getLeave(who) {
+  try { leaveTick(); } catch (e) { Logger.log('請假逾期提醒失敗：' + e); }
   const all = leaveRows().filter(x => x.status !== '已取消')
     .sort((a, b) => (b.from + b.fromP).localeCompare(a.from + a.fromP) || b.t - a.t);
   // 班長、副班長：看得到全班的總表（誰、哪天、假別、進度），但看不到別人的說明和假卡照片

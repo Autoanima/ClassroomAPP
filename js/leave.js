@@ -117,8 +117,8 @@
       btns.push(`<button type="button" class="link-btn" data-lv="cancel" data-id="${esc(x.id)}">取消</button>`);
       btns.push(`<button type="button" class="link-btn" data-lv="edit" data-id="${esc(x.id)}">✏️ 編輯</button>`);
     }
-    return `<div class="lv-item${x.status === '已確認' ? ' done' : ''}">
-      <div class="lv-top"><span class="lv-type ${TYPE_CLS[x.type] || ''}">${esc(x.type)}</span><b>${esc(when(x))}</b>${teacher ? `<span class="lv-who">${esc(nm(x.key))}</span>` : ''}</div>
+    return `<div class="lv-item${x.status === '已確認' ? ' done' : ''}${isLate(x) ? ' late' : ''}">
+      <div class="lv-top"><span class="lv-type ${TYPE_CLS[x.type] || ''}">${esc(x.type)}</span><b>${esc(when(x))}</b>${isLate(x) ? '<span class="lv-late-tag">⚠️ 已逾期</span>' : ''}${teacher ? `<span class="lv-who">${esc(nm(x.key))}</span>` : ''}</div>
       ${x.note ? `<div class="small">${esc(x.note)}</div>` : ''}
       <div class="lv-steps">${steps}</div>
       ${x.reply && !back ? `<div class="small muted">導師：${esc(x.reply)}</div>` : ''}
@@ -128,9 +128,17 @@
   // ── 計時：從登記請假到上傳假卡，總共花了幾天 ──
   const took = x => (x.cardT && x.t ? x.cardT - x.t : null);
   const durText = ms => (ms < 86400e3 ? `不到 1 天（${Math.max(1, Math.round(ms / 3600e3))} 小時）` : `${(ms / 86400e3).toFixed(1)} 天`);
+  const LATE_DAYS = 3, LATE_PER = 0.1;
+  const pending = x => x.t && !x.cardT && (x.status === '已登記' || x.status === '退回');
+  const isLate = x => pending(x) && Date.now() - x.t >= LATE_DAYS * 864e5;
+  // 逾期天數（登記滿 3 天之後，每一天、不滿一天算一天；上傳假卡就停止）
+  const lateDays = x => { const stop = x.cardT || (pending(x) ? Date.now() : 0); return stop ? Math.max(0, Math.ceil((stop - x.t - LATE_DAYS * 864e5) / 864e5)) : 0; };
+  const lateMinus = d => Math.round(d * LATE_PER * 100) / 100;
   function timerText(x) {
-    if (took(x) != null) return `<div class="lv-took${took(x) >= 3 * 86400e3 ? ' slow' : ''}">⏱ 登記到上傳假卡花了 ${durText(took(x))}</div>`;
-    if (x.t && (x.status === '已登記' || x.status === '退回')) return `<div class="lv-took">⏱ 登記後已經過了 ${durText(Date.now() - x.t)}，還沒上傳假卡</div>`;
+    const d = x.t ? lateDays(x) : 0;
+    if (took(x) != null) return `<div class="lv-took${took(x) >= 3 * 86400e3 ? ' slow' : ''}">⏱ 登記到上傳假卡花了 ${durText(took(x))}${d ? `（超過 ${LATE_DAYS} 天，扣 ${lateMinus(d)} 分）` : ''}</div>`;
+    if (isLate(x)) return `<div class="lv-took slow">⚠️ 已逾期！登記後已經過了 ${durText(Date.now() - x.t)}，還沒上傳假卡（逾期 ${d} 天，已扣 ${lateMinus(d)} 分，上傳就停止）</div>`;
+    if (pending(x)) return `<div class="lv-took">⏱ 登記後已經過了 ${durText(Date.now() - x.t)}，還沒上傳假卡（滿 ${LATE_DAYS} 天開始每天扣 ${LATE_PER} 分）</div>`;
     return '';
   }
   // 這位同學上一次（不算 exceptId 這一筆）從登記到上傳假卡花了多久
@@ -252,13 +260,13 @@
   // 導師總表：篩選（待處理／本月／全部）＋每個人的統計
   function teacherHtml(ro) {
     const month = today().slice(0, 7);
-    const pick = { todo: x => x.status !== '已確認', month: x => x.from.slice(0, 7) === month || x.to.slice(0, 7) === month, all: () => true };
+    const pick = { todo: x => x.status !== '已確認', late: x => isLate(x), month: x => x.from.slice(0, 7) === month || x.to.slice(0, 7) === month, all: () => true };
     const list = L.rows.filter(pick[view]);
     const tab = (v, t, n) => `<button type="button" data-lv="view" data-v="${v}" aria-pressed="${view === v}">${t}${n != null ? ` <span class="lv-n">${n}</span>` : ''}</button>`;
     const todo = L.rows.filter(pick.todo).length;
     let h = `<details class="panel lv-total"${totalOpen ? ' open' : ''}><summary><b>📋 請假總表</b>${todo ? ` <span class="lv-n">待處理 ${todo}</span>` : ''}</summary>
       ${ro ? '<p class="muted small">班長、副班長可以看；說明和假卡只有導師看得到。</p>' : ''}
-      <div class="lv-views">${tab('todo', '待處理', todo)}${tab('month', '本月')}${tab('all', '全部')}</div>
+      <div class="lv-views">${tab('todo', '待處理', todo)}${L.rows.some(isLate) ? tab('late', '⚠️ 逾期未交假卡', L.rows.filter(isLate).length) : ''}${tab('month', '本月')}${tab('all', '全部')}</div>
       ${list.length ? list.map(x => itemHtml(x, !ro, ro)).join('') : `<p class="muted small">${view === 'todo' ? '沒有待處理的請假 🎉' : '沒有紀錄。'}</p>`}</details>`;
     // 統計：每位同學各假別的節數（已取消的不算）
     const stat = {};
