@@ -125,8 +125,10 @@
     const root = $('#lineRoot');
     const teacher = A.isTeacher();
     let h = `<div class="panel line-maker">
-      <p class="muted small" style="margin-top:0">用${teacher ? '同學' : '自己'}的大頭照（含配件）加上文字，做成圖片傳到 LINE 群組。字型：思源柔黑體 粗體。</p>`;
-    if (teacher) h += `<div class="field"><label for="lineWho">大頭照</label><select id="lineWho">${A.students().map(k => `<option value="${esc(k)}"${k === who() ? ' selected' : ''}>${esc(k)}</option>`).join('')}</select></div>`;
+      <p class="muted small" style="margin-top:0">用${teacher ? '導師自己或同學' : '自己'}的大頭照（含配件）加上文字，做成圖片傳到 LINE 群組。字型：思源柔黑體 粗體。</p>`;
+    // 導師可以選自己的大頭照（只有導師看得到這個選單）
+    const T = A.D.teacherLabel || '導師';
+    if (teacher) h += `<div class="field"><label for="lineWho">大頭照</label><select id="lineWho"><option value="${esc(T)}"${who() === T ? ' selected' : ''}>👤 導師（我自己）</option>${A.students().map(k => `<option value="${esc(k)}"${k === who() ? ' selected' : ''}>${esc(k)}</option>`).join('')}</select></div>`;
     h += `<div class="line-canvas-wrap"><canvas id="lineCanvas" width="${W}" height="${H}" aria-label="圖片預覽"></canvas></div>
       <div class="field"><label for="lineText">訊息</label><textarea id="lineText" maxlength="60" placeholder="輸入想說的話，例如：今天打掃辛苦了！">${esc(st.text)}</textarea></div>
       <div class="line-row"><span class="pt-lbl">顏色</span><div class="swatches">${COLORS.map(c => `<button type="button" class="sw-c${c === st.color ? ' on' : ''}" data-color="${c}" style="background:${c}" aria-label="顏色 ${c}"></button>`).join('')}
@@ -152,7 +154,8 @@
     await draw();
     const cv = $('#lineCanvas');
     const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
-    return new File([blob], `訊息_${A.parseKey(who()).code || 'me'}.png`, { type: 'image/png' });
+    const k = who();
+    return new File([blob], `訊息_${k === (A.D.teacherLabel || '導師') ? '導師' : A.parseKey(k).code || 'me'}.png`, { type: 'image/png' });
   }
   function download(file) {
     const a = document.createElement('a');
