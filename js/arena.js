@@ -69,7 +69,7 @@
         <li><b>對方接受</b>：對方會收到飛鴿傳書，${30} 分鐘內到這裡按「接受」。接受就代表同意比這個科目。</li>
         <li><b>一起開始</b>：兩個人都按「⚔️ 我準備好了」，倒數 3 秒後同時開始，兩個人的題目完全一樣。</li>
         <li><b>作答</b>：每題四選一、限時 <b>${SEC} 秒</b>。<b>答錯或超時就停止</b>，最多 ${MAX_Q} 題。</li>
-        <li><b>勝負</b>：答對題數多的人獲勝；一樣多的話，<b>總作答時間比較短</b>的人獲勝。</li>
+        <li><b>勝負</b>：答對題數多的人獲勝；一樣多的話，<b>總作答時間比較短</b>的人獲勝。<b>兩個人都沒有答對 3 題以上，這場不算數</b>（沒有點數，今天可以再比一次）。</li>
         <li><b>獎勵</b>：獲勝的人得到 <b>商店點數 1 點</b>，座位表上名字旁邊出現 <b>👑 皇冠</b>；輸的人出現 <b>😵 昏頭</b>的圖示。都顯示一天，同一場比賽的皇冠和昏頭是同一種顏色，點一下可以再看一次比賽結果。</li>
         <li><b>限制</b>：同一對同學<b>每天只能比 1 場</b>（誰挑戰誰都算）。比賽中請不要離開 App，離開也不會暫停計時。</li>
       </ol></details>`;
@@ -115,6 +115,7 @@
   const resultText = x => {
     const t = new Date(x.end), hm = `${A.pad2(t.getHours())}:${A.pad2(t.getMinutes())}`;
     if (x.win === '平手') return `🤝 ${esc(nm(x.a))} 和 ${esc(nm(x.b))} 的${SUBJ[x.subj]}擂台賽平手（${x.na}：${x.nb}）<span class="muted small">${hm}</span>`;
+    if (x.win === '不算數') return `⚪ ${esc(nm(x.a))} 和 ${esc(nm(x.b))} 的${SUBJ[x.subj]}擂台賽不算數（${x.na}：${x.nb}，都沒答對 3 題以上）<span class="muted small">${hm}</span>`;
     const lose = x.win === x.a ? x.b : x.a, wn = x.win === x.a ? x.na : x.nb, ln = x.win === x.a ? x.nb : x.na;
     return `👑 <b>${esc(nm(x.win))}</b> 在${SUBJ[x.subj]}擂台賽打敗了 ${esc(nm(lose))}（${wn}：${ln}）<span class="muted small">${hm}</span>`;
   };
@@ -277,11 +278,12 @@
       body = `<div class="ag-end">${esc(game.why || '')}</div><p class="center">你答對 <b>${game.n}</b> 題</p><p class="muted center">⏳ 等 ${esc(nm(game.opp))} 比完…（對方目前 ${game.oppP?.n || 0} 題）</p>`;
     } else if (game.phase === 'result') {
       const x = game.result, me = S.me, mine = x.a === me ? x.ra : x.rb, theirs = x.a === me ? x.rb : x.ra;
-      const win = x.win === me, tie = x.win === '平手';
-      body = `<div class="ag-res ${tie ? 'tie' : win ? 'win' : 'lose'}">${tie ? '🤝' : win ? '👑' : '😵'}</div>
-        <h2 class="center">${tie ? '平手！' : win ? '你贏了！' : '輸了，再接再厲！'}</h2>
+      const win = x.win === me, tie = x.win === '平手', none = x.win === '不算數';
+      body = `<div class="ag-res ${tie || none ? 'tie' : win ? 'win' : 'lose'}">${none ? '⚪' : tie ? '🤝' : win ? '👑' : '😵'}</div>
+        <h2 class="center">${none ? '這場不算數' : tie ? '平手！' : win ? '你贏了！' : '輸了，再接再厲！'}</h2>
+        ${none ? '<p class="center muted">兩個人都沒有答對 3 題以上，這場不算數（沒有點數、座位上也不顯示）。今天可以再比一次！</p>' : ''}
         <p class="center">你 <b>${mine?.n ?? game.n}</b> 題（${((mine?.ms ?? game.ms) / 1000).toFixed(1)} 秒）・${esc(nm(game.opp))} <b>${theirs?.n ?? 0}</b> 題（${((theirs?.ms || 0) / 1000).toFixed(1)} 秒）</p>
-        ${win ? '<p class="center">獲得 <b>商店點數 1 點</b>，座位上名字旁邊出現了皇冠 👑</p>' : tie ? '' : '<p class="center muted">座位上名字旁邊出現昏頭的圖示 😵（顯示一天）。多用「📚 小練習」練習，明天再來！</p>'}
+        ${none ? '' : win ? '<p class="center">獲得 <b>商店點數 1 點</b>，座位上名字旁邊出現了皇冠 👑</p>' : tie ? '' : '<p class="center muted">座位上名字旁邊出現昏頭的圖示 😵（顯示一天）。多用「📚 小練習」練習，明天再來！</p>'}
         <div class="actions"><button type="button" class="btn btn--primary wide" data-ag="close">好</button></div>`;
     }
     box.innerHTML = `<div class="ag-card">${game.phase === 'count' ? '' : scoreHtml()}${body}</div>`;
@@ -299,13 +301,13 @@
   A.arenaBadges = k => {
     if (!S?.recent?.length) return '';
     const w = S.recent.filter(x => x.win === k).sort((a, b) => b.end - a.end)[0];
-    const l = S.recent.filter(x => x.win && x.win !== '平手' && x.win !== k && (x.a === k || x.b === k)).sort((a, b) => b.end - a.end)[0];
+    const l = S.recent.filter(x => x.win && x.win !== '平手' && x.win !== '不算數' && x.win !== k && (x.a === k || x.b === k)).sort((a, b) => b.end - a.end)[0];
     let h = '';
     if (w) h += `<span class="ar-ico" data-arena="${esc(w.id)}" style="color:${colorOf(w.id)}" title="擂台賽獲勝" role="button">${CROWN}</span>`;
     if (l) h += `<span class="ar-ico" data-arena="${esc(l.id)}" style="color:${colorOf(l.id)}" title="擂台賽落敗" role="button">${DIZZY}</span>`;
     return h;
   };
-  A.arenaLost = k => !!S?.recent?.some(x => x.win && x.win !== '平手' && x.win !== k && (x.a === k || x.b === k));
+  A.arenaLost = k => !!S?.recent?.some(x => x.win && x.win !== '平手' && x.win !== '不算數' && x.win !== k && (x.a === k || x.b === k));
   document.addEventListener('click', e => {
     const t = e.target.closest('[data-arena]');
     if (!t) return;
@@ -355,13 +357,13 @@
       if (x.status === '進行中' && x.mineP?.done && botP(x).done) {
         const m = x.mineP, o = botP(x);
         x.status = '完成'; x.end = now; x.ra = m; x.rb = o;
-        x.win = m.n !== o.n ? (m.n > o.n ? x.a : x.b) : m.ms !== o.ms ? (m.ms < o.ms ? x.a : x.b) : '平手';
+        x.win = Math.max(m.n, o.n) < 3 ? '不算數' : m.n !== o.n ? (m.n > o.n ? x.a : x.b) : m.ms !== o.ms ? (m.ms < o.ms ? x.a : x.b) : '平手';
       }
     });
     store.set(KEY, all);
     const mine = all.filter(x => ['邀請', '接受', '進行中'].includes(x.status) || (x.status === '完成' && now - x.end < 600e3))
       .map(x => ({ id: x.id, a: x.a, b: x.b, subj: x.subj, status: x.status, start: x.start || 0, seed: x.status === '進行中' ? x.seed : 0, readyA: !!x.readyMe, readyB: x.status !== '邀請', opp: x.status === '完成' ? x.rb : x.start ? botP(x) : null, win: x.win || '', ra: x.ra || null, rb: x.rb || null }));
     const recent = all.filter(x => x.status === '完成' && now - x.end < 864e5).map(x => ({ id: x.id, a: x.a, b: x.b, subj: x.subj, win: x.win, na: x.ra.n, nb: x.rb.n, end: x.end }));
-    return { ok: true, me, now, mine, recent, wins: recent.filter(x => x.win === me).length, losses: recent.filter(x => x.win !== me && x.win !== '平手').length, played: all.filter(x => x.day === A.fmtDate(new Date()) && x.status !== '拒絕' && x.status !== '取消').map(x => x.b) };
+    return { ok: true, me, now, mine, recent, wins: recent.filter(x => x.win === me).length, losses: recent.filter(x => x.win !== me && x.win !== '平手' && x.win !== '不算數').length, played: all.filter(x => x.day === A.fmtDate(new Date()) && x.status !== '拒絕' && x.status !== '取消').map(x => x.b) };
   };
 })();

@@ -2479,13 +2479,19 @@ function arenaSet(x, cols) {   // cols：{ 欄位編號: 值 }
 function arenaFinish(x) {
   const ra = x.ra || arenaProg(x.id, x.a) || { n: 0, ms: 0 }, rb = x.rb || arenaProg(x.id, x.b) || { n: 0, ms: 0 };
   let win = '平手';
-  if (ra.n !== rb.n) win = ra.n > rb.n ? x.a : x.b;
+  if (Math.max(ra.n, rb.n) < 3) win = '不算數';   // 兩個人都沒答對 3 題以上：這場不算（不發點數、座位不顯示，同一對今天可以再比）
+  else if (ra.n !== rb.n) win = ra.n > rb.n ? x.a : x.b;
   else if (ra.n > 0 && ra.ms !== rb.ms) win = ra.ms < rb.ms ? x.a : x.b;
   const now = Date.now();
   arenaSet(x, { 6: '完成', 9: JSON.stringify({ n: ra.n, ms: ra.ms }), 10: JSON.stringify({ n: rb.n, ms: rb.ms }), 11: win, 12: now });
   Object.assign(x, { status: '完成', ra: ra, rb: rb, win: win, end: now });
   const subj = ARENA_SUBJ[x.subj] || x.subj, score = ra.n + '：' + rb.n;
   const url = '\n' + CONFIG.SITE_URL + '#tab=arena';
+  if (win === '不算數') {
+    const t = subj + '擂台賽（' + score + '）兩個人都沒有答對 3 題以上，這場不算數。\n今天還可以再比一次！';
+    botMail([[x.a, '⚔️ 你和 ' + x.b + ' 的' + t + url], [x.b, '⚔️ 你和 ' + x.a + ' 的' + t + url]], ARENA_BOT);
+    return x;
+  }
   if (win === '平手') {
     botMail([[x.a, '⚔️ 你和 ' + x.b + ' 的' + subj + '擂台賽平手（' + score + '，時間也一樣）！' + url], [x.b, '⚔️ 你和 ' + x.a + ' 的' + subj + '擂台賽平手（' + score + '，時間也一樣）！' + url]], ARENA_BOT);
     return x;
@@ -2534,7 +2540,7 @@ function arenaState(who) {
   const recent = rows.filter(x => x.status === '完成' && now - x.end < ARENA.SHOW_H * 3600e3)
     .map(x => ({ id: x.id, a: x.a, b: x.b, subj: x.subj, win: x.win, na: (x.ra || {}).n || 0, nb: (x.rb || {}).n || 0, end: x.end }));
   let wins = 0, losses = 0;
-  if (me) rows.forEach(x => { if (x.status !== '完成' || (x.a !== me && x.b !== me) || x.win === '平手') return; if (x.win === me) wins++; else losses++; });
+  if (me) rows.forEach(x => { if (x.status !== '完成' || (x.a !== me && x.b !== me) || x.win === '平手' || x.win === '不算數') return; if (x.win === me) wins++; else losses++; });
   const today = ymd(new Date());
   const played = me ? rows.filter(x => (x.a === me || x.b === me) && ymd(new Date(x.t)) === today && (arenaActive(x.status) || x.status === '完成')).map(x => (x.a === me ? x.b : x.a)) : [];
   return { ok: true, me: me, now: Date.now(), mine: mine, recent: recent, wins: wins, losses: losses, played: played, rules: ARENA };
@@ -2547,7 +2553,7 @@ function arenaChallenge(who, to, subj) {
   if (getStudents().students.indexOf(to) < 0) throw new Error('名單裡找不到這位同學');
   withLock(() => {
     const rows = arenaTidy(arenaRows()), today = ymd(new Date());
-    const pair = rows.find(x => ((x.a === who.key && x.b === to) || (x.a === to && x.b === who.key)) && ymd(new Date(x.t)) === today && (arenaActive(x.status) || x.status === '完成'));
+    const pair = rows.find(x => ((x.a === who.key && x.b === to) || (x.a === to && x.b === who.key)) && ymd(new Date(x.t)) === today && (arenaActive(x.status) || (x.status === '完成' && x.win !== '不算數')));
     if (pair) throw new Error(pair.status === '完成' ? '你們今天已經比過了，明天再來挑戰！' : '你們之間已經有一場挑戰還沒結束');
     const id = Utilities.getUuid().slice(0, 8), sh = arenaSheet(), at = sh.getLastRow() + 1;
     sh.getRange(at, 1, 1, HEAD_ARENA.length).setValues([[id, new Date(), who.key, to, subj, '邀請', '', '', '', '', '', '']]);
