@@ -138,6 +138,10 @@
       to: $('#hwTo').value, list: [...pick] };
     if (!it.name) return toast('請輸入名稱');
     if (it.target === 'custom' && !it.list.length) return toast('請選擇要交的同學');
+    if ((it.target === 'custom' || it.to) && !(H?.ver >= 2)) {
+      if (it.target === 'custom') return A.ask('雲端的程式還是舊版，不認得「指定同學」，存了會變成全班要交。\n請導師先到 Apps Script 部署新版本的 Code.gs，再回來設定。', '知道了');
+      it.to = undefined;   // 舊版也不認得「交給誰」：先不送
+    }
     if (!(it.end > it.start)) return toast('截止時間要在開始時間之後');
     b.disabled = true;
     try { H = await A.api('saveHomework', { item: it }); A.closeSheet(); toast(it.id ? '✓ 已修改' : '✓ 已建立'); render(); } catch (err) { toast(err.message); b.disabled = false; }
@@ -250,6 +254,6 @@
       if (!people.includes(me)) return null;
       const { done, ...rest } = base; return { ...rest, forMe: true, myDone: done[me] || 0 };
     }).filter(Boolean).sort((a, b) => a.end - b.end);
-    return { ok: true, items, manager: mgr, me, now: Date.now() };
+    return { ok: true, items, manager: mgr, me, now: Date.now(), ver: 2 };
   };
 })();

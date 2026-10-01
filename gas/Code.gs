@@ -1456,7 +1456,7 @@ function getHomework(who) {
     if (people.indexOf(me) < 0) return null;
     return Object.assign(base, { forMe: true, myDone: x.done[me] || 0 });
   }).filter(Boolean).sort((a, b) => a.end - b.end);
-  return { ok: true, items: items, manager: mgr, me: me, now: Date.now() };
+  return { ok: true, items: items, manager: mgr, me: me, now: Date.now(), ver: 2 };   // ver 2：支援「交給誰」「指定同學」
 }
 function saveHomework(who, it) {
   if (!canHw(who)) throw new Error('只有導師和幹部可以設定繳交項目');
