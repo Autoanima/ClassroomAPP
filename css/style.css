@@ -1815,3 +1815,7 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .lv-took.slow { color: #ff6b6b; font-weight: 700; }
 .lv-views { display: flex; flex-wrap: wrap; gap: 6px; }
 .lv-views button { white-space: nowrap; }
+/* 請假總表：排序切換 */
+.lv-sort { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 4px; }
+.lv-sort button { border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 13px; white-space: nowrap; }
+.lv-sort button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 700; background: var(--accent-soft); }

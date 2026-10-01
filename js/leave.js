@@ -11,6 +11,7 @@
   const pName = p => (Number(p) === 0 ? '早自習' : `第${p}節`);
   const STEP = ['已登記', '已上傳假卡', '已確認'];
   let L = null, lAt = 0, view = 'todo', rulesEdit = false, totalOpen = false;
+  let lvSort = store.get('indoor.leavesort', 'seat');   // 總表排序（記住在這台裝置）
   const nm = k => { const p = A.parseKey(k); return p.code ? `${p.code.replace(/(\d+)$/, ' $1')} ${p.name}` : k; };
   const today = () => A.fmtDate(new Date());
   const isT = () => A.isTeacher();
@@ -262,11 +263,17 @@
     const month = today().slice(0, 7);
     const pick = { todo: x => x.status !== '已確認', late: x => isLate(x), month: x => x.from.slice(0, 7) === month || x.to.slice(0, 7) === month, all: () => true };
     const list = L.rows.filter(pick[view]);
+    // 排序：依座號（預設，資料科在前）／依請假的日期（新→舊、舊→新）
+    const when0 = x => `${x.from}${x.fromP}`;
+    if (lvSort === 'new') list.sort((a, b) => when0(b).localeCompare(when0(a)) || byKey(a.key, b.key));
+    if (lvSort === 'old') list.sort((a, b) => when0(a).localeCompare(when0(b)) || byKey(a.key, b.key));
     const tab = (v, t, n) => `<button type="button" data-lv="view" data-v="${v}" aria-pressed="${view === v}">${t}${n != null ? ` <span class="lv-n">${n}</span>` : ''}</button>`;
+    const sortBtns = `<div class="lv-sort"><span class="muted small">排序</span>${[['seat', '依座號'], ['new', '時間：新→舊'], ['old', '時間：舊→新']].map(([v, t]) => `<button type="button" data-lv="sort" data-v="${v}" aria-pressed="${lvSort === v}">${t}</button>`).join('')}</div>`;
     const todo = L.rows.filter(pick.todo).length;
     let h = `<details class="panel lv-total"${totalOpen ? ' open' : ''}><summary><b>📋 請假總表</b>${todo ? ` <span class="lv-n">待處理 ${todo}</span>` : ''}</summary>
       ${ro ? '<p class="muted small">班長、副班長可以看；說明和假卡只有導師看得到。</p>' : ''}
       <div class="lv-views">${tab('todo', '待處理', todo)}${L.rows.some(isLate) ? tab('late', '⚠️ 逾期未交假卡', L.rows.filter(isLate).length) : ''}${tab('month', '本月')}${tab('all', '全部')}</div>
+      ${sortBtns}
       ${list.length ? list.map(x => itemHtml(x, !ro, ro)).join('') : `<p class="muted small">${view === 'todo' ? '沒有待處理的請假 🎉' : '沒有紀錄。'}</p>`}</details>`;
     // 統計：每位同學各假別的節數（已取消的不算）
     const stat = {};
@@ -351,6 +358,7 @@
     if (act === 'zoomItem') { zoom.id = b.dataset.id; paintZoom(); return; }
     if (act === 'type') { lvType = b.dataset.v; b.parentElement.querySelectorAll('button').forEach(y => y.setAttribute('aria-pressed', y === b)); return; }
     if (act === 'view') { view = b.dataset.v; render(); return; }
+    if (act === 'sort') { lvSort = b.dataset.v; store.set('indoor.leavesort', lvSort); render(); return; }
     if (act === 'calPrev' || act === 'calNext') {
       const [y, m] = calMonth.split('/').map(Number), d = new Date(y, m - 1 + (act === 'calNext' ? 1 : -1), 1);
       calMonth = `${d.getFullYear()}/${A.pad2(d.getMonth() + 1)}`; render(); return;
