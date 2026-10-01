@@ -1772,3 +1772,7 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .lg--flaw { background: var(--flaw); }
 .it.has-info { z-index: 9; }
 .hist-lbl { font-size: 11px; font-weight: 400; color: var(--muted); margin-right: 4px; white-space: nowrap; }
+
+/* 每位負責人自己的說明 */
+.note-own { width: 100%; margin-top: 8px; min-height: 44px; font-size: 14px; }
+.ap-note { margin: 0 0 6px; padding-left: 4px; }

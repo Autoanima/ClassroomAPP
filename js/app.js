@@ -9,6 +9,8 @@
   // 紀錄：status[同學]＝'好'／'不好'／''，absent[同學]＝true（舊資料的 status＝'未出席' 也當作未出席）
   const stOf = (r, o) => { const s = r?.status?.[o] || ''; return { base: s === '未出席' ? '' : s, absent: s === '未出席' || !!r?.absent?.[o] }; };
   const stText = x => [x.base, x.absent ? '未出席' : ''].filter(Boolean).join('、');
+  // 詳細說明：每位負責人分開寫（notes[同學]）；舊資料的整區說明（note）也一起顯示
+  const noteOf = (r, o) => [r?.notes?.[o], r?.note].map(s => String(s || '').replace(/\s+/g, ' ').trim()).filter(Boolean).join('；');
   const BADGE = { good: '✓', flaw: '△', bad: '✕', absent: '缺', partial: '…' };
   // 測試模式：密碼輸入 test。使用示範名單，資料另外存放，不會寫入雲端
   const LS_MODE = 'indoor.mode.v1';
@@ -100,7 +102,7 @@
     if (!store.set(LS.state, state)) toast('手機儲存空間不足，請先同步後清空紀錄');
   }
   // parts：分組的單位裡，哪些地方有狀況（{ 物件代號: true }）
-  const rec = id => state.records[id] ||= { status: {}, absent: {}, issue: false, parts: {}, note: '', photos: [], updatedAt: 0 };
+  const rec = id => state.records[id] ||= { status: {}, absent: {}, notes: {}, issue: false, parts: {}, note: '', photos: [], updatedAt: 0 };
   function ensureSession() {
     if (state.startedAt) return;
     const now = new Date();
@@ -622,8 +624,9 @@
       const showInfo = ui.mapInfo && s.st === 'bad' && (!u0.group || u0.items[0].id === it.id);
       if (showInfo) {
         if (!mi) { mi = document.createElement('span'); mi.className = 'minfo'; el.appendChild(mi); }
-        const who = u0.owners.filter(o => stOf(state.records[u0.id], o).base === '不好').map(nm2).join('、');
-        mi.innerHTML = `<b>${esc(who)}</b>${s.note ? `<span>${esc(s.note.length > 40 ? s.note.slice(0, 40) + '…' : s.note)}</span>` : ''}`;
+        const rr0 = state.records[u0.id], cut = t => (t.length > 40 ? t.slice(0, 40) + '…' : t);
+        mi.innerHTML = u0.owners.filter(o => stOf(rr0, o).base === '不好')
+          .map(o => `<b>${esc(nm2(o))}</b>${noteOf(rr0, o) ? `<span>${esc(cut(noteOf(rr0, o)))}</span>` : ''}`).join('');
       } else mi?.remove();
       el.classList.toggle('has-info', !!showInfo);
       const lr = state.records[(unitOf[it.id] || it).id];
@@ -690,10 +693,9 @@
     const uu = unitOf[it.id] || it, rr = state.records[uu.id];
     if (rr && (mine || isChecker())) {
       const res = uu.owners.map(o => ({ o, x: stOf(rr, o) })).filter(y => y.x.base || y.x.absent);
-      if (res.length || rr.note) {
+      if (res.length) {
         h += `<div class="ap-res"><b>🧹 今天的檢查結果</b>${rr.by ? `<span class="muted small">（${esc(rr.by)} ${rr.updatedAt ? fmtTime(new Date(rr.updatedAt)) : ''}）</span>` : ''}
-          ${res.map(y => `<div class="ap-line"><span>${esc(y.o)}</span><span class="tag ${y.x.base === '不好' ? 'bad' : y.x.base === '有瑕疵' ? 'flaw' : y.x.absent ? 'absent' : 'good'}">${esc(stText(y.x))}</span></div>`).join('')}
-          ${rr.note ? `<div class="small">📝 ${esc(rr.note)}</div>` : ''}</div>`;
+          ${res.map(y => `<div class="ap-line"><span>${esc(y.o)}</span><span class="tag ${y.x.base === '不好' ? 'bad' : y.x.base === '有瑕疵' ? 'flaw' : y.x.absent ? 'absent' : 'good'}">${esc(stText(y.x))}</span></div>${noteOf(rr, y.o) ? `<div class="small ap-note">📝 ${esc(noteOf(rr, y.o))}</div>` : ''}`).join('')}</div>`;
       }
     }
     if (canTalk(uu)) {
@@ -906,10 +908,11 @@
       STATUSES.forEach(s => {
         h += `<button type="button" class="${ST_CLASS[s]}" data-act="status" data-owner="${esc(o)}" data-st="${s}" aria-pressed="${s === '未出席' ? x.absent : x.base === s}">${s}</button>`;
       });
-      h += `</div></div>`;
+      h += `</div><textarea class="note-own" data-note-owner="${esc(o)}" rows="2" placeholder="給 ${esc(nm2(o))} 的說明（可不填）">${esc(r.notes?.[o] || '')}</textarea></div>`;
     });
     h += `</div>${item.owners.length ? '<p class="muted small st-hint">「好／有瑕疵／不好」選一個；「未出席」可以一起選（未出席另外扣 0.1 分）。燈號＝近兩週，最右邊是今天。</p>' : ''}`;
-    h += `<h3>詳細說明</h3><textarea id="noteInput" class="note-free" placeholder="可以寫哪裡不好、哪裡有瑕疵，也可以寫特別好的地方（可不填）">${esc(r.note)}</textarea>`;
+    // 舊的整區說明（以前大家共用一格）：還有內容才顯示，可以改或清掉
+    if ((r.note || '').trim()) h += `<h3>整區共同說明 <span class="muted small">（舊的寫法，會算到每一位負責人）</span></h3><textarea id="noteInput" class="note-free">${esc(r.note)}</textarea>`;
     const photos = r.photos.map((p, i) => ({ p, i }));
     h += `<div class="photos-head"><h3>照片${item.group && fItem ? `<span class="muted small">（新照片會標在「${esc(fItem.short ? fItem.name : fItem.title)}」）</span>` : ''}</h3><button type="button" class="btn btn--primary" data-act="photo">📷 拍照／上傳</button></div>`;
     if (photos.length) {
@@ -969,9 +972,11 @@
   function rerenderItem(id) {
     if (sheetMode?.kind !== 'item' || sheetMode.id !== id) return;
     const scroll = sheetBody.scrollTop;
-    const note = $('#noteInput')?.value;
+    const note = $('#noteInput')?.value, own = {};
+    sheetBody.querySelectorAll('[data-note-owner]').forEach(t => { own[t.dataset.noteOwner] = t.value; });   // 正在打的字不要不見
     sheetBody.innerHTML = itemHtml(itemById[id], sheetMode.focus);
-    if (note != null) $('#noteInput').value = note;
+    if (note != null && $('#noteInput')) $('#noteInput').value = note;
+    sheetBody.querySelectorAll('[data-note-owner]').forEach(t => { if (t.dataset.noteOwner in own) t.value = own[t.dataset.noteOwner]; });
     sheetBody.scrollTop = scroll;
   }
   function touch(item) {
@@ -986,16 +991,22 @@
   let noteTimer;
   function commitNote() {
     clearTimeout(noteTimer);
+    if (sheetMode?.kind !== 'item') return;
+    const item = itemById[sheetMode.id], r0 = state.records[item.id];
+    let changed = false;
+    sheetBody.querySelectorAll('[data-note-owner]').forEach(t => {
+      const o = t.dataset.noteOwner;
+      if (t.value === (r0?.notes?.[o] || '')) return;
+      ensureSession();
+      (rec(item.id).notes ||= {})[o] = t.value;
+      changed = true;
+    });
     const ta = $('#noteInput');
-    if (!ta || sheetMode?.kind !== 'item') return;
-    const item = itemById[sheetMode.id];
-    if (ta.value === (state.records[item.id]?.note || '')) return;
-    ensureSession();
-    rec(item.id).note = ta.value;
-    touch(item);
+    if (ta && ta.value !== (r0?.note || '')) { ensureSession(); rec(item.id).note = ta.value; changed = true; }
+    if (changed) touch(item);
   }
   sheetBody.addEventListener('input', e => {
-    if (e.target.id === 'noteInput') { clearTimeout(noteTimer); noteTimer = setTimeout(commitNote, 800); }
+    if (e.target.id === 'noteInput' || e.target.dataset?.noteOwner) { clearTimeout(noteTimer); noteTimer = setTimeout(commitNote, 800); }
   });
   changeHandlers.item = e => {
     const item = itemById[sheetMode.id];
@@ -1032,7 +1043,7 @@
       if (hs) hs.outerHTML = histHtml(o, r);
       touch(item);
       // 只有一位負責人且標「好」（沒有未出席）時自動關閉；「不好」通常還要拍照，所以不關
-      if (item.owners.length === 1 && now.base === '好' && !now.absent && !(r.note || '').trim()) setTimeout(() => { if (sheetMode?.id === item.id) closeSheet(); }, 350);
+      if (item.owners.length === 1 && now.base === '好' && !now.absent && !noteOf(r, o)) setTimeout(() => { if (sheetMode?.id === item.id) closeSheet(); }, 350);
     } else if (act === 'talk') {
       openTalk(item.id);
     } else if (act === 'photo') {
@@ -1294,7 +1305,7 @@
       status: stText(stOf(r, owner)),   // 例如「不好」「好、未出席」「不好、未出席」
       issue: !!r.issue,
       // 分組：把有狀況的地方寫在說明前面，例如【花圃 2、花圃 4】
-      note: r.note || '',
+      note: noteOf(r, owner),   // 這位同學自己的說明
       photos,
       inspector: settings.inspector || '',
       updatedAt: r.updatedAt,
@@ -1350,7 +1361,7 @@
   const driveThumb = id => `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w300`;
   // 推上去的紀錄：照片只帶雲端網址（手機裡的小圖太大，也還沒上傳的不帶）
   const liveRec = r => ({
-    status: r.status || {}, absent: r.absent || {}, issue: !!r.issue, parts: r.parts || {}, note: r.note || '',
+    status: r.status || {}, absent: r.absent || {}, notes: r.notes || {}, issue: !!r.issue, parts: r.parts || {}, note: r.note || '',
     photos: (r.photos || []).filter(p => p.driveId).map(p => ({ id: p.id, driveId: p.driveId, url: p.url || '', part: p.part || '' })),
     updatedAt: r.updatedAt || 0, by: r.by || '',
   });
@@ -1399,7 +1410,7 @@
       const loc = state.records[x.unit], old = new Map((loc?.photos || []).map(p => [p.id, p]));
       const photos = (x.rec.photos || []).map(p => ({ ...p, thumb: old.get(p.id)?.thumb || driveThumb(p.driveId), st: 'done' }))
         .concat((loc?.photos || []).filter(p => !p.driveId));   // 自己還沒上傳完的照片留著
-      state.records[x.unit] = { status: x.rec.status || {}, absent: x.rec.absent || {}, issue: !!x.rec.issue, parts: x.rec.parts || {}, note: x.rec.note || '', photos, updatedAt: x.rec.updatedAt, by: x.rec.by || '' };
+      state.records[x.unit] = { status: x.rec.status || {}, absent: x.rec.absent || {}, notes: x.rec.notes || {}, issue: !!x.rec.issue, parts: x.rec.parts || {}, note: x.rec.note || '', photos, updatedAt: x.rec.updatedAt, by: x.rec.by || '' };
       if (x.rec.by && x.rec.by !== myTag()) others.add(x.rec.by);
     });
     save();
@@ -1498,9 +1509,9 @@
     const issues = [];
     const items = scopeUnits().filter(u => u.area === ui.area); // 報表只包含目前這一區（內掃區、外掃區分開傳）
     items.forEach(it => {
-      const r = state.records[it.id], note = (r?.note || '').replace(/\s+/g, ' ').trim();
+      const r = state.records[it.id];
       it.owners.forEach(o => {
-        const x = stOf(r, o);
+        const x = stOf(r, o), note = noteOf(r, o);
         if (!x.base && !x.absent) return;
         if (x.base) cnt[x.base]++;
         if (x.absent) cnt['未出席']++;
