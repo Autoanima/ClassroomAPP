@@ -83,7 +83,7 @@
   let settings = Object.assign({ gasUrl: '', token: '', inspector: '', role: '', sid: '', me: '' }, store.get(LS.settings, {}));
   settings.gasUrl ||= CFG.gasUrl || '';
   const saveSettings = () => store.set(LS.settings, settings);
-  const ui = Object.assign({ view: 'student', tab: 'clean', area: 'in', zoom: {} }, store.get(LS.ui, {}));
+  const ui = Object.assign({ view: 'student', tab: 'clean', area: 'in', zoom: {}, mapInfo: true }, store.get(LS.ui, {}));   // mapInfo：地圖上預設顯示「不好」的負責人和說明
   const saveUi = () => store.set(LS.ui, ui);
   // role：staff＝導師（統一密碼）／cadre＝幹部（自己的身分證字號）／student＝學生（身分證字號，只能選位）
   const isStudent = () => settings.role === 'student';
