@@ -937,7 +937,7 @@
     const c = histCache[o], today = fmtDate(new Date());
     if (!c) return `<span class="hist muted small">讀取燈號…</span>`;
     const now = stOf(r, o);
-    return `<span class="hist" aria-label="近兩週">${histDays().map(d => {
+    return `<span class="hist" aria-label="近兩週的表現"><span class="hist-lbl">近兩週的表現</span>${histDays().map(d => {
       const k = fmtDate(d), x = k === today ? (now.base || now.absent ? { b: now.base, a: now.absent } : c.d[k]) : c.d[k];
       const cls = !x ? 'none' : x.b === '不好' ? 'bad' : x.b === '有瑕疵' ? 'flaw' : x.b === '好' ? 'good' : 'none';
       return `<i class="lamp ${cls}${x?.a ? ' abs' : ''}${k === today ? ' today' : ''}" title="${d.getMonth() + 1}/${d.getDate()}（${WEEK[d.getDay()]}）${x ? stText({ base: x.b, absent: x.a }) || '—' : '沒有紀錄'}"></i>`;
