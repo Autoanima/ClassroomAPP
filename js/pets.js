@@ -58,7 +58,8 @@
     const L = Math.max(wr.left + 14, Math.min(...seats.map(r => r.left)) - pad) - hr.left, R = Math.min(wr.right - 14, Math.max(...seats.map(r => r.right)) + pad) - hr.left;
     const T = Math.max(wr.top + 14, Math.min(...seats.map(r => r.top)) - pad) - hr.top, B = Math.min(wr.bottom - 14, Math.max(...seats.map(r => r.bottom)) + pad) - hr.top;
     const board = (h.wrap.querySelector('[data-tch]') || h.wrap.querySelector('[data-id="board"]'))?.getBoundingClientRect();
-    return { L, R, T, B, w: R - L, h: B - T, per: 2 * (R - L + B - T), board: board && board.width ? { x: board.left + board.width / 2 - hr.left, y: board.top + board.height * 0.62 - hr.top } : { x: (L + R) / 2, y: T - 30 }, hr };
+    return { L, R, T, B, w: R - L, h: B - T, per: 2 * (R - L + B - T), board: board && board.width ? { x: board.left + board.width / 2 - hr.left, y: board.top + board.height * 0.62 - hr.top } : { x: (L + R) / 2, y: T - 30 }, hr,
+      stage: board && board.width ? { left: board.left - hr.left, top: board.top - hr.top, w: board.width, h: board.height } : { left: (L + R) / 2 - 90, top: T - 70, w: 180, h: 56 } };
   }
   // 周長上的位置 s（0～1）→ 座標
   function along(g, s) {
@@ -81,7 +82,8 @@
     if (!ly) return;
     const alive = P.pets.filter(x => x.status === '寵物'), eggs = P.pets.filter(x => x.status === '蛋');
     // 蛋：排在講台上
-    let eh = `<div class="pet-eggs">${eggs.map(x => `<button type="button" class="pet-egg" data-pet="${esc(x.id)}" title="${esc(nm(x.owner))} 的寵物蛋">${EGG}</button>`).join('')}</div>`;
+    // 蛋：照生出來的順序，一顆一顆排在講台上（排不下就換一行），下面寫座號
+    let eh = `<div class="pet-eggs">${eggs.slice().sort((a, b) => a.born - b.born).map(x => `<button type="button" class="pet-egg" data-pet="${esc(x.id)}" title="${esc(nm(x.owner))} 的寵物蛋">${EGG}<small>${esc(A.parseKey(x.owner).code || '')}</small></button>`).join('')}</div>`;
     // 寵物：保留走到哪裡
     const keep = {};
     alive.forEach(x => { keep[x.id] = Object.assign(pets[x.id] || { s: Math.random(), dir: Math.random() < 0.5 ? 1 : -1, walk: true, until: 0, face: 1, mode: 'path' }, { feeders: x.feeders || [] }); });
@@ -96,7 +98,13 @@
   }
   function placeEggs() {
     const box = layer?.querySelector('.pet-eggs');
-    if (box && geo) { box.style.left = geo.board.x + 'px'; box.style.top = geo.board.y + 'px'; }
+    if (!box || !geo) return;
+    Object.assign(box.style, { left: geo.stage.left + 'px', top: geo.stage.top + 'px', width: geo.stage.w + 'px', height: geo.stage.h + 'px' });
+    // 蛋太多、講台太小：整排一起縮小，全部都放得進講台（最小縮到一半）
+    const n = box.children.length, W = geo.stage.w - 12, H = geo.stage.h - 8;
+    let k = 1;
+    for (; k > 0.5; k -= 0.05) { const per = Math.max(1, Math.floor(W / (30 * k))); if (Math.ceil(n / per) * 44 * k <= H) break; }
+    box.style.setProperty('--es', Math.max(0.5, k).toFixed(2));
   }
   let last = 0;
   function tick(t) {
@@ -212,11 +220,15 @@
       geo = geometry();
       const to = geo.board;
       if (kind === 'egg') {
-        const from = seatCenter(x.owner) || { x: to.x, y: geo.T + 40 };
+        const slot = layer.querySelector(`.pet-egg[data-pet="${CSS.escape(x.id)}"]`);
+        let dest = to;
+        if (slot) { const r = slot.getBoundingClientRect(); dest = { x: r.left + r.width / 2 - geo.hr.left, y: r.top + r.height * 0.4 - geo.hr.top }; slot.style.visibility = 'hidden'; }
+        const from = seatCenter(x.owner) || { x: dest.x, y: geo.T + 40 };
         const e = fx(EGG, 'egg-fly', from.x, from.y);
-        e.style.setProperty('--dx', (to.x - from.x) + 'px'); e.style.setProperty('--dy', (to.y - from.y) + 'px');
+        e.style.setProperty('--dx', (dest.x - from.x) + 'px'); e.style.setProperty('--dy', (dest.y - from.y) + 'px');
         banner(`🥚 <b>${esc(nm(x.owner))}</b> 被加分${x.reason ? `（${esc(x.reason)}）` : ''}，從座位蹦出了一顆<b>寵物蛋</b>！<br><span class="muted small">牠會跳到講台上，${x.status === '蛋' ? '一天後孵化' : '已經孵化了'}。</span>`, 5000);
         await wait(1500); e.remove();
+        if (slot) slot.style.visibility = '';
         markSeen('egg', x.id);
       } else if (kind === 'hatch') {
         const e = fx(`<span class="hatch-egg">${EGG}</span><span class="hatch-pet">${look(x)}</span>`, 'egg-hatch', to.x, to.y);
