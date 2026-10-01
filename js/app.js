@@ -914,7 +914,7 @@
     // 舊的整區說明（以前大家共用一格）：還有內容才顯示，可以改或清掉
     if ((r.note || '').trim()) h += `<h3>整區共同說明 <span class="muted small">（舊的寫法，會算到每一位負責人）</span></h3><textarea id="noteInput" class="note-free">${esc(r.note)}</textarea>`;
     const photos = r.photos.map((p, i) => ({ p, i }));
-    h += `<div class="photos-head"><h3>照片${item.group && fItem ? `<span class="muted small">（新照片會標在「${esc(fItem.short ? fItem.name : fItem.title)}」）</span>` : ''}</h3><button type="button" class="btn btn--primary" data-act="photo">📷 拍照／上傳</button></div>`;
+    h += `<div class="photos-head"><h3>照片${item.group && fItem ? `<span class="muted small">（新照片會標在「${esc(fItem.short ? fItem.name : fItem.title)}」）</span>` : ''}</h3><button type="button" class="btn btn--primary photo-btn" data-act="photo"><span>📷 拍照／上傳</span><small class="opt-tag">（可選擇）</small></button></div>`;
     if (photos.length) {
       h += `<div class="photo-grid">`;
       photos.forEach(({ p, i }) => {
