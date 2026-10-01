@@ -948,8 +948,11 @@
       const cls = !x ? 'none' : x.b === '不好' ? 'bad' : x.b === '有瑕疵' ? 'flaw' : x.b === '好' ? 'good' : 'none';
       return `<i class="lamp ${cls}${t ? ' today' : ''}" title="${tip(d, x?.b || '沒有紀錄')}"></i>`;
     }).join('');
-    return `<span class="hist2"><span class="hist" aria-label="近兩週的出席"><span class="hist-lbl">近兩週的出席</span>${att}</span>
-      <span class="hist" aria-label="近兩週的表現"><span class="hist-lbl">近兩週的表現</span>${perf}</span></span>`;
+    // 近兩週扣分的總數：未出席每次 −0.1、不好每次 −1（有瑕疵不扣）
+    const nAbs = days.filter(y => y.x?.a).length, nBad = days.filter(y => y.x?.b === '不好').length;
+    const pts = v => (v ? `<b class="hist-minus">−${Math.round(v * 10) / 10}</b>` : '<b class="hist-zero">0</b>');
+    return `<span class="hist2"><span class="hist" aria-label="近兩週出席扣分 ${nAbs * 0.1}"><span class="hist-lbl">（近兩週）${pts(nAbs * 0.1)} 出席</span>${att}</span>
+      <span class="hist" aria-label="近兩週表現扣分 ${nBad}"><span class="hist-lbl">（近兩週）${pts(nBad)} 表現</span>${perf}</span></span>`;
   }
   async function loadHist(owners, after) {
     const need = owners.filter(o => !histCache[o] || Date.now() - histCache[o].at > 5 * 60e3);

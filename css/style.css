@@ -1787,3 +1787,6 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .lamp.att.abs { outline: 0; }
 /* 出席：有出席＝白燈；沒出席＝不亮（空位）；沒有紀錄＝淡淡的點 */
 .lamp.att.abs { background: transparent; border-color: transparent; box-shadow: none; }
+.hist-minus { color: #ff6b6b; font-weight: 800; }
+.hist-zero { color: var(--muted); font-weight: 700; }
+.hist-lbl { min-width: 9.5em; }
