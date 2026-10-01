@@ -66,6 +66,7 @@
     <div class="topbar-row stats">
       <span id="progress" class="progress clean-only"></span>
       <button id="issueChip" class="chip chip--issue clean-only" type="button" hidden></button>
+      <button id="infoChip" class="chip chip--info clean-only" type="button" aria-pressed="false" hidden>🏷 負責人與說明</button>
       <span id="resetInfo" class="muted small clean-only"></span>
     </div>
     <nav class="tabs" role="tablist" aria-label="功能">
@@ -94,9 +95,9 @@
       </div>
       <ul class="legend" aria-label="圖例">
         <li><span class="lg lg--good">✓</span>好</li>
+        <li><span class="lg lg--flaw">△</span>有瑕疵</li>
         <li><span class="lg lg--bad">✕</span>不好</li>
         <li><span class="lg lg--absent">缺</span>未出席</li>
-        <li><span class="lg lg--issue">!</span>有狀況</li>
       </ul></div>
       <div id="cleanIn">
         <div class="map-tools"><span class="orient"></span><button type="button" class="compact-btn" data-compact aria-pressed="false" title="去掉物件之間多餘的空隙，讓整間教室塞進畫面">↔ 緊縮排列</button><span class="zoom"><button type="button" data-zoom="-1" aria-label="縮小">－</button><span class="zoom-val"></span><button type="button" data-zoom="1" aria-label="放大">＋</button></span></div>

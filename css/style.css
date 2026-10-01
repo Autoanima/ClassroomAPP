@@ -6,7 +6,7 @@
   --muted: #6b7079;
   --line: #e4e2dd;
   --good: #1f9d55;
-  --bad: #e8590c;
+  --bad: #e03131;
   --absent: #6b7079;
   --issue: #e03131;
   --accent: #7048e8;
@@ -1735,3 +1735,39 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 #talkText { width: 100%; min-height: 70px; }
 .chk-talk { margin: 0 0 8px; font-size: 14px; text-align: left; }
 .is-btns .is-chart { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 14px; min-height: 36px; color: var(--accent); }
+
+/* 好（綠）／有瑕疵（橘）／不好（紅）／未出席（灰） */
+:root { --flaw: #f08c00; }
+.seg { grid-template-columns: repeat(4, 1fr); }
+.seg button { font-size: 14px; padding: 0 2px; }
+.seg button[aria-pressed="true"].flaw { background: var(--flaw); border-color: var(--flaw); color: #fff; }
+.it.st-flaw { outline: 3px solid var(--flaw); outline-offset: 1px; }
+.it.floor.st-flaw { outline: 0; }
+.it.floor.st-flaw .floor-chip { border: 2px solid var(--flaw); }
+.st-flaw > .badge { display: grid; background: var(--flaw); }
+.it.floor.st-flaw .floor-chip .badge { display: inline-grid; }
+.oit.ofloor.st-flaw { outline-offset: -4px; }
+.it.st-bad:not(.floor) { outline-width: 4px; animation: pulse-obj 1.4s infinite; }
+.tile.flaw b { color: var(--flaw); }
+.tag.flaw { background: var(--flaw); }
+.tag.good { background: var(--good); }
+.note-free { width: 100%; min-height: 80px; }
+/* 地圖資訊：「不好」的地方顯示負責人和說明（開關） */
+.chip--info { background: var(--surface); border: 1.5px solid var(--line); color: var(--text); }
+.chip--info[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.it .minfo { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 4px; z-index: 7; width: max-content; max-width: 150px; padding: 3px 7px; border-radius: 8px; background: rgba(201,42,42,.94); color: #fff; font-size: 11px; line-height: 1.35; text-align: left; writing-mode: horizontal-tb; pointer-events: none; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+.it .minfo b { display: block; font-size: 12px; }
+.it .minfo span { display: block; white-space: normal; }
+/* 近兩週燈號（最右邊是今天） */
+.owner-name { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.hist { display: inline-flex; gap: 3px; align-items: center; }
+.lamp { width: 12px; height: 12px; border-radius: 50%; background: var(--line); display: inline-block; position: relative; }
+.lamp.good { background: #2f9e44; box-shadow: 0 0 4px rgba(47,158,68,.7); }
+.lamp.flaw { background: var(--flaw); box-shadow: 0 0 4px rgba(240,140,0,.7); }
+.lamp.bad { background: #e03131; box-shadow: 0 0 4px rgba(224,49,49,.7); }
+.lamp.abs { outline: 2px solid #868e96; outline-offset: 1px; }
+.lamp.today { width: 15px; height: 15px; }
+.lamp.none { opacity: .45; }
+
+.lg--flaw { background: var(--flaw); }
+.it.has-info { z-index: 9; }

@@ -111,9 +111,9 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
 const GUEST_OK = { getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { notifyCheck: 1, saveRecords: 1, uploadPhoto: 1, getCheckLive: 1, setCheckLive: 1 };
@@ -195,6 +195,7 @@ function doPost(e) {
       case 'notifyCheck': return json(notifyCheck(who, req.list));
       case 'postAppeal': return json(postAppeal(who, req.unit, req.place, req.text, req.to));
       case 'getCheckLive': return json(getCheckLive(req.date));
+      case 'checkHistory': return json(checkHistory(who, req.owners || []));
       case 'setCheckLive': return json(setCheckLive(who, req.date, req.rows || []));
       case 'addPoints': return json(addPoints(req.rows || [], who));
       case 'getPoints': return json({ ok: true, rows: getPoints(req.days, who) });
@@ -2363,6 +2364,34 @@ function getCheckLive(date) {
   });
   return { ok: true, rows: rows };
 }
+/** 近兩週每位同學每天的打掃結果（好／有瑕疵／不好、未出席），給檢查視窗的燈號用；同學只能看自己的 */
+function checkHistory(who, owners) {
+  const can = who.teacher || isInspector(who.key);
+  owners = (owners || []).map(String).filter(k => can || k === who.key).slice(0, 10);
+  const out = {};
+  owners.forEach(k => { out[k] = {}; });
+  if (!owners.length) return { ok: true, hist: out };
+  const sh = liveSheet(), n = sh.getLastRow() - 1;
+  if (n < 1) return { ok: true, hist: out };
+  const cut = Utilities.formatDate(new Date(Date.now() - 15 * 864e5), CONFIG.TIMEZONE, 'yyyy/MM/dd');
+  const rank = { '': 0, '好': 1, '有瑕疵': 2, '不好': 3 };
+  sh.getRange(2, 1, n, 3).getValues().forEach(r => {
+    const d = String(r[0]);
+    if (d < cut) return;
+    const rec = arenaJson(r[2]);
+    if (!rec) return;
+    owners.forEach(k => {
+      let base = (rec.status || {})[k] || '', absent = !!(rec.absent || {})[k];
+      if (base === '未出席') { base = ''; absent = true; }
+      if (!base && !absent) return;
+      const cur = out[k][d] || { b: '', a: false };   // 同一天好幾個地方：取最差的
+      if (rank[base] > rank[cur.b]) cur.b = base;
+      cur.a = cur.a || absent;
+      out[k][d] = cur;
+    });
+  });
+  return { ok: true, hist: out };
+}
 function setCheckLive(who, date, rows) {
   const d = String(date || '');
   if (!/^\d{4}\/\d{2}\/\d{2}$/.test(d)) throw new Error('日期格式不對');
@@ -2388,8 +2417,8 @@ function setCheckLive(who, date, rows) {
       const list = Array.from(appends.values());
       sh.getRange(sh.getLastRow() + 1, 1, list.length, 5).setValues(list);
       saved += list.length;
-      // 只留最近 3 天（最舊的在最上面）
-      const cut = Utilities.formatDate(new Date(Date.now() - 3 * 864e5), CONFIG.TIMEZONE, 'yyyy/MM/dd');
+      // 只留最近 15 天（最舊的在最上面；近兩週的燈號要用）
+      const cut = Utilities.formatDate(new Date(Date.now() - 15 * 864e5), CONFIG.TIMEZONE, 'yyyy/MM/dd');
       let old = 0;
       while (old < vals.length && String(vals[old][0]) < cut) old++;
       if (old) sh.deleteRows(2, old);
