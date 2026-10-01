@@ -910,7 +910,7 @@
       });
       h += `</div><textarea class="note-own" data-note-owner="${esc(o)}" rows="2" placeholder="給 ${esc(nm2(o))} 的說明（可不填）">${esc(r.notes?.[o] || '')}</textarea></div>`;
     });
-    h += `</div>${item.owners.length ? '<p class="muted small st-hint">「好／有瑕疵／不好」選一個；「未出席」可以一起選（未出席另外扣 0.1 分）。燈號＝近兩週，最右邊是今天。</p>' : ''}`;
+    h += `</div>${item.owners.length ? '<p class="muted small st-hint">「好／有瑕疵／不好」選一個；「未出席」可以一起選（未出席另外扣 0.1 分）。燈號：上排出席（白＝有出席、灰＝沒出席），下排表現；最右邊是今天。</p>' : ''}`;
     // 舊的整區說明（以前大家共用一格）：還有內容才顯示，可以改或清掉
     if ((r.note || '').trim()) h += `<h3>整區共同說明 <span class="muted small">（舊的寫法，會算到每一位負責人）</span></h3><textarea id="noteInput" class="note-free">${esc(r.note)}</textarea>`;
     const photos = r.photos.map((p, i) => ({ p, i }));
@@ -938,13 +938,18 @@
   const histDays = () => { const out = []; for (let i = 13; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); if (i === 0 || d.getDay() % 6) out.push(d); } return out; };
   function histHtml(o, r) {
     const c = histCache[o], today = fmtDate(new Date());
-    if (!c) return `<span class="hist muted small">讀取燈號…</span>`;
+    if (!c) return `<span class="hist2"><span class="hist muted small">讀取燈號…</span></span>`;
     const now = stOf(r, o);
-    return `<span class="hist" aria-label="近兩週的表現"><span class="hist-lbl">近兩週的表現</span>${histDays().map(d => {
-      const k = fmtDate(d), x = k === today ? (now.base || now.absent ? { b: now.base, a: now.absent } : c.d[k]) : c.d[k];
+    const days = histDays().map(d => { const k = fmtDate(d); return { d, today: k === today, x: k === today ? (now.base || now.absent ? { b: now.base, a: now.absent } : c.d[k]) : c.d[k] }; });
+    const tip = (d, t) => `${d.getMonth() + 1}/${d.getDate()}（${WEEK[d.getDay()]}）${t}`;
+    // 上排：出席（白圈＝有出席、灰圈＝沒出席）；下排：表現（綠＝好、橘＝有瑕疵、紅＝不好）
+    const att = days.map(({ d, today: t, x }) => `<i class="lamp att ${!x ? 'none' : x.a ? 'abs' : 'here'}${t ? ' today' : ''}" title="${tip(d, !x ? '沒有紀錄' : x.a ? '沒出席' : '有出席')}"></i>`).join('');
+    const perf = days.map(({ d, today: t, x }) => {
       const cls = !x ? 'none' : x.b === '不好' ? 'bad' : x.b === '有瑕疵' ? 'flaw' : x.b === '好' ? 'good' : 'none';
-      return `<i class="lamp ${cls}${x?.a ? ' abs' : ''}${k === today ? ' today' : ''}" title="${d.getMonth() + 1}/${d.getDate()}（${WEEK[d.getDay()]}）${x ? stText({ base: x.b, absent: x.a }) || '—' : '沒有紀錄'}"></i>`;
-    }).join('')}</span>`;
+      return `<i class="lamp ${cls}${t ? ' today' : ''}" title="${tip(d, x?.b || '沒有紀錄')}"></i>`;
+    }).join('');
+    return `<span class="hist2"><span class="hist" aria-label="近兩週的出席"><span class="hist-lbl">近兩週的出席</span>${att}</span>
+      <span class="hist" aria-label="近兩週的表現"><span class="hist-lbl">近兩週的表現</span>${perf}</span></span>`;
   }
   async function loadHist(owners, after) {
     const need = owners.filter(o => !histCache[o] || Date.now() - histCache[o].at > 5 * 60e3);
@@ -1039,7 +1044,7 @@
       if (!r.absent[o]) delete r.absent[o];
       const now = stOf(r, o);
       b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x.dataset.st === '未出席' ? now.absent : now.base === x.dataset.st));
-      const hs = b.closest('.owner-row')?.querySelector('.hist');   // 今天的燈號跟著換
+      const hs = b.closest('.owner-row')?.querySelector('.hist2');   // 今天的燈號跟著換
       if (hs) hs.outerHTML = histHtml(o, r);
       touch(item);
       // 只有一位負責人且標「好」（沒有未出席）時自動關閉；「不好」通常還要拍照，所以不關

@@ -1776,3 +1776,12 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 /* 每位負責人自己的說明 */
 .note-own { width: 100%; margin-top: 8px; min-height: 44px; font-size: 14px; }
 .ap-note { margin: 0 0 6px; padding-left: 4px; }
+/* 近兩週：上排出席、下排表現 */
+.hist2 { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.hist-lbl { display: inline-block; min-width: 6em; text-align: right; }
+.lamp.att { background: transparent; border: 2px solid var(--line); box-shadow: none; }
+.lamp.att.here { background: #fff; border-color: #fff; box-shadow: 0 0 4px rgba(255,255,255,.6); }
+.lamp.att.abs { background: #868e96; border-color: #868e96; }
+.lamp.att.none { opacity: .45; }
+[data-theme="light"] .lamp.att.here, :root:not([data-theme="dark"]) .lamp.att.here { border-color: #adb5bd; }
+.lamp.att.abs { outline: 0; }
