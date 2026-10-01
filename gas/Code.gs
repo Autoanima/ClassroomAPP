@@ -46,6 +46,7 @@ const CONFIG = {
   WEATHER_DAYS: 5,                    // 小太陽卡／小雨傘卡有效天數（從購買當天算起，週末、假日都算）
   SURE_PRICE: 30,                     // 抽籤必中卡：指定一位同學，下一次抽籤第一位一定是他（只有一次）
   SWAP_BAN_MINUS: 10,
+  HW_LATE_PER: 0.1,                   // 繳交追蹤：超過截止沒交，每一天扣 0.1 分（交了就停止；截止後 1 小時也算 1 天）
   ABSENT_PER: 0.1,                    // 掃地檢查「未出席」：另外扣 0.1 分（「不好」照扣分統計 B3 的分數扣）
   PENALTY_PER: 2,                     // 每被扣 2 分，商店點數減 1 點（最少扣到 0 點，不會變負的）
   PENALTY_FROM: '2026/09/26',         // 這天以後的扣分才會扣點數（之前的不算）
@@ -1424,32 +1425,34 @@ function setLunchPaid(who, key, paid) {
 
 // ── 📥 各項作業與繳交資料追蹤：導師、幹部（小老師）設定繳交項目和時間，勾選誰交了；逾期標示、LINE 報表、站內信提醒 ──
 const SHEET_HW = '繳交追蹤';
-const HEAD_HW = ['編號', '名稱', '建立者', '開始', '截止', '對象', '說明', '已交', '建立時間', '狀態'];
+const HEAD_HW = ['編號', '名稱', '建立者', '開始', '截止', '對象', '說明', '已交', '建立時間', '狀態', '交給', '指定名單'];
 const HW_BOT = '📥 繳交提醒';
-const HW_TARGET = { all: '全班', data: '資料科', mm: '多媒科' };
-const hwSheet = () => textSheet(SHEET_HW, HEAD_HW, [1, 2, 3, 6, 7, 8, 10]);
+const HW_TARGET = { all: '全班', data: '資料科', mm: '多媒科', custom: '指定同學' };
+const hwSheet = () => textSheet(SHEET_HW, HEAD_HW, [1, 2, 3, 6, 7, 8, 10, 11, 12]);
 const canHw = who => !!(who.teacher || who.role === 'C' || cadreRoles(who.key).length);
 function hwRows() {
   const sh = getSS().getSheetByName(SHEET_HW);
   if (!sh || sh.getLastRow() < 2) return [];
   const ms = v => (v instanceof Date ? v.getTime() : Number(v) || 0);
   return sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_HW.length).getValues().map((r, i) => {
-    let done = {};
+    let done = {}, list = [];
     try { done = JSON.parse(r[7] || '{}') || {}; } catch (e) { /* 壞掉就當作沒人交 */ }
-    return { row: i + 2, id: String(r[0]), name: String(r[1]), by: String(r[2]), start: ms(r[3]), end: ms(r[4]), target: String(r[5]) || 'all', note: String(r[6]), done: done, t: ms(r[8]), status: String(r[9]) };
+    try { list = JSON.parse(r[11] || '[]') || []; } catch (e) { /* 沒有指定名單 */ }
+    return { row: i + 2, id: String(r[0]), name: String(r[1]), by: String(r[2]), start: ms(r[3]), end: ms(r[4]), target: String(r[5]) || 'all', note: String(r[6]), done: done, t: ms(r[8]), status: String(r[9]),
+      to: String(r[10] || '') || String(r[2]), list: list };
   }).filter(x => x.id && x.status !== '刪除');
 }
-function hwTargets(target, students) {
+function hwTargets(target, students, list) {
   students = students || getStudents().students;
-  return students.filter(k => target === 'data' ? /^料/.test(k) : target === 'mm' ? /^多/.test(k) : true);
+  return students.filter(k => target === 'custom' ? (list || []).indexOf(k) >= 0 : target === 'data' ? /^料/.test(k) : target === 'mm' ? /^多/.test(k) : true);
 }
 function getHomework(who) {
   const mgr = canHw(who), me = who.teacher ? '' : who.key, students = getStudents().students;
   const since = Date.now() - 30 * 86400e3;   // 截止超過 30 天的就不顯示
   const items = hwRows().filter(x => x.end >= since).map(x => {
-    const people = hwTargets(x.target, students);
-    const base = { id: x.id, name: x.name, by: x.by, start: x.start, end: x.end, target: x.target, note: x.note, total: people.length, n: people.filter(k => x.done[k]).length, mine: x.by === (who.teacher ? CONFIG.TEACHER_NAME : who.key) || !!who.teacher };
-    if (mgr) return Object.assign(base, { people: people, done: x.done });
+    const people = hwTargets(x.target, students, x.list);
+    const base = { id: x.id, name: x.name, by: x.by, to: x.to, start: x.start, end: x.end, target: x.target, note: x.note, total: people.length, n: people.filter(k => x.done[k]).length, mine: x.by === (who.teacher ? CONFIG.TEACHER_NAME : who.key) || !!who.teacher };
+    if (mgr) return Object.assign(base, { people: people, done: x.done, list: x.list });
     if (people.indexOf(me) < 0) return null;
     return Object.assign(base, { forMe: true, myDone: x.done[me] || 0 });
   }).filter(Boolean).sort((a, b) => a.end - b.end);
@@ -1459,6 +1462,10 @@ function saveHomework(who, it) {
   if (!canHw(who)) throw new Error('只有導師和幹部可以設定繳交項目');
   const name = String(it.name || '').trim().slice(0, 40), start = Number(it.start), end = Number(it.end);
   const target = HW_TARGET[it.target] ? it.target : 'all', note = String(it.note || '').trim().slice(0, 200);
+  const students = getStudents().students;
+  const list = target === 'custom' ? (it.list || []).map(String).filter((k, i, a) => students.indexOf(k) >= 0 && a.indexOf(k) === i) : [];
+  if (target === 'custom' && !list.length) throw new Error('請選擇要交的同學');
+  const to = String(it.to || '') === CONFIG.TEACHER_NAME || students.indexOf(String(it.to || '')) >= 0 ? String(it.to) : '';
   if (!name) throw new Error('請輸入繳交項目的名稱');
   if (!(start > 0 && end > start)) throw new Error('截止時間要在開始時間之後');
   const by = who.teacher ? CONFIG.TEACHER_NAME : who.key;
@@ -1470,9 +1477,11 @@ function saveHomework(who, it) {
       if (!who.teacher && x.by !== by) throw new Error('只有建立的人和導師可以修改');
       sh.getRange(x.row, 2).setValue(name);
       sh.getRange(x.row, 4, 1, 4).setValues([[new Date(start), new Date(end), target, note]]);
+      sh.getRange(x.row, 11, 1, 2).setValues([[to || x.to, JSON.stringify(list)]]);
     } else {
       const at = sh.getLastRow() + 1;
-      sh.getRange(at, 1, 1, HEAD_HW.length).setValues([[Utilities.getUuid().slice(0, 8), name, by, new Date(start), new Date(end), target, note, '{}', new Date(), '']]);
+      sh.getRange(at, 1, 1, HEAD_HW.length).setValues([[Utilities.getUuid().slice(0, 8), name, by, new Date(start), new Date(end), target, note, '{}', new Date(), '', to || by, JSON.stringify(list)]]);
+      if (!sh.getRange(1, 11).getValue()) sh.getRange(1, 11, 1, 2).setValues([['交給', '指定名單']]).setFontWeight('bold').setBackground('#ede7fb');   // 舊的工作表補上欄位名稱
       sh.getRange(at, 4, 1, 2).setNumberFormat('yyyy/mm/dd hh:mm');
     }
   });
@@ -1500,6 +1509,19 @@ function markHomework(who, id, changes) {
   });
   return getHomework(who);
 }
+/** 逾期扣分：截止後還沒交（或晚交），每一天（不滿一天算一天）扣 HW_LATE_PER 分；從「重置扣分統計」之後截止的項目才算 */
+function hwLatePenalties(rst) {
+  const per = Number(CONFIG.HW_LATE_PER) || 0.1, students = getStudents().students, now = Date.now(), out = [];
+  hwRows().forEach(x => {
+    if (!x.end || x.end > now || x.end < (rst || 0)) return;
+    hwTargets(x.target, students, x.list).forEach(k => {
+      const stop = x.done[k] || now, days = Math.ceil((stop - x.end) / 864e5);
+      if (days <= 0) return;
+      out.push({ key: k, days: days, p: -Math.round(days * per * 100) / 100, name: x.name, to: x.to, end: x.end, done: !!x.done[k] });
+    });
+  });
+  return out;
+}
 /** 發站內信提醒還沒交的同學（同一個項目 10 分鐘內只能發一次） */
 function remindHomework(who, id) {
   if (!canHw(who)) throw new Error('只有導師和幹部可以發提醒');
@@ -1508,10 +1530,10 @@ function remindHomework(who, id) {
   const cache = CacheService.getScriptCache(), ck = 'hw:remind:' + x.id;
   if (cache.get(ck)) throw new Error('10 分鐘內已經提醒過了，請稍後再發');
   const late = Date.now() > x.end, when = Utilities.formatDate(new Date(x.end), CONFIG.TIMEZONE, 'MM/dd HH:mm');
-  const miss = hwTargets(x.target).filter(k => !x.done[k]);
+  const miss = hwTargets(x.target, null, x.list).filter(k => !x.done[k]);
   if (!miss.length) throw new Error('大家都交了，不用提醒');
   const from = who.teacher ? '導師' : who.key;
-  botMail(miss.map(k => [k, '📥 ' + from + ' 提醒你：「' + x.name + '」' + (late ? '已經在 ' + when + ' 截止了，你還沒交，請盡快補交！' : '要在 ' + when + ' 前繳交，你還沒交喔！') + (x.note ? '\n說明：' + x.note : '') + '\n' + CONFIG.SITE_URL + '#tab=hw']), HW_BOT);
+  botMail(miss.map(k => [k, '📥 ' + from + ' 提醒你：「' + x.name + '」' + (late ? '已經在 ' + when + ' 截止了，你還沒交，請盡快補交！（每逾期一天扣 ' + (Number(CONFIG.HW_LATE_PER) || 0.1) + ' 分）' : '要在 ' + when + ' 前繳交，你還沒交喔！（超過截止每天扣 ' + (Number(CONFIG.HW_LATE_PER) || 0.1) + ' 分）') + '\n請交給：' + (x.to === CONFIG.TEACHER_NAME ? '導師' : x.to) + (x.note ? '\n說明：' + x.note : '') + '\n' + CONFIG.SITE_URL + '#tab=hw']), HW_BOT);
   cache.put(ck, '1', 600);
   return { ok: true, sent: miss.length };
 }
@@ -2697,6 +2719,13 @@ function pointsBoard(who) {
     if (!st || st.indexOf('不好') >= 0) add('|bad', per, '掃地檢查不好');
     if (st.indexOf('未出席') >= 0) add('|absent', absentPer, '掃地未出席');
   });
+  try {
+    hwLatePenalties(rst).forEach(x => {
+      if (!mine(x.key)) return;
+      out.push({ key: x.key, p: x.p, cat: '繳交', reason: '「' + x.name + '」' + (x.done ? '遲交 ' : '逾期未交 ') + x.days + ' 天（每天 −' + (Number(CONFIG.HW_LATE_PER) || 0.1) + '）', by: x.to, t: x.end,
+        day: Utilities.formatDate(new Date(x.end), tz, 'yyyy/MM/dd'), time: Utilities.formatDate(new Date(x.end), tz, 'MM/dd'), check: false });
+    });
+  } catch (e) { /* 繳交資料讀不到就先不算 */ }
   out.sort((a, b) => b.t - a.t);
   return { ok: true, rows: out, all: !!who.teacher, students: who.teacher ? getStudents().students : [who.key],
     since: rst ? Utilities.formatDate(new Date(rst), tz, 'yyyy/MM/dd') : '' };
@@ -2753,6 +2782,15 @@ function computeScores() {
     });
   }
 
+  // 繳交追蹤：逾期每天扣分，算進「其他」
+  try {
+    hwLatePenalties(rst).forEach(x => {
+      if (x.end < fromT || x.end > toT) return;
+      const s = pts[x.key] || (pts[x.key] = { clean: 0, order: 0, other: 0, list: [] });
+      s.other = Math.round((s.other + x.p) * 100) / 100;
+      s.list.push({ t: x.end, text: Utilities.formatDate(new Date(x.end), CONFIG.TIMEZONE, 'M/d') + ' 繳交' + x.p + ' 「' + x.name + '」' + (x.done ? '遲交 ' : '逾期未交 ') + x.days + ' 天' });
+    });
+  } catch (e) { Logger.log('繳交逾期扣分計算失敗：' + e); }
   // 導師填的段考成績：先讀出來（依 科別＋座號＋姓名），重寫時放回去
   const exams = readExamScores(sh);
 
