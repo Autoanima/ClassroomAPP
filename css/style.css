@@ -1885,3 +1885,7 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .shop-petfood .pf-ico { font-size: 34px; flex: none; }
 .shop-petfood .pf-what { flex: 1; min-width: 0; }
 .shop-petfood .btn { flex: none; white-space: nowrap; }
+/* 寵物的訊息：改在畫面上方滑下來（手機下方會被瀏覽器工具列擋住） */
+#petMsg { top: calc(env(safe-area-inset-top) + 12px); bottom: auto; transform: translate(-50%, calc(-100% - 40px)); padding-right: 40px; }
+#petMsg.show { transform: translate(-50%, 0); }
+#petMsg::after { content: '✕'; position: absolute; top: 8px; right: 12px; font-size: 14px; color: var(--muted); }
