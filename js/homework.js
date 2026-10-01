@@ -10,6 +10,13 @@
   const LATE_PER = 0.1;
   const lateDays = (x, doneAt) => { const stop = doneAt || Date.now(); return stop > x.end ? Math.ceil((stop - x.end) / 864e5) : 0; };
   const minus = d => `−${Math.round(d * LATE_PER * 100) / 100}`;
+  // 還沒交的人（預設收起來；記住哪幾項打開了）
+  const openMiss = new Set();
+  function missHtml(x, st) {
+    const list = x.people.filter(k => !x.done[k]).sort(byKey);
+    return `<details class="hw-miss" data-miss="${esc(x.id)}"${openMiss.has(x.id) ? ' open' : ''}><summary>👀 看還沒交的人（${list.length}）</summary>
+      <div class="hw-miss-list">${list.map(k => `<span class="hw-mchip${st === 'late' ? ' late' : ''}">${esc(nm(k))}${st === 'late' ? `<small>逾期${lateDays(x)}天 ${minus(lateDays(x))}</small>` : ''}</span>`).join('')}</div></details>`;
+  }
   const targetText = x => (x.target === 'custom' ? `指定 ${x.total ?? (x.list || []).length} 人` : TARGET[x.target] || '全班');
   let H = null, hAt = 0;
   const DEPT_ORDER = { 料: 0, 多: 1 };
@@ -68,6 +75,7 @@
     } else {
       h += `<div class="hw-prog"><span style="width:${x.total ? x.n / x.total * 100 : 0}%"></span></div>
         <div class="small">已交 <b>${x.n}</b>／${x.total} 人${miss ? `・${st === 'late' ? `<b class="hw-red">逾期未交 ${miss} 人（每人每天 −${LATE_PER}）</b>` : `還沒交 ${miss} 人`}` : '・🎉 全部交齊了'}</div>
+        ${miss && x.people ? missHtml(x, st) : ''}
         <div class="hw-btns"><button type="button" class="btn btn--primary" data-hw="open" data-id="${esc(x.id)}">✅ 勾選名單</button>
           <button type="button" class="btn" data-hw="line" data-id="${esc(x.id)}">📋 LINE 報表</button>
           <button type="button" class="btn" data-hw="remind" data-id="${esc(x.id)}"${miss ? '' : ' disabled'}>📨 提醒沒交的人</button>
@@ -224,6 +232,7 @@
       b.disabled = false;
     }
   });
+  $('#hwRoot').addEventListener('toggle', e => { const id = e.target.dataset?.miss; if (!id) return; if (e.target.open) openMiss.add(id); else openMiss.delete(id); }, true);
   $('#hwRoot').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.dataset?.hw === 'open') { e.preventDefault(); e.target.click(); } });
   A.tabHooks.hw = () => { render(); if (Date.now() - hAt > 30e3) load(); };
   A.addPrefetch('hw', () => (A.isGuest() ? null : load(true)));

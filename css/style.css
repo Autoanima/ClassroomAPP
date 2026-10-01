@@ -1801,3 +1801,10 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .hw-pick { margin: 6px 0 10px; padding: 10px; border-radius: 12px; background: var(--bg); border: 1px dashed var(--line); }
 .hw-pick .hw-grid { max-height: 40vh; overflow-y: auto; margin-top: 8px; }
 .hw-pick-head { display: flex; align-items: center; gap: 12px; }
+/* 繳交：還沒交的人（可展開） */
+.hw-miss { margin: 6px 0 2px; }
+.hw-miss > summary { cursor: pointer; font-size: 14px; color: var(--accent); font-weight: 700; }
+.hw-miss-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.hw-mchip { display: inline-flex; flex-direction: column; align-items: center; padding: 4px 10px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); font-size: 13px; line-height: 1.25; }
+.hw-mchip.late { border-color: #e03131; color: #ff8787; border-radius: 10px; }
+.hw-mchip small { font-size: 11px; }
