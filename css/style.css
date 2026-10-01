@@ -1734,3 +1734,4 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .b-text { font-size: 15px; white-space: pre-wrap; word-break: break-word; }
 #talkText { width: 100%; min-height: 70px; }
 .chk-talk { margin: 0 0 8px; font-size: 14px; text-align: left; }
+.is-btns .is-chart { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 14px; min-height: 36px; color: var(--accent); }

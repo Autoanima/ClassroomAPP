@@ -113,9 +113,12 @@
       <div class="is-mid">${spark(s.hist.map(x => x[1]))}<span class="muted small">${s.date ? md(s.date) + ' 收盤' : '還沒有股價'}${s.divs.length ? `<br>最近除息：${md(s.divs[s.divs.length - 1][0])} 配 ${s.divs[s.divs.length - 1][1]} 元` : ''}</span></div>
       ${hd ? `<div class="is-hold">持有 <b>${unit(hd.units)}</b> 單位・市值 <b>${coin(hd.value)}</b>・<span class="${updn(hd.value - hd.cost)}">${hd.cost ? pct(hd.value / hd.cost - 1) : ''}</span><br><span class="muted small">可以賣：${unit(can)} 單位（買進滿 ${S.rules.HOLD} 個交易日）</span></div>` : ''}
       <div class="is-btns"><button type="button" class="btn btn--primary" data-iv="buy" data-code="${esc(s.code)}"${s.close && M.avail >= 1 ? '' : ' disabled'}>買進</button>
-        <button type="button" class="btn" data-iv="sell" data-code="${esc(s.code)}"${can > 0 ? '' : ' disabled'}>賣出</button></div>
+        <button type="button" class="btn" data-iv="sell" data-code="${esc(s.code)}"${can > 0 ? '' : ' disabled'}>賣出</button>
+        <a class="btn is-chart" href="${chartUrl(s.code)}" target="_blank" rel="noopener" title="在 Yahoo 奇摩股市看日、週、月 K 線">📈 走勢圖</a></div>
     </div>`;
   }
+  // 外部走勢圖：Yahoo 奇摩股市「技術分析」（可以切換日、週、月 K 線；29 檔都是上市股票，代號加 .TW）
+  const chartUrl = code => `https://tw.stock.yahoo.com/quote/${encodeURIComponent(code)}.TW/technical-analysis`;
 
   function rankHtml() {
     const L = S.standings, R = S.rules;
