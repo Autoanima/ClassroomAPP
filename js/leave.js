@@ -102,7 +102,7 @@
     const steps = (back ? `<div class="lv-back">↩ 導師退回${x.reply && !x.other ? `：${esc(x.reply)}` : ''}</div>` : '') + flow + after;
     // 班長、副班長看別人的：只看得到誰、哪天、假別、進度（沒有按鈕、說明、假卡照片）
     if (ro && x.other) {
-      return `<div class="lv-item${x.status === '已確認' ? ' done' : ''}">
+      return `<div class="lv-item${x.status === '已確認' ? ' done' : ''}${x.status === '已確認' || x.status === '已上傳假卡' ? ' filed' : ''}">
         <div class="lv-top"><span class="lv-type ${TYPE_CLS[x.type] || ''}">${esc(x.type)}</span><b>${esc(when(x))}</b><span class="lv-who">${esc(nm(x.key))}</span></div>
         <div class="lv-steps">${steps}</div>
         <div class="muted small">${periods(x)} 節${x.nCards ? `・已上傳假卡 ${x.nCards} 張` : ''}</div></div>`;
@@ -118,7 +118,7 @@
       btns.push(`<button type="button" class="link-btn" data-lv="cancel" data-id="${esc(x.id)}">取消</button>`);
       btns.push(`<button type="button" class="link-btn" data-lv="edit" data-id="${esc(x.id)}">✏️ 編輯</button>`);
     }
-    return `<div class="lv-item${x.status === '已確認' ? ' done' : ''}${isLate(x) ? ' late' : ''}">
+    return `<div class="lv-item${x.status === '已確認' ? ' done' : ''}${x.status === '已確認' || x.status === '已上傳假卡' ? ' filed' : ''}${isLate(x) ? ' late' : ''}">
       <div class="lv-top"><span class="lv-type ${TYPE_CLS[x.type] || ''}">${esc(x.type)}</span><b>${esc(when(x))}</b>${isLate(x) ? '<span class="lv-late-tag">⚠️ 已逾期</span>' : ''}${teacher ? `<span class="lv-who">${esc(nm(x.key))}</span>` : ''}</div>
       ${x.note ? `<div class="small">${esc(x.note)}</div>` : ''}
       <div class="lv-steps">${steps}</div>

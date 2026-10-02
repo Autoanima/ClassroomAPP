@@ -1768,6 +1768,8 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 
 .lg--flaw { background: var(--flaw); }
 .it.has-info { z-index: 9; }
+/* 地板（走廊、教室地板）很大：標了「不好」也維持在最下層，不能蓋住旁邊的窗戶、花圃 */
+.it.floor.has-info { z-index: 1; }
 .hist-lbl { font-size: 11px; font-weight: 400; color: var(--muted); margin-right: 4px; white-space: nowrap; }
 
 /* 每位負責人自己的說明 */
@@ -1923,3 +1925,18 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .ar-day { margin: 10px 0 2px; font-size: 13px; color: var(--muted, #888); }
 
 .pet-hp i.sib { background: #f4a6a6; }
+
+/* 假卡已上傳的請假紀錄：整體低調（灰階、小一點），讓還沒完成的比較顯眼 */
+.lv-item.filed { border-color: var(--line); background: transparent; }
+.lv-item.filed .lv-flow { margin: 6px 0 2px; }
+.lv-item.filed .lv-flow .n { width: 20px; height: 20px; font-size: 10px; border-width: 1px; }
+.lv-item.filed .lv-flow li.done .n { background: transparent; border-color: var(--muted); color: var(--muted); }
+.lv-item.filed .lv-flow li.done .t { color: var(--muted); font-weight: 400; }
+.lv-item.filed .lv-flow li + li::before { top: 9px; height: 1px; }
+.lv-item.filed .lv-flow li.done + li::before { background: var(--line); }
+.lv-item.filed .lv-flow li + li::after { top: 2px; font-size: 9px; }
+.lv-item.filed .lv-flow li.done + li::after { color: var(--line); }
+.lv-item.filed .lv-flow-after, .lv-item.filed .lv-flow-after.ok { color: var(--muted); font-weight: 400; }
+.lv-item.filed .lv-took, .lv-item.filed .lv-took.slow { color: var(--muted); font-weight: 400; font-size: 12px; }
+.lv-item.filed .lv-type { filter: saturate(.3); opacity: .8; }
+.lv-item.filed .lv-acts { background: transparent; padding: 6px 8px; }
