@@ -386,7 +386,19 @@
   A.on('faces', () => { if (A.currentTab() === 'seats') setTimeout(() => paintMap(true), 80); });
   setInterval(() => { if (A.currentTab() === 'seats' && P && !document.hidden) { const due = P.pets.some(x => x.status === '蛋' && Date.now() >= x.hatch); if (due) load(); } }, 60e3);
 
+  // 有人被加分：寵物馬上重新讀取（新的蛋直接從座位蹦出來）
+  A.on('pointsAdded', () => { pAt = 0; setTimeout(load, 600); });
+
   // ── 測試模式：存在這台裝置 ──
+  // 被加分就生一顆蛋（同一個人同一天只生一顆，和正式版一樣）
+  A.testLayEggs = rows => {
+    const KEY = 'indoor.pets.v1.test', all = store.get(KEY, null) || [], now = Date.now(), day = t => A.fmtDate(new Date(t));
+    rows.forEach(r => {
+      if (all.some(x => x.owner === r.student && day(x.born) === day(now))) return;
+      all.push({ id: 'p' + now.toString(36) + Math.random().toString(36).slice(2, 5), owner: r.student, reason: r.reason || '', born: now, hatch: now + 864e5, name: '', imgId: '', hp: 10, decay: '', status: '蛋', died: 0, fed: '' });
+    });
+    store.set(KEY, all);
+  };
   const prevTest = A.testSeatApi;
   A.testSeatApi = async (action, p = {}) => {
     if (!['getPets', 'feedPet', 'petLook', 'petImage'].includes(action)) return prevTest ? prevTest(action, p) : null;

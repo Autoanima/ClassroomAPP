@@ -94,6 +94,7 @@
       chosen.clear();
       form.reason = ''; saveForm();
       toast(`✓ 已登記 ${rows.length} 位同學`);
+      if (pts > 0) A.emit('pointsAdded', rows);   // 🐾 被加分的同學會生寵物蛋：寵物馬上重新讀取
     } catch (e) { toast('登記失敗：' + e.message); }
     busy = false;
     render();
@@ -162,6 +163,7 @@
       const now = new Date();
       const t = `${A.fmtDate(now).slice(5)} ${A.fmtTime(now)}`;
       store.set(K.test, [...store.get(K.test, []), ...p.rows.map(r => ({ ...r, time: t, ts: Date.now(), by: A.isTeacher() ? D.teacherLabel : A.me() }))]);
+      A.testLayEggs?.(p.rows.filter(r => r.points > 0));   // 測試模式：和正式版一樣，被加分就生寵物蛋
       return { ok: true, rows: list() };
     }
     if (action === 'delPoints') {
