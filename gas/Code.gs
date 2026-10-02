@@ -2720,7 +2720,16 @@ function arenaState(who) {
   if (me) rows.forEach(x => { if (x.status !== '完成' || (x.a !== me && x.b !== me) || x.win === '平手' || x.win === '不算數') return; if (x.win === me) wins++; else losses++; });
   const today = ymd(new Date());
   const played = me ? rows.filter(x => (x.a === me || x.b === me) && ymd(new Date(x.t)) === today && (arenaActive(x.status) || x.status === '完成')).map(x => (x.a === me ? x.b : x.a)) : [];
-  return { ok: true, me: me, now: Date.now(), mine: mine, recent: recent, wins: wins, losses: losses, played: played, rules: ARENA };
+  // 全班都看得到：最近 30 天的比賽紀錄＋全部的戰績排行
+  const pub = x => ({ id: x.id, a: x.a, b: x.b, subj: x.subj, win: x.win, na: (x.ra || {}).n || 0, nb: (x.rb || {}).n || 0, end: x.end });
+  const hist = rows.filter(x => x.status === '完成' && now - x.end < 30 * 864e5).map(pub).slice(-300);
+  const bd = {};
+  rows.forEach(x => {
+    if (x.status !== '完成' || x.win === '不算數') return;
+    [x.a, x.b].forEach(k => { bd[k] = bd[k] || { k: k, w: 0, l: 0, d: 0 }; });
+    if (x.win === '平手') { bd[x.a].d++; bd[x.b].d++; } else { bd[x.win].w++; bd[x.win === x.a ? x.b : x.a].l++; }
+  });
+  return { ok: true, me: me, now: Date.now(), mine: mine, recent: recent, hist: hist, board: Object.keys(bd).map(k => bd[k]), wins: wins, losses: losses, played: played, rules: ARENA };
 }
 function arenaChallenge(who, to, subj) {
   if (who.teacher) throw new Error('導師不能參加擂台賽');

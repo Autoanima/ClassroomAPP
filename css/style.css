@@ -1912,3 +1912,11 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .pet-allot .pa-sum.ok { color: var(--good); }
 .pet-allot .pa-sum.bad { color: #e67700; }
 .pet-eggs.tiny .pet-egg small { display: none; }
+
+/* 擂台賽：全班戰績排行、比賽紀錄 */
+.ar-board { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ar-board th, .ar-board td { padding: 5px 6px; border-bottom: 1px solid var(--line, #e5e5e5); text-align: center; }
+.ar-board td:nth-child(2), .ar-board th:nth-child(2) { text-align: left; }
+.ar-board tr.me td { background: rgba(255, 200, 0, .14); font-weight: 700; }
+.ar-hist summary { cursor: pointer; }
+.ar-day { margin: 10px 0 2px; font-size: 13px; color: var(--muted, #888); }

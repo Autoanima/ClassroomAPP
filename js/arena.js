@@ -61,6 +61,7 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden && S && (game || A.currentTab() === 'arena')) load(); });
 
   // ── 擂台分頁 ──
+  let histOpen = false;
   let rulesOpen = !store.get('indoor.arena.rulesSeen', false);
   function rulesHtml() {
     return `<details class="panel ar-rules"${rulesOpen ? ' open' : ''}><summary><b>📜 擂台賽規則</b></summary>
@@ -110,6 +111,21 @@
     }
     const rec = (S.recent || []).slice().sort((a, b) => b.end - a.end);
     h += `<div class="panel"><h3>🏆 最近 24 小時的比賽</h3>${rec.length ? `<ul class="ar-list">${rec.map(x => `<li style="--ac:${colorOf(x.id)}"><i></i>${resultText(x)}</li>`).join('')}</ul>` : '<p class="muted small">還沒有比賽。</p>'}</div>`;
+    // 全班都看得到：戰績排行＋最近 30 天的比賽紀錄
+    const bd = (S.board || []).filter(r => r.w + r.l + r.d).sort((a, b) => b.w - a.w || a.l - b.l || b.d - a.d || A.parseKey(a.k).code.localeCompare(A.parseKey(b.k).code));
+    h += `<div class="panel"><h3>📊 全班戰績排行</h3>${bd.length ? `<table class="ar-board"><thead><tr><th>#</th><th>同學</th><th>👑 勝</th><th>😵 敗</th><th>🤝 平</th></tr></thead><tbody>${bd.map((r, i) =>
+      `<tr${r.k === me ? ' class="me"' : ''}><td>${i && bd[i - 1].w === r.w && bd[i - 1].l === r.l && bd[i - 1].d === r.d ? '' : i + 1}</td><td>${esc(nm(r.k))}</td><td>${r.w}</td><td>${r.l}</td><td>${r.d}</td></tr>`).join('')}</tbody></table>
+      <p class="muted small">「不算數」的比賽不列入戰績。</p>` : '<p class="muted small">還沒有比賽。</p>'}</div>`;
+    const hist = (S.hist || []).slice().sort((a, b) => b.end - a.end);
+    if (hist.length) {
+      let day = '', lh = '';
+      hist.forEach(x => {
+        const t = new Date(x.end), d = `${t.getMonth() + 1}/${t.getDate()}（${'日一二三四五六'[t.getDay()]}）`;
+        if (d !== day) { lh += `${day ? '</ul>' : ''}<h4 class="ar-day">${d}</h4><ul class="ar-list">`; day = d; }
+        lh += `<li style="--ac:${colorOf(x.id)}"><i></i>${resultText(x)}</li>`;
+      });
+      h += `<details class="panel ar-hist"${histOpen ? ' open' : ''}><summary><b>📜 比賽紀錄（最近 30 天，共 ${hist.length} 場）</b></summary>${lh}</ul></details>`;
+    }
     root.innerHTML = h;
   }
   const resultText = x => {
@@ -120,6 +136,7 @@
     return `👑 <b>${esc(nm(x.win))}</b> 在${SUBJ[x.subj]}擂台賽打敗了 ${esc(nm(lose))}（${wn}：${ln}）<span class="muted small">${hm}</span>`;
   };
 
+  $('#arenaRoot').addEventListener('toggle', e => { if (e.target.classList?.contains('ar-hist')) histOpen = e.target.open; }, true);
   $('#arenaRoot').addEventListener('toggle', e => { if (e.target.classList?.contains('ar-rules')) { rulesOpen = e.target.open; if (!rulesOpen) store.set('indoor.arena.rulesSeen', true); } }, true);
   $('#arenaRoot').addEventListener('click', async e => {
     const b = e.target.closest('[data-ar]');
@@ -364,6 +381,8 @@
     const mine = all.filter(x => ['邀請', '接受', '進行中'].includes(x.status) || (x.status === '完成' && now - x.end < 600e3))
       .map(x => ({ id: x.id, a: x.a, b: x.b, subj: x.subj, status: x.status, start: x.start || 0, seed: x.status === '進行中' ? x.seed : 0, readyA: !!x.readyMe, readyB: x.status !== '邀請', opp: x.status === '完成' ? x.rb : x.start ? botP(x) : null, win: x.win || '', ra: x.ra || null, rb: x.rb || null }));
     const recent = all.filter(x => x.status === '完成' && now - x.end < 864e5).map(x => ({ id: x.id, a: x.a, b: x.b, subj: x.subj, win: x.win, na: x.ra.n, nb: x.rb.n, end: x.end }));
-    return { ok: true, me, now, mine, recent, wins: recent.filter(x => x.win === me).length, losses: recent.filter(x => x.win !== me && x.win !== '平手' && x.win !== '不算數').length, played: all.filter(x => x.day === A.fmtDate(new Date()) && x.status !== '拒絕' && x.status !== '取消').map(x => x.b) };
+    const done = all.filter(x => x.status === '完成'), hist = done.map(x => ({ id: x.id, a: x.a, b: x.b, subj: x.subj, win: x.win, na: x.ra.n, nb: x.rb.n, end: x.end })), bd = {};
+    done.forEach(x => { if (x.win === '不算數') return; [x.a, x.b].forEach(k => { bd[k] ||= { k, w: 0, l: 0, d: 0 }; }); if (x.win === '平手') { bd[x.a].d++; bd[x.b].d++; } else { bd[x.win].w++; bd[x.win === x.a ? x.b : x.a].l++; } });
+    return { ok: true, me, now, mine, recent, hist, board: Object.values(bd), wins: recent.filter(x => x.win === me).length, losses: recent.filter(x => x.win !== me && x.win !== '平手' && x.win !== '不算數').length, played: all.filter(x => x.day === A.fmtDate(new Date()) && x.status !== '拒絕' && x.status !== '取消').map(x => x.b) };
   };
 })();
