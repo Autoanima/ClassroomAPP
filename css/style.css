@@ -1900,3 +1900,15 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .pet-egg { width: calc(24px * var(--es, 1)); }
 .pet-egg svg { width: calc(22px * var(--es, 1)); height: calc(27px * var(--es, 1)); }
 .pet-egg small { font-size: calc(9px * max(var(--es, 1), .8)); }
+
+/* 寵物：主人分配 HP */
+.pet-allot .pa-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.pet-allot .pa-row > b:first-of-type { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pet-allot .pa-pic { width: 34px; height: 34px; flex: none; display: grid; place-items: center; }
+.pet-allot .pa-pic svg, .pet-allot .pa-pic img { width: 30px; height: 30px; object-fit: contain; }
+.pet-allot .btn { min-width: 40px; padding: 4px 0; font-size: 18px; }
+.pet-allot .pa-hp { min-width: 54px; text-align: center; }
+.pet-allot .pa-sum { margin: 8px 0; font-weight: 700; }
+.pet-allot .pa-sum.ok { color: var(--good); }
+.pet-allot .pa-sum.bad { color: #e67700; }
+.pet-eggs.tiny .pet-egg small { display: none; }

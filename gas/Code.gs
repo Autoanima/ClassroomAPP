@@ -114,9 +114,9 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
 const GUEST_OK = { getPets: 1, petImage: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { notifyCheck: 1, saveRecords: 1, uploadPhoto: 1, getCheckLive: 1, setCheckLive: 1 };
@@ -206,6 +206,7 @@ function doPost(e) {
       case 'feedPet': return json(feedPet(who, req.id));
       case 'petLook': return json(petLook(who, req.id, req.name, req.data));
       case 'petImage': return json(petImage(req.id));
+      case 'petAllot': return json(petAllot(who, req.owner, req.plan || {}));
       case 'pointsBoard': return json(pointsBoard(who));
       case 'delPoints': return json(delPoints(req.id, who));
       case 'shopState': return json(shopState(who));
@@ -793,7 +794,7 @@ function addPoints(rows, who) {
     sh.getRange(start, 1, clean.length, 1).setNumberFormat('yyyy/mm/dd');
     sh.getRange(start, 7, clean.length, 1).setNumberFormat('yyyy/mm/dd hh:mm');
   });
-  try { withLock(() => clean.filter(r => r[2] > 0).forEach(r => petLay(r[1], r[4]))); } catch (e) { Logger.log('寵物蛋：' + e); }   // 🐾 被加分就生一顆寵物蛋
+  try { withLock(() => clean.filter(r => r[2] > 0).forEach(r => petLay(r[1], r[4], null, r[2]))); } catch (e) { Logger.log('寵物蛋：' + e); }   // 🐾 被加幾分就生幾顆寵物蛋
   return { ok: true, rows: getPoints(7, who) };
 }
 function getPoints(days, who) {
@@ -1561,13 +1562,41 @@ function petRows() {
   })).filter(x => x.id);
 }
 /** 生一顆蛋（同一個人同一天只生一顆） */
-function petLay(owner, reason, when) {
-  const t = when || Date.now(), d = ymd(new Date(t));
-  if (petRows().some(x => x.owner === owner && ymd(new Date(x.born)) === d)) return false;
+/** 生蛋：被加幾分就生幾顆（每位主人的蛋＋活著的寵物最多 10 隻）。
+ *  同一位主人的蛋和寵物共用 10 HP：生新蛋時重新平均分配（主人之後可以自己調整，例如 8／1／1） */
+function petLay(owner, reason, when, n) {
+  const t = when || Date.now(), live = petRows().filter(x => x.owner === owner && x.status !== '死亡');
+  const k = Math.max(0, Math.min(Math.round(Number(n) || 1), PET.MAX_HP - live.length));
+  if (!k) return 0;
   const sh = petSheet(), at = sh.getLastRow() + 1;
-  sh.getRange(at, 1, 1, HEAD_PET.length).setValues([[Utilities.getUuid().slice(0, 8), owner, String(reason || '').slice(0, 60), new Date(t), new Date(t + PET.HATCH_H * 3600e3), '', '', PET.MAX_HP, '', '蛋', '', '']]);
-  sh.getRange(at, 4, 1, 2).setNumberFormat('yyyy/mm/dd hh:mm');
-  return true;
+  sh.getRange(at, 1, k, HEAD_PET.length).setValues(Array.from({ length: k }, () => [Utilities.getUuid().slice(0, 8), owner, String(reason || '').slice(0, 60), new Date(t), new Date(t + PET.HATCH_H * 3600e3), '', '', 1, '', '蛋', '', '']));
+  sh.getRange(at, 4, k, 2).setNumberFormat('yyyy/mm/dd hh:mm');
+  petSplit(owner);
+  return k;
+}
+/** 把 10 HP 平均分給這位主人的蛋和活著的寵物（除不盡的多給比較早出生的） */
+function petSplit(owner) {
+  const list = petRows().filter(x => x.owner === owner && x.status !== '死亡').sort((a, b) => a.born - b.born);
+  if (!list.length) return;
+  const base = Math.floor(PET.MAX_HP / list.length), rem = PET.MAX_HP % list.length, sh = petSheet();
+  list.forEach((x, i) => sh.getRange(x.row, 8).setValue(Math.max(1, base + (i < rem ? 1 : 0))));
+}
+/** 主人重新分配 HP（只能互相移動，總數不能變多；每隻至少 1 HP） */
+function petAllot(who, owner, plan) {
+  owner = who.teacher ? String(owner || '') : who.key;
+  withLock(() => {
+    petTick();
+    const list = petRows().filter(x => x.owner === owner && x.status !== '死亡');
+    if (!list.length) throw new Error('沒有可以分配的寵物');
+    const total = list.reduce((s, x) => s + x.hp, 0);
+    const next = list.map(x => Math.round(Number((plan || {})[x.id])));
+    if (next.some(v => !(v >= 1))) throw new Error('每一隻至少要 1 HP');
+    const sum = next.reduce((s, v) => s + v, 0);
+    if (sum !== total) throw new Error('只能互相移動 HP，加起來要剛好 ' + total + ' HP（現在是 ' + sum + ' HP）');
+    const sh = petSheet();
+    list.forEach((x, i) => sh.getRange(x.row, 8).setValue(next[i]));
+  });
+  return getPets(who);
 }
 /** 孵化、每天扣血、死掉：讀的時候順便更新（不用定時觸發） */
 function petTick() {
@@ -1575,7 +1604,7 @@ function petTick() {
   const dayN = s => Math.round(Utilities.parseDate(s, CONFIG.TIMEZONE, 'yyyy/MM/dd').getTime() / 864e5);
   petRows().forEach(x => {
     if (x.status === '蛋' && now >= x.hatch) {   // 孵化：從孵化那天開始算血量
-      x.status = '寵物'; x.hp = PET.MAX_HP; x.decay = ymd(new Date(x.hatch));
+      x.status = '寵物'; x.hp = Math.max(1, x.hp || 1); x.decay = ymd(new Date(x.hatch));
       sh.getRange(x.row, 8, 1, 3).setValues([[x.hp, x.decay, x.status]]);
     }
     if (x.status !== '寵物' || !x.decay || x.decay >= today) return;
@@ -1627,6 +1656,8 @@ function feedPet(who, id) {
     const x = petRows().find(r => r.id === String(id));
     if (!x || x.status !== '寵物') throw new Error('這隻寵物現在不能餵（還是蛋或已經升天了）');
     if (x.hp >= PET.MAX_HP) throw new Error('牠已經吃飽了（滿血 ' + PET.MAX_HP + ' HP）');
+    const ownerHp = petRows().filter(r => r.owner === x.owner && r.status !== '死亡').reduce((s, r) => s + r.hp, 0);
+    if (ownerHp >= PET.MAX_HP) throw new Error('這位主人的寵物加起來已經 ' + PET.MAX_HP + ' HP（上限），現在不能再餵了');
     if (!who.teacher) {
       const c = coinsOf(me);
       if (c.coins < PET.FOOD) throw new Error('點數不夠（罐罐要 ' + PET.FOOD + ' 點，你有 ' + c.coins + ' 點）');
@@ -2630,7 +2661,7 @@ function arenaFinish(x) {
   sh.getRange(at, 1, 1, HEAD_POINTS.length).setValues([[d, win, 1, '擂台賽', subj + '擂台賽打敗 ' + faceCode(lose) + '（' + wr.n + '：' + lr.n + '）', ARENA_BOT, d, 'AR-' + x.id]]);
   sh.getRange(at, 1).setNumberFormat('yyyy/mm/dd');
   sh.getRange(at, 7).setNumberFormat('yyyy/mm/dd hh:mm');
-  try { petLay(win, subj + '擂台賽打敗 ' + faceCode(lose)); } catch (e) { Logger.log('寵物蛋：' + e); }   // 🐾 擂台賽獲勝也算被加分，生一顆寵物蛋
+  try { petLay(win, subj + '擂台賽打敗 ' + faceCode(lose), null, 1); } catch (e) { Logger.log('寵物蛋：' + e); }   // 🐾 擂台賽獲勝也算被加分，生一顆寵物蛋
   const tie = wr.n === lr.n ? '（答對題數一樣，你比較快）' : '';
   botMail([
     [win, '👑 你在' + subj + '擂台賽打敗了 ' + lose + '！（' + wr.n + '：' + lr.n + '）' + tie + '\n獲得商店點數 1 點，座位上也戴上了皇冠（顯示一天）。' + url],
