@@ -378,7 +378,7 @@
     const by = s => P.pets.filter(x => x.status === s);
     let h = `<details class="panel"><summary><b>📜 班級寵物怎麼玩？</b></summary><ol class="ar-ol">
       <li>同學被<b>加幾分，就從他的座位蹦出幾顆寵物蛋</b>，依序排在講台上。</li>
-      <li>同一位主人的蛋和寵物<b>加起來最多 ${P.max} HP</b>（這是上限，不是每隻一開始的 HP）：新蛋只拿剩下的 HP，不會把舊寵物補滿；已經滿 ${P.max} HP 時，新蛋從 HP 最多的那隻借 1 HP。主人可以自己互相移動（例如 8／1／1，每隻至少 1 HP），所以最多同時有 ${P.max} 隻。</li>
+      <li>同一位主人的蛋和寵物<b>加起來最多 ${P.max} HP</b>（這是上限，不是每隻一開始的 HP）：第一顆蛋 ${P.max} HP；之後每多一顆新蛋，<b>HP 最多的那隻會自動分 1 HP 給新蛋</b>（總數不變，不會補滿）。主人可以自己互相移動（例如 8／1／1，每隻至少 1 HP），所以最多同時有 ${P.max} 隻。</li>
       <li>蛋放 <b>1 天</b>後孵化。寵物的主人（被加分的同學）可以上傳牠的外觀（建議 PNG 去背），沒上傳就是<b>貓咪</b>。</li>
       <li>寵物會在座位表的教室四邊走來走去；點牠會有愛心或音符，也可以看到<b>血量</b>。</li>
       <li>寵物孵化後<b>每天扣 1 HP</b>。在商店或寵物卡買<b>罐罐（${P.food} 點）</b>餵牠，<b>+1 HP</b>（同一位主人的寵物加起來最多 ${P.max} HP）。</li>
@@ -434,10 +434,10 @@
     rows.forEach(r => {
       const live = all.filter(x => x.owner === r.student && x.status !== '死亡'), k = Math.max(0, Math.min(r.points || 1, 10 - live.length));
       if (!k) return;
-      const room = Math.max(0, 10 - live.reduce((s, x) => s + x.hp, 0));
-      for (let i = 0; i < k; i++) {
-        let hp = Math.floor(room / k) + (i < room % k ? 1 : 0);
-        if (hp < 1) { const big = live.slice().sort((a, b) => b.hp - a.hp)[0]; if (big && big.hp > 1) big.hp--; hp = 1; }
+      for (let i = 0; i < k; i++) {   // 第一顆 10 HP；之後 HP 最多的那隻分 1 HP 給新蛋
+        const pool = all.filter(x => x.owner === r.student && x.status !== '死亡'), big = pool.slice().sort((a, b) => b.hp - a.hp)[0];
+        let hp = 10;
+        if (big) { if (big.hp > 1) big.hp--; hp = 1; }
         all.push({ id: 'p' + now.toString(36) + Math.random().toString(36).slice(2, 6), owner: r.student, reason: r.reason || '', born: now + i, hatch: now + 864e5, name: '', imgId: '', hp, decay: '', status: '蛋', died: 0, fed: '' });
       }
     });

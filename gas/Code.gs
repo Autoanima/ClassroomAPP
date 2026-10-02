@@ -1563,18 +1563,20 @@ function petRows() {
   })).filter(x => x.id && x.status !== '刪除');
 }
 /** 生蛋：被加幾分就生幾顆（每位主人的蛋＋活著的寵物最多 10 隻）。
- *  10 HP 是同一位主人所有蛋＋寵物加起來的「上限」：新蛋只拿剩下的空間，不會把舊寵物的 HP 補滿或重新分配；
- *  沒有空間時，從 HP 最多的那隻借 1 HP 給新蛋（每隻至少 1 HP） */
+ *  10 HP 是同一位主人所有蛋＋寵物加起來的「上限」，不是每隻一開始的 HP：
+ *  第一顆蛋 10 HP；之後每多一顆新蛋，由同一位主人 HP 最多的那隻自動分 1 HP 給牠（總數不變、不會補滿；每隻至少 1 HP） */
 function petNewHp(live, k) {
-  const room = Math.max(0, PET.MAX_HP - live.reduce((s, x) => s + x.hp, 0));
-  const hps = Array.from({ length: k }, (_, i) => Math.floor(room / k) + (i < room % k ? 1 : 0));
-  hps.forEach((v, i) => {
-    if (v >= 1) return;
-    const big = live.slice().sort((a, b) => b.hp - a.hp)[0];
-    if (big && big.hp > 1) { big.hp--; big.lent = true; }
-    hps[i] = 1;
-  });
-  return hps;
+  const pool = live.slice(), eggs = [];
+  for (let i = 0; i < k; i++) {
+    const egg = { hp: PET.MAX_HP };
+    if (pool.length) {
+      const big = pool.slice().sort((a, b) => b.hp - a.hp)[0];
+      if (big.hp > 1) { big.hp--; big.lent = true; }
+      egg.hp = 1;
+    }
+    pool.push(egg); eggs.push(egg);
+  }
+  return eggs.map(e => e.hp);
 }
 function petLay(owner, reason, when, n) {
   const t = when || Date.now(), live = petRows().filter(x => x.owner === owner && x.status !== '死亡');
