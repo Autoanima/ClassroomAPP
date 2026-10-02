@@ -3542,21 +3542,24 @@ const leavePub = x => ({ id: x.id, time: x.time, t: x.t, cardT: x.cardT, key: x.
 const PERIOD = p => (Number(p) === 0 ? '早自習' : '第' + p + '節');
 const leaveText = x => x.type + '：' + x.from.slice(5) + ' ' + PERIOD(x.fromP) + (x.from === x.to ? (x.fromP === x.toP ? '' : '～' + PERIOD(x.toP)) : ' ～ ' + x.to.slice(5) + ' ' + PERIOD(x.toP));
 /** 請假逾期：登記後超過 LEAVE_LATE_DAYS 天還沒上傳假卡 → 寄一次飛鴿傳書給同學和導師（任何人打開 App 讀請假時檢查） */
+// 公假：線下流程是公差單（填寫公差單 → 導師簽名 → 教官簽名）
+const leaveDoc = x => (x && x.type === '公假' ? '公差單' : '假卡');
+const leaveFlow = x => (x && x.type === '公假' ? '填寫公差單 → 導師簽名 → 教官簽名' : '家長簽名 → 導師簽名 → 教官室等處室');
 function leaveTick() {
   const props = PropertiesService.getScriptProperties(), K = 'LEAVE_LATE_SENT';
   const sent = JSON.parse(props.getProperty(K) || '[]'), lim = (Number(CONFIG.LEAVE_LATE_DAYS) || 3) * 864e5, now = Date.now();
-  const due = leaveRows().filter(x => (x.status === '已登記' || x.status === '退回') && x.t && !x.cardT && now - x.t >= lim && sent.indexOf(x.id) < 0);
+  const due = leaveRows().filter(x => x.type !== '公假' && (x.status === '已登記' || x.status === '退回') && x.t && !x.cardT && now - x.t >= lim && sent.indexOf(x.id) < 0);
   if (!due.length) return;
   const per = Number(CONFIG.LEAVE_LATE_PER) || 0.1, days = Number(CONFIG.LEAVE_LATE_DAYS) || 3;
-  botMail(due.map(x => [x.key, '⚠️ 你的請假已經登記超過 ' + days + ' 天，還沒有上傳假卡！\n' + leaveText(x) + '\n請盡快跑完簽核流程（家長 → 導師 → 教官室等處室），把蓋好章的假卡拍照上傳。\n從現在起每多一天扣 ' + per + ' 分，上傳假卡就停止。\n' + CONFIG.SITE_URL + '#tab=leave'])
-    .concat(due.map(x => [CONFIG.TEACHER_NAME, '⚠️ ' + x.key + ' 的請假登記超過 ' + days + ' 天還沒上傳假卡（已提醒同學）\n' + leaveText(x) + '\n' + CONFIG.SITE_URL + '#tab=leave'])), LEAVE_BOT);
+  botMail(due.map(x => [x.key, '⚠️ 你的請假已經登記超過 ' + days + ' 天，還沒有上傳' + leaveDoc(x) + '！\n' + leaveText(x) + '\n請盡快跑完簽核流程（' + leaveFlow(x) + '），把簽好的' + leaveDoc(x) + '拍照上傳。\n從現在起每多一天扣 ' + per + ' 分，上傳' + leaveDoc(x) + '就停止。\n' + CONFIG.SITE_URL + '#tab=leave'])
+    .concat(due.map(x => [CONFIG.TEACHER_NAME, '⚠️ ' + x.key + ' 的請假登記超過 ' + days + ' 天還沒上傳' + leaveDoc(x) + '（已提醒同學）\n' + leaveText(x) + '\n' + CONFIG.SITE_URL + '#tab=leave'])), LEAVE_BOT);
   props.setProperty(K, JSON.stringify(sent.concat(due.map(x => x.id)).slice(-300)));
 }
 /** 請假逾期扣分：登記滿 LEAVE_LATE_DAYS 天後，每一天（不滿一天算一天）扣 LEAVE_LATE_PER 分，到上傳假卡為止 */
 function leaveLatePenalties(rst) {
   const lim = (Number(CONFIG.LEAVE_LATE_DAYS) || 3) * 864e5, per = Number(CONFIG.LEAVE_LATE_PER) || 0.1, now = Date.now(), out = [];
   leaveRows().forEach(x => {
-    if (!x.t || x.t < (rst || 0) || x.status === '已取消') return;
+    if (!x.t || x.t < (rst || 0) || x.status === '已取消' || x.type === '公假') return;   // 公假的公差單是選填，不扣分
     const stop = x.cardT || ((x.status === '已登記' || x.status === '退回') ? now : 0);   // 導師直接確認、沒有假卡的：不扣
     if (!stop) return;
     const days = Math.ceil((stop - x.t - lim) / 864e5);
@@ -3578,6 +3581,15 @@ function getLeave(who) {
     types: LEAVE_TYPES, rules: PropertiesService.getScriptProperties().getProperty('LEAVE_RULES') || '', teacher: !!who.teacher, monitor: monitor };
 }
 function addLeave(who, r) {
+  if (who.teacher && Array.isArray(r.keys) && r.keys.length) {   // 導師一次幫很多位同學登記（例如公假）
+    const keys = r.keys.map(String).filter((k, i, a) => a.indexOf(k) === i);
+    keys.forEach(k => addLeaveOne(who, Object.assign({}, r, { key: k })));
+    return getLeave(who);
+  }
+  addLeaveOne(who, r);
+  return getLeave(who);
+}
+function addLeaveOne(who, r) {
   const key = who.teacher ? String(r.key || '') : who.key;
   if (getStudents().students.indexOf(key) < 0) throw new Error(who.teacher ? '請選擇同學' : '找不到你的名字');
   const type = String(r.type || '');
@@ -3593,9 +3605,8 @@ function addLeave(who, r) {
     sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_LEAVE.length).setValues([[id, new Date(), key, type, from, fromP, to, toP, note, '已登記', '', '', by, new Date(), '']]);
   });
   const x = { type: type, from: from, fromP: fromP, to: to, toP: toP };
-  if (!who.teacher) botMail([[CONFIG.TEACHER_NAME, '📝 ' + key + ' 登記了請假\n' + leaveText(x) + (note ? '\n說明：' + note : '') + '\n（簽好章的假卡上傳後，就可以在「請假」總表確認）\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
-  else botMail([[key, '📝 導師幫你登記了請假\n' + leaveText(x) + '\n請記得跑完假卡流程（家長 → 導師 → 教官室），簽完章後在 App 上傳假卡照片。\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
-  return getLeave(who);
+  if (!who.teacher) botMail([[CONFIG.TEACHER_NAME, '📝 ' + key + ' 登記了請假\n' + leaveText(x) + (note ? '\n說明：' + note : '') + (type === '公假' ? '\n（公差單照片是選填；簽完後就可以在「請假」總表確認）\n' : '\n（簽好的' + leaveDoc(x) + '上傳後，就可以在「請假」總表確認）\n') + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
+  else botMail([[key, '📝 導師幫你登記了' + (type === '公假' ? '公假' : '請假') + '\n' + leaveText(x) + '\n' + (type === '公假' ? '請記得填寫公差單 → 導師簽名 → 教官簽名（公差單照片可以選擇上傳，不一定要）。' : '請記得跑完流程（' + leaveFlow(x) + '），簽完後在 App 上傳' + leaveDoc(x) + '照片。') + '\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
 }
 function leaveFolder() {
   const root = getRootFolder(), it = root.getFoldersByName('請假卡');
@@ -3619,7 +3630,7 @@ function leaveCard(who, id, data) {
     if (!sh.getRange(1, 15).getValue()) sh.getRange(1, 15).setValue(HEAD_LEAVE[14]).setFontWeight('bold').setBackground('#ede7fb');   // 舊的工作表補上欄位名稱
     if (!x.cardT) sh.getRange(x.row, 15).setValue(new Date()).setNumberFormat('yyyy/mm/dd hh:mm');
   });
-  if (!who.teacher) botMail([[CONFIG.TEACHER_NAME, '📝 ' + x.key + ' 上傳了假卡，請確認\n' + leaveText(x) + '\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
+  if (!who.teacher) botMail([[CONFIG.TEACHER_NAME, '📝 ' + x.key + ' 上傳了' + leaveDoc(x) + '，請確認\n' + leaveText(x) + '\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
   return getLeave(who);
 }
 function getLeaveCard(who, fid) {
@@ -3664,7 +3675,7 @@ function remindLeaveCard(who, id) {
   const x = leaveRows().find(r => r.id === id);
   if (!x) throw new Error('找不到這筆請假');
   if (x.status === '已確認') throw new Error('這筆請假已經確認了');
-  botMail([[x.key, '📷 導師提醒你：請假卡要跑完簽核流程（家長簽名 → 導師簽名 → 教官室等處室蓋章），全部簽完之後，把蓋好章的假卡拍照上傳到 App。\n' + leaveText(x) + '\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
+  botMail([[x.key, '📷 導師提醒你：' + leaveDoc(x) + '要跑完簽核流程（' + leaveFlow(x) + '），全部簽完之後，把簽好的' + leaveDoc(x) + '拍照上傳到 App。\n' + leaveText(x) + '\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
   return { ok: true };
 }
 /** 修改請假（假別、日期、節次、說明）：同學在導師確認前可以改自己的；導師隨時可以改（會通知同學） */
