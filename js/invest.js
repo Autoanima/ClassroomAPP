@@ -125,22 +125,21 @@
     const el = L.filter(x => x.eligible), no = L.filter(x => !x.eligible);
     const row = x => `<div class="inv-row${x.me ? ' me' : ''}">
       <span class="ir-rank">${x.rank ? (x.rank <= 3 ? ['🥇', '🥈', '🥉'][x.rank - 1] : x.rank) : ''}</span>
-      <span class="ir-who">${esc(x.code)}${x.name && x.name !== x.code ? ` <span class="muted small">${esc(A.parseKey(x.name).name || x.name)}</span>` : ''}${x.me ? ' <span class="tag">我</span>' : ''}${x.teacher ? ' <span class="muted small">（不領獎）</span>' : ''}</span>
+      <span class="ir-who">${esc(x.code)}${x.name && x.name !== x.code ? ` <span class="muted small">${esc(A.parseKey(x.name).name || x.name)}</span>` : ''}${x.me ? ' <span class="tag">我</span>' : ''}${x.teacher ? ' <span class="muted small">（不領獎）</span>' : ''}${x.prize || x.steady || !x.eligible ? `<span class="ir-tag">${x.prize ? `🏆+${x.prize}` : ''}${x.steady ? ' 🐢穩健' : ''}${x.eligible ? '' : '尚未交易'}</span>` : ''}</span>
       <span class="ir-ret ${updn(x.ret)}">${pct(x.ret)}</span>
-      <span class="ir-val">${coin(x.value)}</span>
-      <span class="ir-tag">${x.prize ? `🏆+${x.prize}` : ''}${x.steady ? ' 🐢穩健' : ''}${x.eligible ? '' : ' 尚未交易'}</span></div>`;
+      <span class="ir-val">${coin(x.value)}</span></div>`;
     const seg = (v, t) => `<button type="button" data-iv="rk" data-v="${v}" aria-pressed="${(ui.rk || 'season') === v}">${t}</button>`;
     let h = `<div class="inv-nav inv-rk">${seg('season', `🏆 ${month(S.season)} 月（本季）`)}${seg('total', '📈 累計（長期）')}</div>`;
     if (ui.rk === 'total') {
       return h + `<div class="panel"><h3>📈 累計報酬率排行 <span class="muted small">（從一開始到現在，不發獎，看長期表現）</span></h3>
-        <div class="inv-row head"><span class="ir-rank">#</span><span class="ir-who">座號</span><span class="ir-ret">累計</span><span class="ir-val">投資幣</span><span class="ir-tag"></span></div>
+        <div class="inv-row head"><span class="ir-rank">#</span><span class="ir-who">座號</span><span class="ir-ret">累計</span><span class="ir-val">投資幣</span></div>
         ${(S.total || []).map((x, i) => `<div class="inv-row${x.me ? ' me' : ''}"><span class="ir-rank">${i + 1}</span>
           <span class="ir-who">${esc(x.code)}${x.name && x.name !== x.code ? ` <span class="muted small">${esc(A.parseKey(x.name).name || x.name)}</span>` : ''}${x.me ? ' <span class="tag">我</span>' : ''}</span>
-          <span class="ir-ret ${updn(x.total)}">${pct(x.total)}</span><span class="ir-val">${coin(x.value)}</span><span class="ir-tag"></span></div>`).join('') || '<p class="muted small">還沒有人開始投資。</p>'}
+          <span class="ir-ret ${updn(x.total)}">${pct(x.total)}</span><span class="ir-val">${coin(x.value)}</span></div>`).join('') || '<p class="muted small">還沒有人開始投資。</p>'}
         <p class="muted small">長期來看，穩定成長、少犯大錯的人通常會慢慢爬上來。</p></div>`;
     }
     h += `<div class="panel"><h3>🏆 ${month(S.season)} 月排行榜 <span class="muted small">${S.final ? '（已結算）' : '（每天收盤後更新）'}</span></h3>
-      <div class="inv-row head"><span class="ir-rank">名次</span><span class="ir-who">座號</span><span class="ir-ret">報酬率</span><span class="ir-val">投資幣</span><span class="ir-tag"></span></div>
+      <div class="inv-row head"><span class="ir-rank">名次</span><span class="ir-who">座號</span><span class="ir-ret">報酬率</span><span class="ir-val">投資幣</span></div>
       ${el.length ? el.map(row).join('') : '<p class="muted small">還沒有人有交易紀錄。</p>'}
       ${no.length ? `<h3 class="inv-sub">還沒有交易紀錄</h3>${no.map(row).join('')}` : ''}
       <p class="muted small">名次看「這一季」的報酬率（月初總值 → 月底總值），報酬率一樣的並列。🐢 穩健獎：報酬率是正的、平均至少一半的錢放在股票裡，每天漲跌起伏最小的人。</p></div>`;

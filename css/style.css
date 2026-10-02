@@ -1250,13 +1250,14 @@ body.ww-open { overflow: hidden; }
 .is-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
 .inv-trade { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
 .inv-trade:last-child { border-bottom: 0; }
-.inv-row { display: grid; grid-template-columns: 2.4em 1fr 5.2em 4.8em auto; gap: 6px; align-items: center; padding: 6px 4px; border-bottom: 1px solid var(--line); font-size: 14px; }
+.inv-row { display: grid; grid-template-columns: 2.4em minmax(0, 1fr) 5em 5.4em; gap: 6px; align-items: center; padding: 6px 4px; border-bottom: 1px solid var(--line); font-size: 14px; }
 .inv-row.head { font-size: 12px; color: var(--muted); }
 .inv-row.me { background: var(--accent-soft); border-radius: 8px; }
 .ir-rank { text-align: center; font-weight: 700; }
 .ir-ret, .ir-val { text-align: right; font-variant-numeric: tabular-nums; }
 .ir-ret { font-weight: 700; }
-.ir-tag { font-size: 12px; white-space: nowrap; }
+.ir-tag { display: block; font-size: 12px; white-space: nowrap; color: var(--muted); margin-top: 1px; }
+.ir-who { min-width: 0; line-height: 1.35; }
 .inv-sub { margin-top: 14px; font-size: 14px; color: var(--muted); }
 .inv-text { font-size: 14px; line-height: 1.65; }
 .inv-text ol, .inv-text ul { padding-left: 1.3em; margin: 6px 0; }
