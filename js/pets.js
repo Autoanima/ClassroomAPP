@@ -281,11 +281,14 @@
     else openCard(x.id);
   }, true);
 
-  // HP 條：10 格是「同一位主人全部加起來」的上限；紅色是這隻的，淡紅色是同主人其他蛋／寵物的
+  // HP 條：紅色＝這隻自己的 HP；空格＝還能再餵的 HP（同一位主人加起來最多 10 HP，其他隻用掉的不畫出來，免得以為還能餵）
   const hpBar = x => {
-    const sib = P.pets.filter(y => y.owner === x.owner && y.status !== '死亡' && y.id !== x.id), o = Math.min(P.max - Math.min(x.hp, P.max), sib.reduce((s, y) => s + y.hp, 0));
-    return `<span class="pet-hp">${Array.from({ length: P.max }, (_, i) => `<i class="${i < x.hp ? 'on' : i < x.hp + o ? 'sib' : ''}"></i>`).join('')}<b>${x.hp} HP</b></span>${sib.length ? `<span class="muted small">主人的 ${sib.length + 1} 隻加起來 ${x.hp + o}/${P.max} HP（淡紅色是其他 ${sib.length} 隻的）</span>` : ''}`;
+    const sib = P.pets.filter(y => y.owner === x.owner && y.status !== '死亡' && y.id !== x.id), tot = x.hp + sib.reduce((s, y) => s + y.hp, 0);
+    const room = Math.max(0, P.max - tot), cells = Math.min(P.max, x.hp + room);
+    const note = !sib.length ? '' : room ? `主人的 ${sib.length + 1} 隻加起來 ${tot}/${P.max} HP，還可以再加 ${room} HP` : `主人的 ${sib.length + 1} 隻加起來已經 ${P.max}/${P.max} HP（滿了，不能再餵）`;
+    return `<span class="pet-hp">${Array.from({ length: cells }, (_, i) => `<i class="${i < x.hp ? 'on' : ''}"></i>`).join('')}<b>${x.hp} HP</b></span>${note ? `<span class="muted small">${note}</span>` : ''}`;
   };
+  const full = x => P.pets.filter(y => y.owner === x.owner && y.status !== '死亡').reduce((s, y) => s + y.hp, 0) >= P.max;
   const left = ms => { const m = Math.max(0, Math.round(ms / 60e3)); return m >= 60 ? `${Math.floor(m / 60)} 小時 ${m % 60} 分` : `${m} 分鐘`; };
   function cardHtml(x) {
     const mine = x.owner === A.me() || A.isTeacher();
@@ -295,7 +298,7 @@
       ${x.status === '蛋' ? `<span class="small">🥚 還有 ${left(x.hatch - Date.now())} 孵化・分到 ${x.hp} HP</span>${hpBar(x)}` : x.status === '死亡' ? '<span class="small muted">已經升天了，謝謝牠陪伴大家。</span>' : hpBar(x)}
       ${x.fed && x.status === '寵物' ? `<span class="muted small">最近餵食：${esc(x.fed)}</span>` : ''}</div></div>
       ${x.status === '寵物' ? `<div class="pet-feeders"><b>🥫 最近一週餵牠的人</b>${(x.feeders || []).length ? `<div>${x.feeders.map(f => `<span class="pet-fd">${esc(nm(f.key))}<b>×${f.n}</b></span>`).join('')}</div><span class="muted small">餵越多次，牠越常跑去你的座位旁邊睡覺 💤</span>` : '<span class="muted small">這週還沒有人餵牠。</span>'}</div>` : ''}`;
-    if (x.status === '寵物' && !A.isGuest()) h += `<div class="actions"><button type="button" class="btn btn--primary wide" data-act="petFeed" data-id="${esc(x.id)}"${x.hp >= P.max ? ' disabled' : ''}>🥫 餵罐罐（${P.food} 點，+1 HP）${x.hp >= P.max ? '・吃飽了' : ''}</button></div>`;
+    if (x.status === '寵物' && !A.isGuest()) h += `<div class="actions"><button type="button" class="btn btn--primary wide" data-act="petFeed" data-id="${esc(x.id)}"${full(x) ? ' disabled' : ''}>🥫 餵罐罐（${P.food} 點，+1 HP）${full(x) ? '・吃飽了' : ''}</button></div>`;
     if (A.isTeacher() && x.status !== '死亡') h += `<div class="actions"><button type="button" class="btn btn--danger wide" data-act="petDel" data-id="${esc(x.id)}">🗑 移除這${x.status === '蛋' ? '顆蛋' : '隻寵物'}（導師）</button></div>`;
     if (mine && x.status !== '死亡') h += `<details class="pet-edit"${x.status === '寵物' && !x.imgId && x.owner === A.me() ? ' open' : ''}><summary>✏️ 主人專屬：取名字、上傳外觀</summary>
       <label class="lv-f"><span>名字</span><input type="text" id="petNm" maxlength="12" value="${esc(x.name || '')}" placeholder="幫牠取個名字"></label>
