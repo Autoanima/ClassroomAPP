@@ -1550,77 +1550,92 @@ function remindHomework(who, id) {
 // ── 🐾 班級寵物：同學被加分 → 從座位蹦出一顆寵物蛋（每人每天最多一顆）→ 1 天後孵化（滿血 10 HP）；
 //    每天扣 1 HP，同學在商店買罐罐（1 點）餵食 +1 HP；0 HP 就升天。外觀由被加分的同學上傳（PNG 去背），沒上傳就是貓咪 ──
 const SHEET_PET = '班級寵物';
-const HEAD_PET = ['編號', '主人', '原因', '生蛋時間', '孵化時間', '名字', '圖片', '血量', '上次扣血日', '狀態', '死亡時間', '最近餵食'];
+const HEAD_PET = ['編號', '主人', '原因', '生蛋時間', '孵化時間', '名字', '圖片', '血量', '上次扣血日', '狀態', '死亡時間', '最近餵食', '上限'];
 const PET = { HATCH_H: 24, MAX_HP: 10, FOOD: 1 };
-const petSheet = () => textSheet(SHEET_PET, HEAD_PET, [1, 2, 3, 6, 7, 9, 10, 12]);
+const petSheet = () => {
+  const sh = textSheet(SHEET_PET, HEAD_PET, [1, 2, 3, 6, 7, 9, 10, 12]);
+  if (sh.getRange(1, 13).getValue() !== '上限') sh.getRange(1, 13).setValue('上限').setFontWeight('bold').setBackground('#ede7fb');
+  return sh;
+};
 function petRows() {
   const sh = getSS().getSheetByName(SHEET_PET);
   if (!sh || sh.getLastRow() < 2) return [];
   const ms = v => (v instanceof Date ? v.getTime() : Number(v) || 0);
   return sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_PET.length).getValues().map((r, i) => ({
     row: i + 2, id: String(r[0]), owner: String(r[1]), reason: String(r[2]), born: ms(r[3]), hatch: ms(r[4]), name: String(r[5]), img: String(r[6]),
-    hp: Number(r[7]) || 0, decay: String(r[8]), status: String(r[9]), died: ms(r[10]), fed: String(r[11]),
+    hp: Number(r[7]) || 0, decay: String(r[8]), status: String(r[9]), died: ms(r[10]), fed: String(r[11]), cap: Number(r[12]) || 0,
   })).filter(x => x.id && x.status !== '刪除');
 }
-/** 生蛋：被加幾分就生幾顆（每位主人的蛋＋活著的寵物最多 10 隻）。
- *  10 HP 是同一位主人所有蛋＋寵物加起來的「上限」，不是每隻一開始的 HP：
- *  第一顆蛋 10 HP；之後每多一顆新蛋，由同一位主人 HP 最多的那隻自動分 1 HP 給牠（總數不變、不會補滿；每隻至少 1 HP） */
-function petNewHp(live, k) {
+/* HP 規則：
+ *  ・每一隻蛋／寵物都有自己的「上限」（例如 3 HP、4 HP），餵罐罐最多只能補到自己的上限。
+ *  ・同一位主人所有活著的蛋＋寵物，上限加起來最多 10 HP（這是總上限，不是一開始分到的 HP）。
+ *  ・第一顆蛋上限 10 HP；之後每多一顆新蛋，上限最大的那隻自動分 1 HP（上限和血量各 1）給新蛋。
+ *  ・寵物死掉：牠的上限就沒了，不會分回給其他隻。
+ *  ・導師刪除：被刪的那隻的上限和血量，儘量平均分給同一位主人其他的蛋／寵物（除不盡的隨機多給某幾隻）。 */
+function petNewEggs(live, k) {
   const pool = live.slice(), eggs = [];
   for (let i = 0; i < k; i++) {
-    const egg = { hp: PET.MAX_HP };
+    const egg = { cap: PET.MAX_HP, hp: PET.MAX_HP };
     if (pool.length) {
-      const big = pool.slice().sort((a, b) => b.hp - a.hp)[0];
-      if (big.hp > 1) { big.hp--; big.lent = true; }
-      egg.hp = 1;
+      const big = pool.slice().sort((a, b) => b.cap - a.cap || a.born - b.born)[0];
+      if (big.cap > 1) { big.cap--; if (big.hp > 1) big.hp--; big.hp = Math.min(big.hp, big.cap); big.lent = true; }
+      egg.cap = 1; egg.hp = 1;
     }
+    egg.born = Date.now() + i;
     pool.push(egg); eggs.push(egg);
   }
-  return eggs.map(e => e.hp);
+  return eggs;
 }
+/** 生蛋：被加幾分就生幾顆（每位主人的蛋＋活著的寵物最多 10 隻） */
 function petLay(owner, reason, when, n) {
+  petFix();
   const t = when || Date.now(), live = petRows().filter(x => x.owner === owner && x.status !== '死亡');
   const k = Math.max(0, Math.min(Math.round(Number(n) || 1), PET.MAX_HP - live.length));
   if (!k) return 0;
-  const sh = petSheet(), at = sh.getLastRow() + 1, hps = petNewHp(live, k);
-  sh.getRange(at, 1, k, HEAD_PET.length).setValues(hps.map(hp => [Utilities.getUuid().slice(0, 8), owner, String(reason || '').slice(0, 60), new Date(t), new Date(t + PET.HATCH_H * 3600e3), '', '', hp, '', '蛋', '', '']));
+  const sh = petSheet(), at = sh.getLastRow() + 1, eggs = petNewEggs(live, k);
+  sh.getRange(at, 1, k, HEAD_PET.length).setValues(eggs.map(e => [Utilities.getUuid().slice(0, 8), owner, String(reason || '').slice(0, 60), new Date(t), new Date(t + PET.HATCH_H * 3600e3), '', '', e.hp, '', '蛋', '', '', e.cap]));
   sh.getRange(at, 4, k, 2).setNumberFormat('yyyy/mm/dd hh:mm');
-  live.filter(x => x.lent).forEach(x => sh.getRange(x.row, 8).setValue(x.hp));
+  live.filter(x => x.lent).forEach(x => { sh.getRange(x.row, 8).setValue(x.hp); sh.getRange(x.row, 13).setValue(x.cap); });
   return k;
 }
-/** 導師移除一顆蛋／一隻寵物（例如多生出來的）：狀態改成「刪除」，不會再顯示；其他寵物的 HP 不變 */
+/** 導師移除一顆蛋／一隻寵物（例如多生出來的）：狀態改成「刪除」，牠的上限和血量平均分給同一位主人其他的蛋／寵物 */
 function petDelete(who, id) {
   if (!who.teacher) throw new Error('只有導師可以移除');
   withLock(() => {
+    petFix();
     const x = petRows().find(r => r.id === String(id));
     if (!x) throw new Error('找不到這顆蛋／這隻寵物');
     const sh = petSheet();
     sh.getRange(x.row, 10).setValue('刪除');
-    // 被移除的那隻的 HP 平均分給同一位主人其他的蛋／寵物（除不盡的隨機多給某幾隻；加起來最多 10 HP）
     const rest = petRows().filter(r => r.owner === x.owner && r.status !== '死亡' && r.id !== x.id);
-    if (x.status !== '死亡' && rest.length && x.hp > 0) {
-      const give = Math.max(0, Math.min(x.hp, PET.MAX_HP - rest.reduce((s, r) => s + r.hp, 0)));
-      const add = petSpread(rest, give);
-      rest.forEach((r, i) => { if (add[i]) sh.getRange(r.row, 8).setValue(r.hp + add[i]); });
+    if (x.status !== '死亡' && rest.length) {
+      const order = rest.map((_, i) => i).sort(() => Math.random() - 0.5), addCap = petSpread(rest, x.cap, order), addHp = petSpread(rest, x.hp, order);   // 同一個順序：多分到上限的那隻也多分到血量
+      rest.forEach((r, i) => {
+        const cap = r.cap + addCap[i], hp = Math.min(cap, r.hp + addHp[i]);
+        sh.getRange(r.row, 8).setValue(hp); sh.getRange(r.row, 13).setValue(cap);
+      });
     }
-    petCapAll();
+    petFix();
   });
   return getPets(who);
 }
-/** 主人重新分配 HP（只能互相移動，總數不能變多；每隻至少 1 HP） */
+/** 主人重新分配上限（只能互相移動，總數不變；每隻至少 1 HP）：上限移過去多少，血量也跟著移多少 */
 function petAllot(who, owner, plan) {
   owner = who.teacher ? String(owner || '') : who.key;
   withLock(() => {
     petTick();
     const list = petRows().filter(x => x.owner === owner && x.status !== '死亡');
     if (!list.length) throw new Error('沒有可以分配的寵物');
-    const total = list.reduce((s, x) => s + x.hp, 0);
+    const total = list.reduce((s, x) => s + x.cap, 0);
     const next = list.map(x => Math.round(Number((plan || {})[x.id])));
-    if (next.some(v => !(v >= 1))) throw new Error('每一隻至少要 1 HP');
+    if (next.some(v => !(v >= 1))) throw new Error('每一隻的上限至少要 1 HP');
     const sum = next.reduce((s, v) => s + v, 0);
-    if (sum !== total) throw new Error('只能互相移動 HP，加起來要剛好 ' + total + ' HP（現在是 ' + sum + ' HP）');
+    if (sum !== total) throw new Error('只能互相移動，上限加起來要剛好 ' + total + ' HP（現在是 ' + sum + ' HP）');
     const sh = petSheet();
-    list.forEach((x, i) => sh.getRange(x.row, 8).setValue(next[i]));
+    list.forEach((x, i) => {
+      const hp = Math.max(1, Math.min(next[i], x.hp + next[i] - x.cap));
+      sh.getRange(x.row, 8).setValue(hp); sh.getRange(x.row, 13).setValue(next[i]);
+    });
   });
   return getPets(who);
 }
@@ -1637,32 +1652,43 @@ function petTick() {
     const days = dayN(today) - dayN(x.decay);
     if (days <= 0) return;
     x.hp -= days;
-    if (x.hp <= 0) {   // 掛掉：死亡時間＝血量剛好歸零的那一天
+    if (x.hp <= 0) {   // 掛掉：死亡時間＝血量剛好歸零的那一天（牠的上限不會分回給其他隻）
       const deadDay = dayN(x.decay) + days + x.hp;
       sh.getRange(x.row, 8, 1, 4).setValues([[0, today, '死亡', new Date(deadDay * 864e5 + 8 * 3600e3)]]);
     } else sh.getRange(x.row, 8, 1, 2).setValues([[x.hp, today]]);
   });
-  petCapAll();
+  petFix();
 }
-/** 把 n HP 平均加給 list（除不盡的隨機給某幾隻多 1 HP）；回傳新的 HP 陣列 */
-function petSpread(list, n) {
+/** 把 n 平均分給 list（除不盡的隨機給某幾隻多 1）；回傳每隻分到的數量 */
+function petSpread(list, n, order) {
   const k = list.length, base = Math.floor(n / k), extra = {};
-  const order = list.map((_, i) => i).sort(() => Math.random() - 0.5);
+  order = order || list.map((_, i) => i).sort(() => Math.random() - 0.5);
   for (let j = 0; j < n % k; j++) extra[order[j]] = 1;
   return list.map((x, i) => base + (extra[i] || 0));
 }
-/** 同一位主人的蛋＋寵物加起來不能超過 10 HP：超過的話重新平均分成 10 HP（除不盡的隨機多給某幾隻） */
-function petCapAll() {
+/** 檢查每位主人：補上舊資料沒有的上限、上限加起來不能超過 10 HP、血量不能超過自己的上限 */
+function petFix() {
   const by = {}, sh = petSheet();
   petRows().filter(x => x.status !== '死亡').forEach(x => (by[x.owner] = by[x.owner] || []).push(x));
   Object.keys(by).forEach(o => {
-    const list = by[o];
-    if (list.reduce((s, x) => s + x.hp, 0) <= PET.MAX_HP) return;
-    const hps = petSpread(list, PET.MAX_HP);
-    list.forEach((x, i) => { x.hp = Math.max(1, hps[i]); sh.getRange(x.row, 8).setValue(x.hp); });
+    const list = by[o], before = list.map(x => x.cap + '/' + x.hp);
+    const fresh = list.every(x => !x.cap);   // 舊資料（還沒有上限欄）：上限先等於現在的血量，剩下的平均補到 10
+    list.forEach(x => { if (!x.cap) x.cap = Math.max(1, x.hp); });
+    if (fresh) {
+      const room = PET.MAX_HP - list.reduce((s, x) => s + x.cap, 0);
+      if (room > 0) { const add = petSpread(list, room); list.forEach((x, i) => { x.cap += add[i]; }); }
+    }
+    if (list.reduce((s, x) => s + x.cap, 0) > PET.MAX_HP) {   // 超過 10：上限重新平均分成 10
+      const caps = petSpread(list, PET.MAX_HP);
+      list.forEach((x, i) => { x.cap = Math.max(1, caps[i]); });
+    }
+    list.forEach((x, i) => {
+      x.hp = Math.max(1, Math.min(x.hp, x.cap));
+      if (x.cap + '/' + x.hp !== before[i]) { sh.getRange(x.row, 8).setValue(x.hp); sh.getRange(x.row, 13).setValue(x.cap); }
+    });
   });
 }
-const petPub = x => ({ id: x.id, owner: x.owner, reason: x.reason, born: x.born, hatch: x.hatch, name: x.name, img: x.img ? 1 : 0, imgId: x.img, hp: x.hp, status: x.status, died: x.died, fed: x.fed });
+const petPub = x => ({ id: x.id, owner: x.owner, reason: x.reason, born: x.born, hatch: x.hatch, name: x.name, img: x.img ? 1 : 0, imgId: x.img, hp: x.hp, cap: x.cap, status: x.status, died: x.died, fed: x.fed });
 function getPets(who) {
   withLock(() => {
     // 第一次用：補上最近一次被加分的同學的寵物蛋
@@ -1693,16 +1719,14 @@ function getPets(who) {
   const feeders = id => Object.entries(fed[id] || {}).map(([k, n]) => ({ key: k, n: n })).sort((a, b) => b.n - a.n);
   return { ok: true, pets: petRows().filter(x => x.status !== '死亡' || x.died > week).map(x => Object.assign(petPub(x), { feeders: feeders(x.id) })), me: who.teacher ? CONFIG.TEACHER_NAME : who.key, now: Date.now(), food: PET.FOOD, max: PET.MAX_HP };
 }
-/** 餵罐罐：花 1 點，+1 HP（最多 10） */
+/** 餵罐罐：花 1 點，+1 HP（最多補到這隻自己的上限） */
 function feedPet(who, id) {
   const me = who.teacher ? CONFIG.TEACHER_NAME : who.key;
   withLock(() => {
     petTick();
     const x = petRows().find(r => r.id === String(id));
     if (!x || x.status !== '寵物') throw new Error('這隻寵物現在不能餵（還是蛋或已經升天了）');
-    if (x.hp >= PET.MAX_HP) throw new Error('牠已經吃飽了（滿血 ' + PET.MAX_HP + ' HP）');
-    const ownerHp = petRows().filter(r => r.owner === x.owner && r.status !== '死亡').reduce((s, r) => s + r.hp, 0);
-    if (ownerHp >= PET.MAX_HP) throw new Error('這位主人的寵物加起來已經 ' + PET.MAX_HP + ' HP（上限），現在不能再餵了');
+    if (x.hp >= x.cap) throw new Error('牠已經吃飽了（牠的上限是 ' + x.cap + ' HP）');
     if (!who.teacher) {
       const c = coinsOf(me);
       if (c.coins < PET.FOOD) throw new Error('點數不夠（罐罐要 ' + PET.FOOD + ' 點，你有 ' + c.coins + ' 點）');

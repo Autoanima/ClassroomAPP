@@ -281,21 +281,22 @@
     else openCard(x.id);
   }, true);
 
-  // HP 條：紅色＝這隻自己的 HP；空格＝還能再餵的 HP（同一位主人加起來最多 10 HP，其他隻用掉的不畫出來，免得以為還能餵）
+  // HP 條：格數＝這隻自己的上限；紅色＝現在的血量；空格＝還能餵的 HP
+  const capOf = x => x.cap || P.max;
   const hpBar = x => {
-    const sib = P.pets.filter(y => y.owner === x.owner && y.status !== '死亡' && y.id !== x.id), tot = x.hp + sib.reduce((s, y) => s + y.hp, 0);
-    const room = Math.max(0, P.max - tot), cells = Math.min(P.max, x.hp + room);
-    const note = !sib.length ? '' : room ? `主人的 ${sib.length + 1} 隻加起來 ${tot}/${P.max} HP，還可以再加 ${room} HP` : `主人的 ${sib.length + 1} 隻加起來已經 ${P.max}/${P.max} HP（滿了，不能再餵）`;
-    return `<span class="pet-hp">${Array.from({ length: cells }, (_, i) => `<i class="${i < x.hp ? 'on' : ''}"></i>`).join('')}<b>${x.hp} HP</b></span>${note ? `<span class="muted small">${note}</span>` : ''}`;
+    const sib = P.pets.filter(y => y.owner === x.owner && y.status !== '死亡' && y.id !== x.id), caps = capOf(x) + sib.reduce((s, y) => s + capOf(y), 0);
+    const room = Math.max(0, capOf(x) - x.hp);
+    return `<span class="pet-hp">${Array.from({ length: capOf(x) }, (_, i) => `<i class="${i < x.hp ? 'on' : ''}"></i>`).join('')}<b>${x.hp}/${capOf(x)} HP</b></span>
+      <span class="muted small">${room ? `${x.status === '蛋' ? '孵化後' : ''}還可以再餵 ${room} HP` : '血量滿了（到牠的上限）'}${sib.length ? `・主人的 ${sib.length + 1} 隻上限加起來 ${caps}/${P.max} HP` : ''}</span>`;
   };
-  const full = x => P.pets.filter(y => y.owner === x.owner && y.status !== '死亡').reduce((s, y) => s + y.hp, 0) >= P.max;
+  const full = x => x.hp >= capOf(x);
   const left = ms => { const m = Math.max(0, Math.round(ms / 60e3)); return m >= 60 ? `${Math.floor(m / 60)} 小時 ${m % 60} 分` : `${m} 分鐘`; };
   function cardHtml(x) {
     const mine = x.owner === A.me() || A.isTeacher();
     let h = `<div class="pet-card${x.status === '死亡' ? ' dead' : ''}"><div class="pet-pic">${x.status === '蛋' ? EGG : look(x)}</div><div class="pet-info">
       <b class="pet-nm">${x.status === '蛋' ? '寵物蛋' : esc(petName(x))}${x.status === '死亡' ? ' 😇' : ''}</b>
       <span class="muted small">主人：${esc(nm(x.owner))}${x.reason ? `・因為「${esc(x.reason)}」被加分` : ''}</span>
-      ${x.status === '蛋' ? `<span class="small">🥚 還有 ${left(x.hatch - Date.now())} 孵化・分到 ${x.hp} HP</span>${hpBar(x)}` : x.status === '死亡' ? '<span class="small muted">已經升天了，謝謝牠陪伴大家。</span>' : hpBar(x)}
+      ${x.status === '蛋' ? `<span class="small">🥚 還有 ${left(x.hatch - Date.now())} 孵化・上限 ${capOf(x)} HP</span>${hpBar(x)}` : x.status === '死亡' ? '<span class="small muted">已經升天了，謝謝牠陪伴大家。</span>' : hpBar(x)}
       ${x.fed && x.status === '寵物' ? `<span class="muted small">最近餵食：${esc(x.fed)}</span>` : ''}</div></div>
       ${x.status === '寵物' ? `<div class="pet-feeders"><b>🥫 最近一週餵牠的人</b>${(x.feeders || []).length ? `<div>${x.feeders.map(f => `<span class="pet-fd">${esc(nm(f.key))}<b>×${f.n}</b></span>`).join('')}</div><span class="muted small">餵越多次，牠越常跑去你的座位旁邊睡覺 💤</span>` : '<span class="muted small">這週還沒有人餵牠。</span>'}</div>` : ''}`;
     if (x.status === '寵物' && !A.isGuest()) h += `<div class="actions"><button type="button" class="btn btn--primary wide" data-act="petFeed" data-id="${esc(x.id)}"${full(x) ? ' disabled' : ''}>🥫 餵罐罐（${P.food} 點，+1 HP）${full(x) ? '・吃飽了' : ''}</button></div>`;
@@ -329,7 +330,7 @@
   async function feed(id, b) {
     const x = P.pets.find(y => y.id === id);
     if (!x) return;
-    if (!await A.ask(`花 ${P.food} 點買一個罐罐，餵「${petName(x)}」？\n（+1 HP，最多 ${P.max} HP）`, '餵食')) return;
+    if (!await A.ask(`花 ${P.food} 點買一個罐罐，餵「${petName(x)}」？\n（+1 HP，最多到牠的上限 ${capOf(x)} HP）`, '餵食')) return;
     if (b) b.disabled = true;
     try { P = await A.api('feedPet', { id }); toast('🥫 牠吃得好開心！+1 HP'); paintMap(true); if (A.sheetMode()?.kind === 'pet') openCard(id); if (A.currentTab() === 'pet') render(); A.emit('coins'); }
     catch (err) { toast(err.message); if (b) b.disabled = false; }
@@ -360,12 +361,12 @@
   function allotHtml(owner) {
     const list = P.pets.filter(x => x.owner === owner && x.status !== '死亡').sort((a, b) => a.born - b.born);
     if (list.length < 2) return '';
-    if (!allot || allot.owner !== owner) allot = { owner, plan: Object.fromEntries(list.map(x => [x.id, x.hp])) };
-    const total = list.reduce((s, x) => s + x.hp, 0), now = Object.values(allot.plan).reduce((s, v) => s + v, 0);
-    return `<div class="panel pet-allot"><h3>⚖️ 分配 HP（${esc(nm(owner))}的 ${list.length} 隻）</h3>
-      <p class="muted small">你的蛋和寵物加起來最多 ${P.max} HP（上限）。可以互相移動：每隻至少 1 HP，加起來要剛好 ${total} HP。</p>
+    if (!allot || allot.owner !== owner) allot = { owner, plan: Object.fromEntries(list.map(x => [x.id, capOf(x)])) };
+    const total = list.reduce((s, x) => s + capOf(x), 0), now = Object.values(allot.plan).reduce((s, v) => s + v, 0);
+    return `<div class="panel pet-allot"><h3>⚖️ 分配 HP 上限（${esc(nm(owner))}的 ${list.length} 隻）</h3>
+      <p class="muted small">每一隻都有自己的 HP 上限，你的蛋和寵物的上限加起來最多 ${P.max} HP。可以互相移動上限（血量也會跟著移過去）：每隻至少 1 HP，加起來要剛好 ${total} HP。</p>
       ${list.map((x, i) => `<div class="pa-row"><span class="pa-pic">${x.status === '蛋' ? EGG : look(x)}</span><b>${x.status === '蛋' ? `寵物蛋 ${i + 1}` : esc(petName(x))}</b>
-        <button type="button" class="btn" data-pa="-" data-id="${esc(x.id)}"${allot.plan[x.id] <= 1 ? ' disabled' : ''}>−</button><b class="pa-hp">${allot.plan[x.id]} HP</b><button type="button" class="btn" data-pa="+" data-id="${esc(x.id)}"${now >= total ? ' disabled' : ''}>＋</button></div>`).join('')}
+        <button type="button" class="btn" data-pa="-" data-id="${esc(x.id)}"${allot.plan[x.id] <= 1 ? ' disabled' : ''}>−</button><b class="pa-hp">上限 ${allot.plan[x.id]} HP</b><button type="button" class="btn" data-pa="+" data-id="${esc(x.id)}"${now >= total ? ' disabled' : ''}>＋</button></div>`).join('')}
       <div class="pa-sum ${now === total ? 'ok' : 'bad'}">加起來 ${now}／${total} HP${now < total ? `（還有 ${total - now} HP 沒分配）` : ''}</div>
       <div class="actions"><button type="button" class="btn btn--primary wide" data-pa="save"${now === total ? '' : ' disabled'}>儲存分配</button></div></div>`;
   }
@@ -385,10 +386,12 @@
     const by = s => P.pets.filter(x => x.status === s);
     let h = `<details class="panel"><summary><b>📜 班級寵物怎麼玩？</b></summary><ol class="ar-ol">
       <li>同學被<b>加幾分，就從他的座位蹦出幾顆寵物蛋</b>，依序排在講台上。</li>
-      <li>同一位主人的蛋和寵物<b>加起來最多 ${P.max} HP</b>（這是上限，不是每隻一開始的 HP）：第一顆蛋 ${P.max} HP；之後每多一顆新蛋，<b>HP 最多的那隻會自動分 1 HP 給新蛋</b>（總數不變，不會補滿）。主人可以自己互相移動（例如 8／1／1，每隻至少 1 HP），所以最多同時有 ${P.max} 隻。</li>
+      <li>每一隻蛋／寵物都有<b>自己的 HP 上限</b>（例如 3 HP、4 HP）；同一位主人全部的蛋和寵物，<b>上限加起來最多 ${P.max} HP</b>。</li>
+      <li>第一顆蛋上限 ${P.max} HP；之後每多一顆新蛋，<b>上限最大的那隻會自動分 1 HP 給新蛋</b>。主人可以自己互相移動上限（例如 8／1／1，每隻至少 1 HP），所以最多同時有 ${P.max} 隻。</li>
+      <li>寵物升天後，牠的上限<b>不會</b>分回給其他隻。</li>
       <li>蛋放 <b>1 天</b>後孵化。寵物的主人（被加分的同學）可以上傳牠的外觀（建議 PNG 去背），沒上傳就是<b>貓咪</b>。</li>
       <li>寵物會在座位表的教室四邊走來走去；點牠會有愛心或音符，也可以看到<b>血量</b>。</li>
-      <li>寵物孵化後<b>每天扣 1 HP</b>。在商店或寵物卡買<b>罐罐（${P.food} 點）</b>餵牠，<b>+1 HP</b>（同一位主人的寵物加起來最多 ${P.max} HP）。</li>
+      <li>寵物孵化後<b>每天扣 1 HP</b>。在商店或寵物卡買<b>罐罐（${P.food} 點）</b>餵牠，<b>+1 HP</b>（最多補到牠自己的上限）。</li>
       <li>寵物會記得這一週誰餵牠：<b>餵越多次，牠越常跑去你的座位旁邊睡覺</b> 💤。</li>
       <li>血量變成 <b>0 HP</b>，寵物就會升天 👻。大家一起照顧牠吧！</li></ol></details>`;
     const sec = (title, list) => (list.length ? `<div class="panel"><h3>${title}</h3><div class="pet-list">${list.map(x => `<div class="pet-row" data-petcard="${esc(x.id)}" role="button" tabindex="0">${cardHtml(x)}</div>`).join('')}</div></div>` : '');
@@ -407,7 +410,7 @@
       if (v === '+' || v === '-') { allot.plan[pa.dataset.id] += v === '+' ? 1 : -1; render(); return; }
       if (v === 'save') {
         pa.disabled = true;
-        try { P = await A.api('petAllot', { owner: allot.owner, plan: allot.plan }); allot = null; toast('✓ 已重新分配 HP'); render(); paintMap(true); } catch (err) { toast(err.message); pa.disabled = false; }
+        try { P = await A.api('petAllot', { owner: allot.owner, plan: allot.plan }); allot = null; toast('✓ 已重新分配 HP 上限'); render(); paintMap(true); } catch (err) { toast(err.message); pa.disabled = false; }
         return;
       }
     }
@@ -433,19 +436,25 @@
   // 有人被加分：寵物馬上重新讀取（新的蛋直接從座位蹦出來）
   A.on('pointsAdded', () => { pAt = 0; setTimeout(load, 600); });
 
-  // ── 測試模式：存在這台裝置 ──
-  // 被加分就生一顆蛋（同一個人同一天只生一顆，和正式版一樣）
+  // ── 測試模式：存在這台裝置（規則和正式版一樣）──
+  const tSpread = (list, n, order) => { const k = list.length, base = Math.floor(n / k), ord = (order || list.map((_, i) => i).sort(() => Math.random() - 0.5)).slice(0, n % k); return list.map((_, i) => base + (ord.includes(i) ? 1 : 0)); };
+  const tFix = all => [...new Set(all.filter(x => x.status !== '死亡').map(x => x.owner))].forEach(o => {
+    const list = all.filter(x => x.owner === o && x.status !== '死亡'), fresh = list.every(x => !x.cap);
+    list.forEach(x => { if (!x.cap) x.cap = Math.max(1, x.hp); });
+    if (fresh) { const room = 10 - list.reduce((s, x) => s + x.cap, 0); if (room > 0) { const a = tSpread(list, room); list.forEach((x, i) => { x.cap += a[i]; }); } }
+    if (list.reduce((s, x) => s + x.cap, 0) > 10) { const c = tSpread(list, 10); list.forEach((x, i) => { x.cap = Math.max(1, c[i]); }); }
+    list.forEach(x => { x.hp = Math.max(1, Math.min(x.hp, x.cap)); });
+  });
   A.testLayEggs = rows => {
-    const KEY = 'indoor.pets.v1.test', all = store.get(KEY, null) || [], now = Date.now(), day = t => A.fmtDate(new Date(t));
-    void day;
+    const KEY = 'indoor.pets.v1.test', all = store.get(KEY, null) || [], now = Date.now();
+    tFix(all);
     rows.forEach(r => {
       const live = all.filter(x => x.owner === r.student && x.status !== '死亡'), k = Math.max(0, Math.min(r.points || 1, 10 - live.length));
-      if (!k) return;
-      for (let i = 0; i < k; i++) {   // 第一顆 10 HP；之後 HP 最多的那隻分 1 HP 給新蛋
-        const pool = all.filter(x => x.owner === r.student && x.status !== '死亡'), big = pool.slice().sort((a, b) => b.hp - a.hp)[0];
-        let hp = 10;
-        if (big) { if (big.hp > 1) big.hp--; hp = 1; }
-        all.push({ id: 'p' + now.toString(36) + Math.random().toString(36).slice(2, 6), owner: r.student, reason: r.reason || '', born: now + i, hatch: now + 864e5, name: '', imgId: '', hp, decay: '', status: '蛋', died: 0, fed: '' });
+      for (let i = 0; i < k; i++) {   // 第一顆上限 10 HP；之後上限最大的那隻分 1 HP 給新蛋
+        const big = all.filter(x => x.owner === r.student && x.status !== '死亡').sort((a, b) => b.cap - a.cap || a.born - b.born)[0];
+        let cap = 10;
+        if (big) { if (big.cap > 1) { big.cap--; if (big.hp > 1) big.hp--; big.hp = Math.min(big.hp, big.cap); } cap = 1; }
+        all.push({ id: 'p' + now.toString(36) + Math.random().toString(36).slice(2, 6), owner: r.student, reason: r.reason || '', born: now + i, hatch: now + 864e5, name: '', imgId: '', hp: cap, cap, decay: '', status: '蛋', died: 0, fed: '' });
       }
     });
     store.set(KEY, all);
@@ -456,35 +465,30 @@
     const KEY = 'indoor.pets.v1.test', all = store.get(KEY, null) || [], me = A.isTeacher() ? (A.D.teacherLabel || '導師') : A.me(), now = Date.now();
     if (!store.get(KEY, null)) {   // 第一次：補一顆蛋（最近被加分的同學）
       const k = A.students()[4] || A.students()[0];
-      if (k) all.push({ id: 'p' + now.toString(36), owner: k, reason: '上課認真回答', born: now, hatch: now + 864e5, name: '', imgId: '', hp: 10, decay: '', status: '蛋', died: 0, fed: '' });
+      if (k) all.push({ id: 'p' + now.toString(36), owner: k, reason: '上課認真回答', born: now, hatch: now + 864e5, name: '', imgId: '', hp: 10, cap: 10, decay: '', status: '蛋', died: 0, fed: '' });
     }
     const day = t => Math.floor((t + 8 * 3600e3) / 864e5);
     all.forEach(x => {
       if (x.status === '蛋' && now >= x.hatch) { x.status = '寵物'; x.hp = Math.max(1, x.hp || 1); x.decay = day(x.hatch); }
       if (x.status === '寵物' && day(now) > x.decay) { x.hp -= day(now) - x.decay; x.decay = day(now); if (x.hp <= 0) { x.hp = 0; x.status = '死亡'; x.died = now; } }
     });
-    if (action === 'feedPet') { const x = all.find(y => y.id === p.id); if (!x || x.status !== '寵物') throw new Error('這隻寵物現在不能餵'); if (x.hp >= 10) throw new Error('牠已經吃飽了'); if (all.filter(y => y.owner === x.owner && y.status !== '死亡').reduce((s, y) => s + y.hp, 0) >= 10) throw new Error('這位主人的寵物加起來已經 10 HP（上限）'); x.hp++; x.fed = `${me} ${A.fmtTime(new Date())}`; (x.feedLog ||= []).push({ who: me, t: now }); }
+    tFix(all);
+    if (action === 'feedPet') { const x = all.find(y => y.id === p.id); if (!x || x.status !== '寵物') throw new Error('這隻寵物現在不能餵'); if (x.hp >= x.cap) throw new Error(`牠已經吃飽了（牠的上限是 ${x.cap} HP）`); x.hp++; x.fed = `${me} ${A.fmtTime(new Date())}`; (x.feedLog ||= []).push({ who: me, t: now }); }
     if (action === 'petLook') { const x = all.find(y => y.id === p.id); if (p.name != null) x.name = String(p.name).slice(0, 12); if (p.data) { x.imgId = 'i' + now.toString(36); store.set('indoor.petimgdata.test', { ...store.get('indoor.petimgdata.test', {}), [x.imgId]: p.data }); } }
     if (action === 'petAllot') {
-      const list = all.filter(x => x.owner === me && x.status !== '死亡'), total = list.reduce((s, x) => s + x.hp, 0), sum = list.reduce((s, x) => s + (p.plan[x.id] || 0), 0);
-      if (list.some(x => !(p.plan[x.id] >= 1))) throw new Error('每一隻至少要 1 HP');
-      if (sum !== total) throw new Error(`加起來要剛好 ${total} HP`);
-      list.forEach(x => { x.hp = p.plan[x.id]; });
+      const list = all.filter(x => x.owner === (A.isTeacher() ? p.owner : me) && x.status !== '死亡'), total = list.reduce((s, x) => s + x.cap, 0), sum = list.reduce((s, x) => s + (p.plan[x.id] || 0), 0);
+      if (list.some(x => !(p.plan[x.id] >= 1))) throw new Error('每一隻的上限至少要 1 HP');
+      if (sum !== total) throw new Error(`上限加起來要剛好 ${total} HP`);
+      list.forEach(x => { const c = p.plan[x.id]; x.hp = Math.max(1, Math.min(c, x.hp + c - x.cap)); x.cap = c; });
     }
-    const spread = (list, n) => { const k = list.length, base = Math.floor(n / k), ord = list.map((_, i) => i).sort(() => Math.random() - 0.5).slice(0, n % k); return list.map((_, i) => base + (ord.includes(i) ? 1 : 0)); };
     if (action === 'petDelete') {
       const i = all.findIndex(y => y.id === p.id), x = all[i];
       if (i >= 0) {
         all.splice(i, 1);
         const rest = all.filter(y => y.owner === x.owner && y.status !== '死亡');
-        if (rest.length && x.status !== '死亡') { const add = spread(rest, Math.max(0, Math.min(x.hp, 10 - rest.reduce((s, y) => s + y.hp, 0)))); rest.forEach((y, j) => { y.hp += add[j]; }); }
+        if (rest.length && x.status !== '死亡') { const o = rest.map((_, i) => i).sort(() => Math.random() - 0.5), ac = tSpread(rest, x.cap, o), ah = tSpread(rest, x.hp, o); rest.forEach((y, j) => { y.cap += ac[j]; y.hp = Math.min(y.cap, y.hp + ah[j]); }); }
       }
     }
-    // 同一位主人加起來最多 10 HP：超過就重新平均分配
-    [...new Set(all.filter(x => x.status !== '死亡').map(x => x.owner))].forEach(o => {
-      const list = all.filter(x => x.owner === o && x.status !== '死亡');
-      if (list.reduce((s, x) => s + x.hp, 0) > 10) { const hp = spread(list, 10); list.forEach((x, j) => { x.hp = Math.max(1, hp[j]); }); }
-    });
     if (action === 'petImage') { const x = all.find(y => y.id === p.id); return { ok: true, img: store.get('indoor.petimgdata.test', {})[x?.imgId] || '' }; }
     store.set(KEY, all);
     const feeders = x => { const m = {}; (x.feedLog || []).filter(f => f.t > now - 7 * 864e5).forEach(f => { m[f.who] = (m[f.who] || 0) + 1; }); return Object.entries(m).map(([key, n]) => ({ key, n })).sort((a, b) => b.n - a.n); };
