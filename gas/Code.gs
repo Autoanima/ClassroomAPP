@@ -1594,7 +1594,16 @@ function petDelete(who, id) {
   withLock(() => {
     const x = petRows().find(r => r.id === String(id));
     if (!x) throw new Error('找不到這顆蛋／這隻寵物');
-    petSheet().getRange(x.row, 10).setValue('刪除');
+    const sh = petSheet();
+    sh.getRange(x.row, 10).setValue('刪除');
+    // 被移除的那隻的 HP 平均分給同一位主人其他的蛋／寵物（除不盡的隨機多給某幾隻；加起來最多 10 HP）
+    const rest = petRows().filter(r => r.owner === x.owner && r.status !== '死亡' && r.id !== x.id);
+    if (x.status !== '死亡' && rest.length && x.hp > 0) {
+      const give = Math.max(0, Math.min(x.hp, PET.MAX_HP - rest.reduce((s, r) => s + r.hp, 0)));
+      const add = petSpread(rest, give);
+      rest.forEach((r, i) => { if (add[i]) sh.getRange(r.row, 8).setValue(r.hp + add[i]); });
+    }
+    petCapAll();
   });
   return getPets(who);
 }
@@ -1632,6 +1641,25 @@ function petTick() {
       const deadDay = dayN(x.decay) + days + x.hp;
       sh.getRange(x.row, 8, 1, 4).setValues([[0, today, '死亡', new Date(deadDay * 864e5 + 8 * 3600e3)]]);
     } else sh.getRange(x.row, 8, 1, 2).setValues([[x.hp, today]]);
+  });
+  petCapAll();
+}
+/** 把 n HP 平均加給 list（除不盡的隨機給某幾隻多 1 HP）；回傳新的 HP 陣列 */
+function petSpread(list, n) {
+  const k = list.length, base = Math.floor(n / k), extra = {};
+  const order = list.map((_, i) => i).sort(() => Math.random() - 0.5);
+  for (let j = 0; j < n % k; j++) extra[order[j]] = 1;
+  return list.map((x, i) => base + (extra[i] || 0));
+}
+/** 同一位主人的蛋＋寵物加起來不能超過 10 HP：超過的話重新平均分成 10 HP（除不盡的隨機多給某幾隻） */
+function petCapAll() {
+  const by = {}, sh = petSheet();
+  petRows().filter(x => x.status !== '死亡').forEach(x => (by[x.owner] = by[x.owner] || []).push(x));
+  Object.keys(by).forEach(o => {
+    const list = by[o];
+    if (list.reduce((s, x) => s + x.hp, 0) <= PET.MAX_HP) return;
+    const hps = petSpread(list, PET.MAX_HP);
+    list.forEach((x, i) => { x.hp = Math.max(1, hps[i]); sh.getRange(x.row, 8).setValue(x.hp); });
   });
 }
 const petPub = x => ({ id: x.id, owner: x.owner, reason: x.reason, born: x.born, hatch: x.hatch, name: x.name, img: x.img ? 1 : 0, imgId: x.img, hp: x.hp, status: x.status, died: x.died, fed: x.fed });

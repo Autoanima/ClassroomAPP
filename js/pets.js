@@ -281,7 +281,11 @@
     else openCard(x.id);
   }, true);
 
-  const hpBar = x => `<span class="pet-hp">${Array.from({ length: P.max }, (_, i) => `<i class="${i < x.hp ? 'on' : ''}"></i>`).join('')}<b>${x.hp}/${P.max} HP</b></span>`;
+  // HP 條：10 格是「同一位主人全部加起來」的上限；紅色是這隻的，淡紅色是同主人其他蛋／寵物的
+  const hpBar = x => {
+    const sib = P.pets.filter(y => y.owner === x.owner && y.status !== '死亡' && y.id !== x.id), o = Math.min(P.max - Math.min(x.hp, P.max), sib.reduce((s, y) => s + y.hp, 0));
+    return `<span class="pet-hp">${Array.from({ length: P.max }, (_, i) => `<i class="${i < x.hp ? 'on' : i < x.hp + o ? 'sib' : ''}"></i>`).join('')}<b>${x.hp} HP</b></span>${sib.length ? `<span class="muted small">主人的 ${sib.length + 1} 隻加起來 ${x.hp + o}/${P.max} HP（淡紅色是其他 ${sib.length} 隻的）</span>` : ''}`;
+  };
   const left = ms => { const m = Math.max(0, Math.round(ms / 60e3)); return m >= 60 ? `${Math.floor(m / 60)} 小時 ${m % 60} 分` : `${m} 分鐘`; };
   function cardHtml(x) {
     const mine = x.owner === A.me() || A.isTeacher();
@@ -331,7 +335,7 @@
     if (act === 'petFeed') return feed(b.dataset.id, b);
     if (act === 'petDel') {
       const x = P.pets.find(y => y.id === b.dataset.id);
-      if (!x || !await A.ask(`移除${nm(x.owner)}的這${x.status === '蛋' ? '顆寵物蛋' : '隻寵物'}？${x.reason ? `\n（原因：${x.reason}）` : ''}\n移除後不會再顯示，其他寵物的 HP 不變。`, '移除', true)) return;
+      if (!x || !await A.ask(`移除${nm(x.owner)}的這${x.status === '蛋' ? '顆寵物蛋' : '隻寵物'}？${x.reason ? `\n（原因：${x.reason}）` : ''}\n移除後不會再顯示，牠的 HP 會平均分給同一位主人其他的蛋／寵物。`, '移除', true)) return;
       b.disabled = true;
       try { P = await A.api('petDelete', { id: x.id }); toast('已移除'); A.closeSheet?.(); paintMap(true); if (A.currentTab() === 'pet') render(); }
       catch (err) { toast(err.message); b.disabled = false; }
@@ -464,7 +468,20 @@
       if (sum !== total) throw new Error(`加起來要剛好 ${total} HP`);
       list.forEach(x => { x.hp = p.plan[x.id]; });
     }
-    if (action === 'petDelete') { const i = all.findIndex(y => y.id === p.id); if (i >= 0) all.splice(i, 1); }
+    const spread = (list, n) => { const k = list.length, base = Math.floor(n / k), ord = list.map((_, i) => i).sort(() => Math.random() - 0.5).slice(0, n % k); return list.map((_, i) => base + (ord.includes(i) ? 1 : 0)); };
+    if (action === 'petDelete') {
+      const i = all.findIndex(y => y.id === p.id), x = all[i];
+      if (i >= 0) {
+        all.splice(i, 1);
+        const rest = all.filter(y => y.owner === x.owner && y.status !== '死亡');
+        if (rest.length && x.status !== '死亡') { const add = spread(rest, Math.max(0, Math.min(x.hp, 10 - rest.reduce((s, y) => s + y.hp, 0)))); rest.forEach((y, j) => { y.hp += add[j]; }); }
+      }
+    }
+    // 同一位主人加起來最多 10 HP：超過就重新平均分配
+    [...new Set(all.filter(x => x.status !== '死亡').map(x => x.owner))].forEach(o => {
+      const list = all.filter(x => x.owner === o && x.status !== '死亡');
+      if (list.reduce((s, x) => s + x.hp, 0) > 10) { const hp = spread(list, 10); list.forEach((x, j) => { x.hp = Math.max(1, hp[j]); }); }
+    });
     if (action === 'petImage') { const x = all.find(y => y.id === p.id); return { ok: true, img: store.get('indoor.petimgdata.test', {})[x?.imgId] || '' }; }
     store.set(KEY, all);
     const feeders = x => { const m = {}; (x.feedLog || []).filter(f => f.t > now - 7 * 864e5).forEach(f => { m[f.who] = (m[f.who] || 0) + 1; }); return Object.entries(m).map(([key, n]) => ({ key, n })).sort((a, b) => b.n - a.n); };

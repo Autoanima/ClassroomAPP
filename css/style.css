@@ -1920,3 +1920,5 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .ar-board tr.me td { background: rgba(255, 200, 0, .14); font-weight: 700; }
 .ar-hist summary { cursor: pointer; }
 .ar-day { margin: 10px 0 2px; font-size: 13px; color: var(--muted, #888); }
+
+.pet-hp i.sib { background: #f4a6a6; }
