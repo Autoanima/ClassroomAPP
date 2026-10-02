@@ -225,6 +225,8 @@
     const a = d === x.from ? x.fromP : 1, b = d === x.to ? x.toP : 7;
     return { a, b, all: a <= 1 && b >= 7 };
   }
+  // 第 1～7 節橫向切成 7 格，請假的節塗滿（早自習算在第 1 節前面，不另外畫）
+  const ppBar = r => `<span class="cal-pp" aria-label="${rangeText(r)}">${[1, 2, 3, 4, 5, 6, 7].map(p => `<i class="${p >= Math.max(1, r.a) && p <= r.b ? 'on' : ''}"></i>`).join('')}</span>`;
   const rangeText = r => (r.all ? '全天' : r.a === r.b ? pName(r.a) : `${pName(r.a)}～${pName(r.b)}`);
   function calendarHtml() {
     calMonth ||= today().slice(0, 7);
@@ -237,12 +239,12 @@
       const d = ymdStr(new Date(y, m - 1, dd)), wd = new Date(y, m - 1, dd).getDay();
       const on = L.rows.filter(x => dayRange(x, d));
       cells.push(`<div class="cal-cell${d === td ? ' today' : ''}${wd % 6 === 0 ? ' wkend' : ''}${on.length ? ' has' : ''}"${on.length ? ` data-lv="calDay" data-d="${d}" role="button" tabindex="0" aria-label="${m}月${dd}日 ${on.length} 人請假"` : ''}><span class="cal-d">${dd}</span>
-        ${on.map(x => `<span class="cal-nm ${deptCls(x.key)} ${TYPE_CLS[x.type] || ''}">${esc(A.parseKey(x.key).name || x.key)}</span>`).join('')}</div>`);
+        ${on.map(x => `<span class="cal-nm ${deptCls(x.key)} ${TYPE_CLS[x.type] || ''}">${esc(A.parseKey(x.key).name || x.key)}${ppBar(dayRange(x, d))}</span>`).join('')}</div>`);
     }
     return `<div class="panel lv-cal"><div class="cal-head"><button type="button" class="btn" data-lv="calPrev" aria-label="上個月">‹</button>
         <b>📅 ${y} 年 ${m} 月</b><button type="button" class="btn" data-lv="calNext" aria-label="下個月">›</button></div>
       <div class="cal-grid">${'日一二三四五六'.split('').map(w => `<div class="cal-w">${w}</div>`).join('')}${cells.join('')}</div>
-      <div class="cal-legend"><span class="cal-nm dp-data">資料科</span><span class="cal-nm dp-mm">多媒科</span><span class="muted small">左邊色條＝假別：</span>${TYPES.map(t => `<span class="cal-tl ${TYPE_CLS[t]}">${t}</span>`).join('')}</div>
+      <div class="cal-legend"><span class="cal-nm dp-data">資料科</span><span class="cal-nm dp-mm">多媒科</span><span class="muted small">名字下方 7 格＝第 1～7 節（亮的是請假的節）；左邊色條＝假別：</span>${TYPES.map(t => `<span class="cal-tl ${TYPE_CLS[t]}">${t}</span>`).join('')}</div>
       <p class="muted small">點一下日期，會放大那一天，再點名字看詳細。</p></div>`;
   }
   // 科別底色：料＝資料科（洋紅）、多＝多媒科（深藍）

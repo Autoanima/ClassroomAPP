@@ -2007,3 +2007,11 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .lv-gdet { margin: 4px 0; }
 .lv-gdet > summary { cursor: pointer; color: var(--muted); }
 .lv-gdet .lv-item { margin: 8px 0 0; }
+
+/* 請假行事曆：名字下方 7 格＝第 1～7 節 */
+.cal-cell .cal-nm { display: block; }
+.cal-pp { display: flex; gap: 1px; margin-top: 2px; height: 5px; }
+.cal-pp i { flex: 1; border-radius: 1px; background: rgba(255,255,255,.22); }
+.cal-pp i.on { background: #fff; }
+.cal-nm:not(.dp-data):not(.dp-mm) .cal-pp i { background: rgba(0,0,0,.12); }
+.cal-nm:not(.dp-data):not(.dp-mm) .cal-pp i.on { background: currentColor; }
