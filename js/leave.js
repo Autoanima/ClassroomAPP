@@ -227,6 +227,7 @@
   }
   // 第 1～7 節橫向切成 7 格，請假的節塗滿（早自習算在第 1 節前面，不另外畫）
   const ppBar = r => `<span class="cal-pp" aria-label="${rangeText(r)}">${[1, 2, 3, 4, 5, 6, 7].map(p => `<i class="${p >= Math.max(1, r.a) && p <= r.b ? 'on' : ''}"></i>`).join('')}</span>`;
+  const ppBig = r => `<span class="cz-pp" aria-label="${rangeText(r)}">${[1, 2, 3, 4, 5, 6, 7].map(p => `<i class="${p >= Math.max(1, r.a) && p <= r.b ? 'on' : ''}">${p}</i>`).join('')}</span>`;
   const rangeText = r => (r.all ? '全天' : r.a === r.b ? pName(r.a) : `${pName(r.a)}～${pName(r.b)}`);
   function calendarHtml() {
     calMonth ||= today().slice(0, 7);
@@ -261,10 +262,10 @@
     if (x) {
       const r = dayRange(x, d);
       const full = isT() ? itemHtml(x, true) : L.monitor ? itemHtml(x, false, true) : itemHtml(x, false);
-      body = `<div class="cz-who ${deptCls(x.key)} ${TYPE_CLS[x.type] || ''}"><b>${esc(nm(x.key))}</b><span>${esc(x.type)}・這一天 ${rangeText(r)}</span></div>${full}`;
+      body = `<div class="cz-who ${deptCls(x.key)} ${TYPE_CLS[x.type] || ''}"><b>${esc(nm(x.key))}</b><span>${esc(x.type)}・這一天 ${rangeText(r)}</span>${ppBig(r)}</div>${full}`;
     } else {
       body = on.length ? `<div class="cz-list">${on.map(y => `<button type="button" class="cz-nm ${deptCls(y.key)} ${TYPE_CLS[y.type] || ''}" data-lv="zoomItem" data-id="${esc(y.id)}">
-          <b>${esc(A.parseKey(y.key).name || y.key)}</b><span>${esc(A.parseKey(y.key).code || '')}・${esc(y.type)}・${rangeText(dayRange(y, d))}</span></button>`).join('')}</div>`
+          <b>${esc(A.parseKey(y.key).name || y.key)}</b><span>${esc(A.parseKey(y.key).code || '')}・${esc(y.type)}・${rangeText(dayRange(y, d))}</span>${ppBig(dayRange(y, d))}</button>`).join('')}</div>`
         : '<p class="muted">這一天沒有人請假。</p>';
     }
     return `<div class="cal-zoom${zoom.pop ? ' pop' : ''}" data-lv="zoomClose"><div class="cz-box" data-lv="zoomBox" role="dialog" aria-label="${title} 請假">

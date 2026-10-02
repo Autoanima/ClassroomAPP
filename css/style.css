@@ -2015,3 +2015,8 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .cal-pp i.on { background: #fff; }
 .cal-nm:not(.dp-data):not(.dp-mm) .cal-pp i { background: rgba(0,0,0,.12); }
 .cal-nm:not(.dp-data):not(.dp-mm) .cal-pp i.on { background: currentColor; }
+
+/* 放大的那一天：第 1～7 節橫條（有節數） */
+.cz-pp { display: flex; gap: 3px; margin-top: 6px; width: 100%; }
+.cz-pp i { flex: 1; height: 18px; border-radius: 4px; background: rgba(255,255,255,.16); color: rgba(255,255,255,.55); font-style: normal; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
+.cz-pp i.on { background: #fff; color: #222; }
