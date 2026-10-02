@@ -167,8 +167,12 @@ function doPost(e) {
       case 'leaveCard': return json(leaveCard(who, String(req.id || ''), req.data));
       case 'getLeaveCard': return json(getLeaveCard(who, req.fid));
       case 'delLeaveCard': return json(delLeaveCard(who, String(req.id || ''), String(req.fid || '')));
-      case 'setLeaveStatus': return json(setLeaveStatus(who, String(req.id || ''), String(req.status || ''), req.reply));
-      case 'cancelLeave': return json(cancelLeave(who, String(req.id || '')));
+      case 'setLeaveStatus':
+        if (Array.isArray(req.ids)) { req.ids.forEach(id => setLeaveStatus(who, String(id), String(req.status || ''), req.reply, true)); return json(getLeave(who)); }
+        return json(setLeaveStatus(who, String(req.id || ''), String(req.status || ''), req.reply));
+      case 'cancelLeave':
+        if (Array.isArray(req.ids) && who.teacher) { req.ids.forEach(id => cancelLeave(who, String(id), true)); return json(getLeave(who)); }
+        return json(cancelLeave(who, String(req.id || '')));
       case 'remindLeaveCard': return json(remindLeaveCard(who, String(req.id || '')));
       case 'editLeave': return json(editLeave(who, String(req.id || ''), req.row || {}));
       case 'setLeaveRules': return json(setLeaveRules(who, req.text));
@@ -3658,7 +3662,7 @@ function delLeaveCard(who, id, fid) {
   return getLeave(who);
 }
 /** 導師：確認（已確認）或退回（寫原因）；同學會收到飛鴿傳書 */
-function setLeaveStatus(who, id, status, reply) {
+function setLeaveStatus(who, id, status, reply, quiet) {
   if (!who.teacher) throw new Error('只有導師可以確認請假');
   if (['已確認', '退回'].indexOf(status) < 0) throw new Error('狀態不對');
   reply = String(reply || '').trim().slice(0, 200);
@@ -3666,7 +3670,7 @@ function setLeaveStatus(who, id, status, reply) {
   if (!x) throw new Error('找不到這筆請假');
   withLock(() => { const sh = leaveSheet(); sh.getRange(x.row, 10).setValue(status); sh.getRange(x.row, 12).setValue(reply); sh.getRange(x.row, 14).setValue(new Date()); });
   botMail([[x.key, (status === '已確認' ? '✅ 導師已經確認你的請假\n' : '↩ 導師退回了你的請假，請依說明處理後再上傳\n') + leaveText(x) + (reply ? '\n導師說明：' + reply : '') + '\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
-  return getLeave(who);
+  return quiet ? null : getLeave(who);
 }
 /** 導師發飛鴿傳書提醒同學：跑完簽核後上傳假卡照片 */
 function remindLeaveCard(who, id) {
@@ -3700,7 +3704,7 @@ function editLeave(who, id, r) {
   else botMail([[CONFIG.TEACHER_NAME, '✏️ ' + x.key + ' 修改了請假\n原本：' + leaveText(x) + '\n改成：' + leaveText(y) + '\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
   return getLeave(who);
 }
-function cancelLeave(who, id) {
+function cancelLeave(who, id, quiet) {
   const x = leaveRows().find(r => r.id === id);
   if (!x || (!who.teacher && x.key !== who.key)) throw new Error('找不到這筆請假');
   if (!who.teacher && x.status === '已確認') throw new Error('導師已經確認了，要取消請直接跟導師說');
@@ -3708,7 +3712,7 @@ function cancelLeave(who, id) {
   // 同學自己取消：通知導師（導師幫同學取消：通知同學）
   if (!who.teacher) botMail([[CONFIG.TEACHER_NAME, '🗑 ' + x.key + ' 取消了請假\n' + leaveText(x) + (x.cards.length ? '\n（原本已上傳假卡 ' + x.cards.length + ' 張）' : '') + '\n紀錄還留在試算表「請假」工作表（狀態：已取消）。\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
   else botMail([[x.key, '🗑 導師取消了你的請假\n' + leaveText(x) + '\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
-  return getLeave(who);
+  return quiet ? null : getLeave(who);
 }
 function setLeaveRules(who, text) {
   if (!who.teacher) throw new Error('只有導師可以編輯請假規則');

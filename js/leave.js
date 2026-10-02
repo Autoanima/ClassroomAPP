@@ -135,6 +135,37 @@
       ${btns.length ? `<div class="lv-acts"><div class="lv-acts-h">可以做的事</div><div class="lv-btns">${btns.join('')}</div></div>` : ''}
       <div class="muted small">${esc(x.time)} 由 ${esc(x.by === x.key ? '本人' : x.by)} 登記・${periods(x)} 節</div>${timerText(x)}</div>`;
   }
+  // ── 公假：同一天、同一個時段（從第幾節到第幾節都一樣）的合併成一張卡片 ──
+  function groupGong(list) {
+    const out = [], at = {};
+    list.forEach(x => {
+      if (!isGong(x)) return out.push([x]);
+      const k = `${x.from}|${x.fromP}|${x.to}|${x.toP}`;
+      if (at[k] != null) out[at[k]].push(x); else { at[k] = out.length; out.push([x]); }
+    });
+    out.forEach(g => g.sort((a, b) => byKey(a.key, b.key)));
+    return out;
+  }
+  function groupHtml(xs, teacher, ro) {
+    const x0 = xs[0], ids = xs.map(x => x.id).join(','), allOk = xs.every(x => x.status === '已確認');
+    const left = xs.filter(x => x.status !== '已確認');
+    const mark = x => (x.status === '已確認' ? '✓ ' : x.status === '已上傳假卡' ? '📷 ' : x.status === '退回' ? '↩ ' : '');
+    const notes = [...new Set(xs.map(x => x.note).filter(Boolean))];
+    const flow = `<ol class="lv-flow">${FLOW.gong.map((t, i) => `<li class="${allOk || i === 0 ? 'done' : i === 1 ? 'next' : ''}"><span class="n">${allOk || i === 0 ? '✓' : i + 1}</span><span class="t">${t}</span></li>`).join('')}</ol>`;
+    const nCard = xs.reduce((t, x) => t + (x.cards?.length || x.nCards || 0), 0);
+    let btns = '';
+    if (teacher && left.length) btns = `<div class="lv-acts"><div class="lv-acts-h">可以做的事</div><div class="lv-btns">
+      <button type="button" class="btn btn--primary" data-lv="gOk" data-ids="${esc(left.map(x => x.id).join(','))}">✓ 導師確認（${left.length === xs.length ? '全部 ' : ''}${left.length} 人）</button>
+      <button type="button" class="link-btn" data-lv="gCancel" data-ids="${esc(ids)}">取消全部</button></div></div>`;
+    return `<div class="lv-item lv-group${allOk ? ' done filed' : ''}">
+      <div class="lv-top"><span class="lv-type ${TYPE_CLS[x0.type] || ''}">${esc(x0.type)}</span><b>${esc(when(x0))}</b><span class="lv-who">${xs.length} 位同學</span></div>
+      ${!ro && notes.length ? `<div class="small">${notes.map(esc).join('／')}</div>` : ''}
+      <div class="lv-gnames">${xs.map(x => `<span class="lv-gn${x.status === '已確認' ? ' ok' : ''}">${mark(x)}${esc(nm(x.key))}</span>`).join('')}</div>
+      <div class="lv-steps">${flow}<div class="lv-flow-after${allOk ? ' ok' : ''}">${allOk ? '✅ 導師已在 App 確認' : `已確認 ${xs.length - left.length}／${xs.length} 人・公差單照片選填${nCard ? `（已上傳 ${nCard} 張）` : ''}`}</div></div>
+      ${btns}
+      <details class="lv-gdet"><summary class="small">個別處理（上傳公差單、退回或取消其中一位）</summary>${xs.map(x => itemHtml(x, teacher, ro)).join('')}</details>
+      <div class="muted small">${esc(x0.time)} 由 ${esc(x0.by === x0.key ? '本人' : x0.by)} 登記・每人 ${periods(x0)} 節</div></div>`;
+  }
   // ── 計時：從登記請假到上傳假卡，總共花了幾天 ──
   const took = x => (x.cardT && x.t ? x.cardT - x.t : null);
   const durText = ms => (ms < 86400e3 ? `不到 1 天（${Math.max(1, Math.round(ms / 3600e3))} 小時）` : `${(ms / 86400e3).toFixed(1)} 天`);
@@ -283,7 +314,7 @@
       ${ro ? '<p class="muted small">班長、副班長可以看；說明和假卡只有導師看得到。</p>' : ''}
       <div class="lv-views">${tab('todo', '待處理', todo)}${L.rows.some(isLate) ? tab('late', '⚠️ 逾期未交假卡', L.rows.filter(isLate).length) : ''}${tab('month', '本月')}${tab('all', '全部')}</div>
       ${sortBtns}
-      ${list.length ? list.map(x => itemHtml(x, !ro, ro)).join('') : `<p class="muted small">${view === 'todo' ? '沒有待處理的請假 🎉' : '沒有紀錄。'}</p>`}</details>`;
+      ${list.length ? groupGong(list).map(g => (g.length > 1 ? groupHtml(g, !ro, ro) : itemHtml(g[0], !ro, ro))).join('') : `<p class="muted small">${view === 'todo' ? '沒有待處理的請假 🎉' : '沒有紀錄。'}</p>`}</details>`;
     // 統計：每位同學各假別的節數（已取消的不算）
     const stat = {};
     L.rows.forEach(x => { const s = (stat[x.key] ||= {}); s[x.type] = (s[x.type] || 0) + periods(x); });
@@ -362,6 +393,13 @@
     if (!b || b.disabled) return;
     const act = b.dataset.lv, x = L?.rows.find(r => r.id === b.dataset.id);
     if (act === 'zoomBox') return;
+    if (act === 'gOk' || act === 'gCancel') {   // 合併的公假：一次確認／取消全部
+      const ids = b.dataset.ids.split(',').filter(Boolean), who = ids.map(id => nm(L.rows.find(r => r.id === id)?.key || '')).join('、');
+      if (!await A.ask(act === 'gOk' ? `確認這 ${ids.length} 位同學的公假？\n${who}\n（每位同學會收到飛鴿傳書）` : `取消這 ${ids.length} 位同學的公假？\n${who}`, act === 'gOk' ? '全部確認' : '全部取消', act === 'gCancel')) return;
+      b.disabled = true;
+      try { L = await A.api(act === 'gOk' ? 'setLeaveStatus' : 'cancelLeave', { ids, status: '已確認', reply: '' }); toast(act === 'gOk' ? `✓ 已確認 ${ids.length} 位` : `已取消 ${ids.length} 位`); } catch (err) { toast(err.message); b.disabled = false; return; }
+      render(); return;
+    }
     if (act === 'calDay') { zoom = { d: b.dataset.d, id: null, pop: true }; paintZoom(); zoom.pop = false; return; }
     if (act === 'zoomClose') { zoom = null; paintZoom(); return; }
     if (act === 'zoomBack') { zoom.id = null; paintZoom(); return; }
@@ -452,9 +490,9 @@
     if (action === 'addLeave') { const r = p.row; (A.isTeacher() && r.keys ? r.keys : [A.isTeacher() ? r.key : me]).forEach((k, i) => all.push({ id: 'lv' + Date.now() + i, time, t: Date.now(), cardT: 0, key: k, type: r.type, from: r.from, fromP: r.fromP, to: r.to, toP: r.toP, note: r.note || '', status: '已登記', cards: [], reply: '', by: me })); }
     if (action === 'leaveCard') { const x = find(p.id), cid = 'c' + Date.now(); store.set(CK, { ...store.get(CK, {}), [cid]: p.data }); x.cards.push(cid); x.status = '已上傳假卡'; x.cardT ||= Date.now(); }
     if (action === 'getLeaveCard') { const d = store.get(CK, {})[p.fid]; if (!d) throw new Error('找不到這張假卡'); return { ok: true, d }; }
-    if (action === 'setLeaveStatus') { const x = find(p.id); x.status = p.status; x.reply = p.reply || ''; }
+    if (action === 'setLeaveStatus') (p.ids || [p.id]).forEach(id => { const x = find(id); x.status = p.status; x.reply = p.reply || ''; });
     if (action === 'delLeaveCard') { const x = find(p.id); x.cards = x.cards.filter(c => c !== p.fid); if (!x.cards.length && x.status === '已上傳假卡') x.status = '已登記'; }
-    if (action === 'cancelLeave') { const x = find(p.id); x.status = '已取消'; }
+    if (action === 'cancelLeave') (p.ids || [p.id]).forEach(id => { find(id).status = '已取消'; });
     if (action === 'editLeave') { const x = find(p.id); Object.assign(x, { type: p.row.type, from: p.row.from, fromP: p.row.fromP, to: p.row.to, toP: p.row.toP, note: p.row.note || '' }); }
     if (action === 'setLeaveRules') store.set(RK, p.text || '');
     store.set(KEY, all);
