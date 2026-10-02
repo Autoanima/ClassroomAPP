@@ -1383,8 +1383,7 @@ function lunchTick() {
     if (L.locked && !L.skip && !props.getProperty(k3)) { // 週五 12:00（或提前）：截止，通知總務和有訂的同學
       const report = lunchReport(L, rows, students);
       botMail(treasurers().concat([CONFIG.TEACHER_NAME]).map(k => [k, '📋 本週便當登記已截止，以下是統計（可以複製傳到 LINE 群組）：\n\n' + report]));
-      botMail(yes.map(k => [k, '🍱 你登記了 ' + L.meal + ' 的便當。\n請在今天（' + L.cutDay + '）放學前把便當費交給總務，逾時未交會取消訂餐喔！
-🪙 請繳交剛好的金額，不要讓總務還要準備零錢找你，貼心減輕幹部工作量！']));
+      botMail(yes.map(k => [k, '🍱 你登記了 ' + L.meal + ' 的便當。\n請在今天（' + L.cutDay + '）放學前把便當費交給總務，逾時未交會取消訂餐喔！\n🪙 請繳交剛好的金額，不要讓總務還要準備零錢找你，貼心減輕幹部工作量！']));
       props.setProperty(k3, '1');
     }
   });
