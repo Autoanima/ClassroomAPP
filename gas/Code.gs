@@ -1600,6 +1600,16 @@ function getPets(who) {
         if (last) petLay(String(last[1]).trim(), String(last[4]), Date.now());
       }
     }
+    // 補一次：最近 3 天被加分（包含擂台賽獲勝）但還沒有寵物蛋的同學，每人每天補一顆
+    const props = PropertiesService.getScriptProperties();
+    if (!props.getProperty('PET_BACKFILL_2')) {
+      const psh = pointsSheet(), since = Date.now() - 3 * 864e5;
+      if (psh.getLastRow() > 1) psh.getRange(2, 1, psh.getLastRow() - 1, 7).getValues().forEach(r => {
+        const t = r[6] instanceof Date ? r[6].getTime() : r[0] instanceof Date ? r[0].getTime() : 0;
+        if (Number(r[2]) > 0 && String(r[1]).trim() && t >= since) petLay(String(r[1]).trim(), String(r[4]), t);
+      });
+      props.setProperty('PET_BACKFILL_2', '1');
+    }
     petTick();
   });
   const week = Date.now() - 7 * 864e5;   // 死掉超過一週的不顯示
@@ -2620,6 +2630,7 @@ function arenaFinish(x) {
   sh.getRange(at, 1, 1, HEAD_POINTS.length).setValues([[d, win, 1, '擂台賽', subj + '擂台賽打敗 ' + faceCode(lose) + '（' + wr.n + '：' + lr.n + '）', ARENA_BOT, d, 'AR-' + x.id]]);
   sh.getRange(at, 1).setNumberFormat('yyyy/mm/dd');
   sh.getRange(at, 7).setNumberFormat('yyyy/mm/dd hh:mm');
+  try { petLay(win, subj + '擂台賽打敗 ' + faceCode(lose)); } catch (e) { Logger.log('寵物蛋：' + e); }   // 🐾 擂台賽獲勝也算被加分，生一顆寵物蛋
   const tie = wr.n === lr.n ? '（答對題數一樣，你比較快）' : '';
   botMail([
     [win, '👑 你在' + subj + '擂台賽打敗了 ' + lose + '！（' + wr.n + '：' + lr.n + '）' + tie + '\n獲得商店點數 1 點，座位上也戴上了皇冠（顯示一天）。' + url],
