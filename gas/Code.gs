@@ -207,6 +207,7 @@ function doPost(e) {
       case 'petLook': return json(petLook(who, req.id, req.name, req.data));
       case 'petImage': return json(petImage(req.id));
       case 'petAllot': return json(petAllot(who, req.owner, req.plan || {}));
+      case 'petDelete': return json(petDelete(who, req.id));
       case 'pointsBoard': return json(pointsBoard(who));
       case 'delPoints': return json(delPoints(req.id, who));
       case 'shopState': return json(shopState(who));
@@ -1559,27 +1560,41 @@ function petRows() {
   return sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_PET.length).getValues().map((r, i) => ({
     row: i + 2, id: String(r[0]), owner: String(r[1]), reason: String(r[2]), born: ms(r[3]), hatch: ms(r[4]), name: String(r[5]), img: String(r[6]),
     hp: Number(r[7]) || 0, decay: String(r[8]), status: String(r[9]), died: ms(r[10]), fed: String(r[11]),
-  })).filter(x => x.id);
+  })).filter(x => x.id && x.status !== '刪除');
 }
-/** 生一顆蛋（同一個人同一天只生一顆） */
 /** 生蛋：被加幾分就生幾顆（每位主人的蛋＋活著的寵物最多 10 隻）。
- *  同一位主人的蛋和寵物共用 10 HP：生新蛋時重新平均分配（主人之後可以自己調整，例如 8／1／1） */
+ *  10 HP 是同一位主人所有蛋＋寵物加起來的「上限」：新蛋只拿剩下的空間，不會把舊寵物的 HP 補滿或重新分配；
+ *  沒有空間時，從 HP 最多的那隻借 1 HP 給新蛋（每隻至少 1 HP） */
+function petNewHp(live, k) {
+  const room = Math.max(0, PET.MAX_HP - live.reduce((s, x) => s + x.hp, 0));
+  const hps = Array.from({ length: k }, (_, i) => Math.floor(room / k) + (i < room % k ? 1 : 0));
+  hps.forEach((v, i) => {
+    if (v >= 1) return;
+    const big = live.slice().sort((a, b) => b.hp - a.hp)[0];
+    if (big && big.hp > 1) { big.hp--; big.lent = true; }
+    hps[i] = 1;
+  });
+  return hps;
+}
 function petLay(owner, reason, when, n) {
   const t = when || Date.now(), live = petRows().filter(x => x.owner === owner && x.status !== '死亡');
   const k = Math.max(0, Math.min(Math.round(Number(n) || 1), PET.MAX_HP - live.length));
   if (!k) return 0;
-  const sh = petSheet(), at = sh.getLastRow() + 1;
-  sh.getRange(at, 1, k, HEAD_PET.length).setValues(Array.from({ length: k }, () => [Utilities.getUuid().slice(0, 8), owner, String(reason || '').slice(0, 60), new Date(t), new Date(t + PET.HATCH_H * 3600e3), '', '', 1, '', '蛋', '', '']));
+  const sh = petSheet(), at = sh.getLastRow() + 1, hps = petNewHp(live, k);
+  sh.getRange(at, 1, k, HEAD_PET.length).setValues(hps.map(hp => [Utilities.getUuid().slice(0, 8), owner, String(reason || '').slice(0, 60), new Date(t), new Date(t + PET.HATCH_H * 3600e3), '', '', hp, '', '蛋', '', '']));
   sh.getRange(at, 4, k, 2).setNumberFormat('yyyy/mm/dd hh:mm');
-  petSplit(owner);
+  live.filter(x => x.lent).forEach(x => sh.getRange(x.row, 8).setValue(x.hp));
   return k;
 }
-/** 把 10 HP 平均分給這位主人的蛋和活著的寵物（除不盡的多給比較早出生的） */
-function petSplit(owner) {
-  const list = petRows().filter(x => x.owner === owner && x.status !== '死亡').sort((a, b) => a.born - b.born);
-  if (!list.length) return;
-  const base = Math.floor(PET.MAX_HP / list.length), rem = PET.MAX_HP % list.length, sh = petSheet();
-  list.forEach((x, i) => sh.getRange(x.row, 8).setValue(Math.max(1, base + (i < rem ? 1 : 0))));
+/** 導師移除一顆蛋／一隻寵物（例如多生出來的）：狀態改成「刪除」，不會再顯示；其他寵物的 HP 不變 */
+function petDelete(who, id) {
+  if (!who.teacher) throw new Error('只有導師可以移除');
+  withLock(() => {
+    const x = petRows().find(r => r.id === String(id));
+    if (!x) throw new Error('找不到這顆蛋／這隻寵物');
+    petSheet().getRange(x.row, 10).setValue('刪除');
+  });
+  return getPets(who);
 }
 /** 主人重新分配 HP（只能互相移動，總數不能變多；每隻至少 1 HP） */
 function petAllot(who, owner, plan) {
