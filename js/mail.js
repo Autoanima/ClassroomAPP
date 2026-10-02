@@ -33,7 +33,7 @@
     if (!mails.length) h += `<p class="muted center">目前沒有信。</p>`;
     const seen = new Set(store.get(SEEN, []));
     mails.forEach(m => {
-      h += `<div class="mail-card${seen.has(m.id) ? '' : ' new'}"><div class="mail-head"><b>來自 ${esc(m.from)}</b><span class="muted small">${esc(m.time)}</span></div>
+      h += `<div class="mail-card${seen.has(m.id) ? '' : ' new'}"><div class="mail-head"><b>來自 ${esc(m.from)}</b><span class="muted small">${esc(m.time)}</span><button type="button" class="mail-del" data-act="mailDel" data-id="${esc(m.id)}" aria-label="刪除這封信" title="刪除這封信">✕</button></div>
         ${mailBody(m.text)}
         <div class="mail-foot muted small">${esc(leftText(m.t))}${(A.students().includes(m.from) || m.from === A.D.teacherLabel) && canMail() ? `<button type="button" class="link-btn" data-act="mailReply" data-to="${esc(m.from)}">↩ 回信</button>` : `<button type="button" class="link-btn" data-act="mailCopy" data-id="${esc(m.id)}">📋 複製</button>`}</div></div>`;
     });
@@ -76,6 +76,14 @@
     if (act === 'mailGo') { A.closeSheet(); A.showTab(b.dataset.tab); return; }
     if (act === 'mailNew') return openCompose();
     if (act === 'mailReply') return openCompose(b.dataset.to);
+    if (act === 'mailDel') {
+      const m = mails.find(x => x.id === b.dataset.id);
+      if (!m || !await A.ask(`刪除這封信？\n來自 ${m.from}（${m.time}）`, '刪除', true)) return;
+      b.disabled = true;
+      try { const r = await A.api('delMail', { id: m.id }); mails = r.mails || mails.filter(x => x.id !== m.id); toast('已刪除'); paintBtn(); openInbox(); }
+      catch (err) { toast(err.message); b.disabled = false; }
+      return;
+    }
     if (act === 'mailCopy') { const m = mails.find(x => x.id === b.dataset.id); toast(m && await A.copyText(m.text.replace(/^[^\n]*\n\n/, '')) ? '✓ 已複製，可以貼到 LINE 群組' : '複製失敗'); return; }
     if (act !== 'mailSend') return;
     const to = $('#mailTo').value, text = ($('#mailText').value || '').trim();
@@ -115,7 +123,8 @@
   const prevTest = A.testSeatApi;
   A.testSeatApi = async (action, p = {}) => {
     const all = () => store.get(TEST_KEY, []).filter(x => Date.now() - x.t < KEEP_DAYS * 86400e3);
-    if (action === 'getMail') return { ok: true, mails: all().filter(x => x.to === me()).sort((a, b) => b.t - a.t) };
+    if (action === 'getMail') return { ok: true, mails: all().filter(x => x.to === me() && !x.del).sort((a, b) => b.t - a.t) };
+    if (action === 'delMail') { store.set(TEST_KEY, store.get(TEST_KEY, []).map(x => (x.id === p.id && x.to === me() ? { ...x, del: 1 } : x))); return { ok: true, mails: all().filter(x => x.to === me() && !x.del).sort((a, b) => b.t - a.t) }; }
     if (action === 'sendMail') {
       const t = new Date();
       store.set(TEST_KEY, [...all(), { id: Math.random().toString(36).slice(2, 10), t: t.getTime(), time: `${A.pad2(t.getMonth() + 1)}/${A.pad2(t.getDate())} ${A.fmtTime(t)}`, from: me(), to: p.to, text: String(p.text).slice(0, 200) }]);

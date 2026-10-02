@@ -479,6 +479,7 @@
     if (!L || !L.order?.length) {
       h += `<h3>🎯 依段考班名次現場選位</h3>
         <p class="small">依「段考排名」的班名次（段考表現＋那段期間的加扣分）排順序，第 1 名先選。</p>
+        ${A.isTeacher() ? rankUpHtml() : ''}
         <div class="rank-pick">${['第一次', '第二次', '第三次'].map((n, i) => `<button type="button" class="btn${rankInfo?.has?.[i] ? ' btn--primary' : ''}" data-lv="rank" data-exam="${i}">${n}段考班名次</button>`).join('')}</div>
         <details class="field"><summary class="small"><b>或用其他名單</b></summary>
         <h3>依名單順序現場選位</h3>
@@ -512,7 +513,8 @@
     L.order.forEach((k, i) => {
       const seat = L.started ? seatOf(k) : '';
       const cur = L.started && i === L.idx;
-      h += `<li class="${cur ? 'cur' : ''}${seat ? ' done' : ''}"><span class="pos">${i + 1}</span><span class="who">${esc(k)}</span><span></span><span class="st">${seat || (cur ? '⏳ 選位中' : '')}</span></li>`;
+      const d = L.detail?.[k];
+      h += `<li class="${cur ? 'cur' : ''}${seat ? ' done' : ''}"><span class="pos">${i + 1}</span><span class="who">${esc(k)}${d ? `<small class="rk-why">科排 ${d.dr}（${d.pct}%）${d.bonus ? `・加扣分 ${d.bonus > 0 ? '+' : ''}${d.bonus}` : ''}</small>` : ''}</span><span></span><span class="st">${seat || (cur ? '⏳ 選位中' : '')}</span></li>`;
     });
     return h + `</ol></details></div>`;
   }
@@ -559,6 +561,8 @@
       useList(rows, '貼上的名單');
     } else if (act === 'rank') {
       return useRank(+(el?.dataset.exam || 0));
+    } else if (act === 'upExam') {
+      upExam = +el.dataset.exam; store.set('indoor.rankup.exam', upExam); renderAll();
     } else if (act === 'demo') {
       useList([...A.students()].sort(() => Math.random() - 0.5).map(k => [k]), '示範名單（隨機）');
     }
@@ -569,6 +573,7 @@
       toast('讀取班名次中…');
       const r = await A.api('rankOrder', { exam });
       await useList(r.order.map(k => [k]), r.label + (r.noRank?.length ? `（${r.noRank.length} 人沒有成績，排在最後）` : ''));
+      if (live && r.detail) { live.detail = r.detail; saveLive(); renderAll(); }
       if (r.url) { rankInfo = { ...(rankInfo || {}), url: r.url }; }
     } catch (err) { toast(err.message); }
   }
@@ -579,6 +584,73 @@
     live = { source, order: r.order, miss: r.miss, absent: r.absent, idx: 0, hist: [], started: false };
     saveLive(); renderAll();
     toast(`✓ 讀到 ${r.order.length} 位同學`);
+  }
+
+  // ── 📤 導師上傳兩科的段考科排名（多媒科、資料科各一個檔案）──
+  let upExam = store.get('indoor.rankup.exam', 0);
+  const DEPTS = [['多', '多媒科'], ['料', '資料科']];
+  function rankUpHtml() {
+    const up = rankInfo?.up?.[upExam] || {}, cut = rankInfo?.cuts?.[upExam];
+    const when = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()} ${A.fmtTime(d)}`; };
+    const periodTxt = ['開學～這次排名上傳', '第一次段考排名上傳後～這次排名上傳', '第二次段考排名上傳後～這次排名上傳'][upExam];
+    return `<div class="rank-up"><b>📤 上傳段考排名（兩科各一個檔案）</b>
+      <div class="subsw small-sw">${['第一次', '第二次', '第三次'].map((n, i) => `<button type="button" data-lv="upExam" data-exam="${i}" aria-selected="${upExam === i}">${n}段考</button>`).join('')}</div>
+      ${DEPTS.map(([d, name]) => `<div class="ru-row"><span class="ru-name">${name}</span><span class="ru-st">${up[d] ? `✅ ${up[d].n} 人・${when(up[d].t)}${up[d].file ? `<br><span class="muted">${esc(up[d].file)}</span>` : ''}` : '<span class="muted">還沒上傳</span>'}</span>
+        <label class="btn file-btn${up[d] ? '' : ' btn--primary'}">📄 ${up[d] ? '重新上傳' : '選擇檔案'}<input type="file" data-updept="${d}" accept=".xlsx,.xls,.csv,.txt,text/csv,text/plain" hidden></label></div>`).join('')}
+      <p class="muted small">檔案（Excel 或 CSV）要有姓名或座號，以及「科排名／名次」欄；沒有名次欄的話，會用「總分／平均」由高到低排。
+        兩科都上傳後，系統把科內名次換成百分比，加上這段期間（${periodTxt}${cut ? `，到 ${when(cut)} 為止` : ''}）的加扣分，排出最後的班名次，按下面的按鈕就能開始現場選位。</p></div>`;
+  }
+  // 讀一科的成績檔：找出每位同學的科內名次
+  function parseExam(rows, dept) {
+    const norm = s => String(s ?? '').normalize('NFKC').replace(/\s+/g, '');
+    const people = A.students().filter(k => k.startsWith(dept)).map(k => ({ k, ...parseKey(k) }));
+    const hi = rows.slice(0, 12).findIndex(r => r.some(c => /^(姓名|座號|學號|科排名?|科名次|名次|排名|班排名?|總分|平均)/.test(norm(c))));
+    const head = hi >= 0 ? rows[hi].map(norm) : [];
+    const find = re => head.findIndex(c => re.test(c));
+    let rankCol = find(/^科(排名?|名次)/);
+    if (rankCol < 0) rankCol = find(/(名次|排名|班排)/);
+    let scoreCol = rankCol < 0 ? find(/^總分/) : -1;
+    if (rankCol < 0 && scoreCol < 0) scoreCol = find(/平均/);
+    const got = [], miss = [], seen = new Set();
+    rows.slice(hi + 1).forEach((r, i) => {
+      const cells = r.map(norm), text = cells.join('').replace(/(\D)(\d)(?!\d)/g, '$10$2');
+      if (!text) return;
+      let m = people.find(p => text.includes(p.k));
+      if (!m) { const s = people.filter(p => p.name && text.includes(p.name)); if (s.length === 1) m = s[0]; }
+      if (!m) { if (/[一-鿿]/.test(text) && !/^(合計|平均|總計)/.test(text)) miss.push(r.filter(c => String(c).trim()).slice(0, 3).join(' ').slice(0, 16)); return; }
+      if (seen.has(m.k)) return;
+      seen.add(m.k);
+      got.push({ k: m.k, v: parseFloat(cells[rankCol >= 0 ? rankCol : scoreCol]), i });
+    });
+    let by;
+    if (rankCol >= 0) by = `「${head[rankCol]}」欄`;
+    else if (scoreCol >= 0) {   // 只有分數：由高到低排，同分同名次
+      by = `「${head[scoreCol]}」由高到低`;
+      const s = got.filter(x => !isNaN(x.v)).sort((a, b) => b.v - a.v);
+      s.forEach((x, j) => { x.rank = j && s[j - 1].v === x.v ? s[j - 1].rank : j + 1; });
+    } else { by = '檔案由上到下的順序'; got.forEach((x, j) => { x.rank = j + 1; }); }
+    if (rankCol >= 0) got.forEach(x => { x.rank = x.v; });
+    const list = got.filter(x => x.rank >= 1).sort((a, b) => a.rank - b.rank);
+    return { list, by, miss: miss.slice(0, 12), absent: people.filter(p => !list.some(x => x.k === p.k)).map(p => p.k) };
+  }
+  async function uploadExam(f, dept) {
+    if (!A.students().length) { try { await A.loadStudents(); } catch (e) { return toast('無法讀取學生名單：' + e.message); } }
+    const name = DEPTS.find(x => x[0] === dept)[1];
+    let r;
+    try { toast('讀取中…'); r = parseExam(await readListFile(f), dept); } catch (err) { return toast('檔案讀取失敗：' + err.message); }
+    if (!r.list.length) return toast(`檔案裡找不到${name}的同學，請確認選對檔案`);
+    const top = r.list.slice(0, 5).map(x => `第 ${x.rank} 名 ${x.k}`).join('\n');
+    const ok = await A.ask(`${['第一次', '第二次', '第三次'][upExam]}段考・${name}\n讀到 ${r.list.length} 人（依${r.by}）\n\n${top}${r.list.length > 5 ? '\n…' : ''}`
+      + (r.absent.length ? `\n\n⚠ 檔案裡沒有（會排在最後）：${r.absent.join('、')}` : '')
+      + (r.miss.length ? `\n⚠ 對不到同學的列：${r.miss.join('、')}` : ''), '上傳');
+    if (!ok) return;
+    try {
+      const res = await A.api('examUpload', { exam: upExam, dept, rows: r.list.map(x => ({ key: x.k, rank: x.rank })), file: f.name });
+      rankInfo = { ...(rankInfo || {}), up: res.up, cuts: res.cuts };
+      rankInfoAt = 0; loadRankInfo();
+      toast(res.both ? `✓ ${name}已上傳，兩科都齊了！可以開始現場選位` : `✓ ${name}已上傳 ${res.n} 人，再上傳另一科`);
+      renderAll();
+    } catch (err) { toast(err.message); }
   }
 
   // 名單比對：「料 24 王小明」「料24王小明」、分欄的 科別／座號／姓名、只有姓名 都可以
@@ -627,6 +699,7 @@
     return text.replace(/^﻿/, '').split(/\r?\n/).map(l => l.split(/[,\t]/).map(c => c.replace(/^"|"$/g, '')));
   }
   $('#seatPanel').addEventListener('change', async e => {
+    if (e.target.dataset?.updept) { const f = e.target.files[0], d = e.target.dataset.updept; e.target.value = ''; if (f) uploadExam(f, d); return; }
     if (e.target.id !== 'liveFile') return;
     const f = e.target.files[0];
     e.target.value = '';
@@ -1209,7 +1282,13 @@
       case 'getSeats': return { ok: true, seats: store.get(K.testChart, {}), defaults: store.get('indoor.testdef.v1.test', {}) };
       case 'getDuty': { const d = store.get('indoor.testduty.v1.test', null); return { ok: true, duty: d && d.date === A.fmtDate(new Date()) && d.list ? d : { date: A.fmtDate(new Date()), list: [] } }; }
       case 'setDuty': { const d = { date: A.fmtDate(new Date()), list: p.list, by: A.isTeacher() ? '導師' : A.me() }; store.set('indoor.testduty.v1.test', d); return { ok: true, duty: d }; }
-      case 'rankInfo': return { ok: true, url: '', weight: 1, has: [true, false, false] };
+      case 'rankInfo': return { ok: true, url: '', weight: 1, has: [true, false, false], up: store.get('indoor.rankup.v1.test', [{}, {}, {}]), cuts: [0, 0, 0] };
+      case 'examUpload': {
+        const all = store.get('indoor.rankup.v1.test', [{}, {}, {}]);
+        all[p.exam][p.dept] = { n: p.rows.length, t: Date.now(), file: p.file || '' };
+        store.set('indoor.rankup.v1.test', all);
+        return { ok: true, n: p.rows.length, both: !!(all[p.exam]['多'] && all[p.exam]['料']), up: all, cuts: [0, 0, 0] };
+      }
       case 'rankOrder': return { ok: true, order: [...A.students()].sort(() => Math.random() - 0.5), noRank: [], label: `（測試）第${'一二三'[p.exam || 0]}次段考班名次` };
       case 'saveDefaultSeats': store.set('indoor.testdef.v1.test', p.seats); return { ok: true, defaults: p.seats };
       case 'saveSeats': store.set(K.testChart, p.seats); return { ok: true, seats: p.seats };

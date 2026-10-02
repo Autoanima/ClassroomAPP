@@ -53,7 +53,7 @@
     const rows = list.map(x => {
       const st = stage(x), frac = x.total ? x.n / x.total : 0, miss = x.forMe ? (x.myDone ? 0 : 1) : x.total - x.n;
       const tail = x.forMe ? (x.myDone ? '✅ 你交了' : st === 'late' ? '⚠️ 你逾期未交' : '⏳ 你還沒交') : `${x.n}/${x.total}${st === 'late' && miss ? `・<b class="hw-red">${miss} 人逾期</b>` : ''}`;
-      return `<div class="hwt-row" data-hw="open" data-id="${esc(x.id)}" role="button" tabindex="0">
+      return `<div class="hwt-row${miss ? '' : ' complete'}" data-hw="open" data-id="${esc(x.id)}" role="button" tabindex="0">
         <div class="hwt-name"><b>${esc(x.name)}</b><span class="${st === 'late' && miss ? 'hw-red' : 'muted'}">${remain(x)}</span></div>
         <div class="hwt-track"><span class="hwt-bar ${st}${st === 'late' && miss ? ' miss' : ''}" style="left:${P(x.start)};width:calc(${P(x.end)} - ${P(x.start)})"><i style="width:${(x.forMe ? (x.myDone ? 1 : 0) : frac) * 100}%"></i></span></div>
         <div class="hwt-tail small">${tail}</div></div>`;
@@ -65,7 +65,8 @@
   }
   function cardHtml(x) {
     const st = stage(x), tag = STAGE[st], miss = x.total - x.n;
-    let h = `<div class="panel hw-card" data-st="${st}"><div class="hw-head"><b>${esc(x.name)}</b><span class="hw-tag ${tag[1]}">${tag[0]}</span></div>
+    const complete = x.forMe ? !!x.myDone : !miss;
+    let h = `<div class="panel hw-card${complete ? ' complete' : ''}" data-st="${complete ? 'done' : st}"><div class="hw-head"><b>${esc(x.name)}</b><span class="hw-tag ${tag[1]}">${tag[0]}</span></div>
       <div class="muted small">${esc(who(x.by))} 建立・${targetText(x)}・${fmt(x.start)} ～ <b>${fmt(x.end)}</b></div>
       <div class="hw-to">📮 交給：<b>${esc(who(x.to || x.by))}</b></div>
       ${x.note ? `<div class="small hw-note">${esc(x.note)}</div>` : ''}

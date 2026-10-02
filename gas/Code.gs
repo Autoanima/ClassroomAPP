@@ -91,7 +91,7 @@ const SHEET_PACK = '紅包';              // 發紅包活動：發起、連署�
 const HEAD_PACK = ['發起時間', '發起人', '原因', '每人點數', '連署', '狀態', '發放時間', '編號', '發放人數'];
 const PACK_MAX = 20;                    // 每人最多發幾點
 const SHEET_MAIL = '飛鴿傳書';         // 站內信：3 天後在 App 上消失（紀錄留在試算表，導師看得到）
-const HEAD_MAIL = ['時間', '寄件人', '收件人', '內容', '編號'];
+const HEAD_MAIL = ['時間', '寄件人', '收件人', '內容', '編號', '收件人刪除'];
 const MAIL_DAYS = 3, MAIL_PER_DAY = 10;
 const SHEET_BOARD = '公布欄';          // 導師、幹部的留言（例如作業）；刪除只做標記，紀錄保留
 const HEAD_BOARD = ['時間', '內容', '發布人', '編號', '狀態', '修改紀錄'];
@@ -114,9 +114,9 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ lunchChange: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
 const GUEST_OK = { getPets: 1, petImage: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { notifyCheck: 1, saveRecords: 1, uploadPhoto: 1, getCheckLive: 1, setCheckLive: 1 };
@@ -227,6 +227,7 @@ function doPost(e) {
       case 'setLunch': return json(setLunch(who, String(req.choice || '')));
       case 'setLunchAdj': return json(setLunchAdj(who, req.early, req.days));
       case 'setLunchPaid': return json(setLunchPaid(who, String(req.key || ''), !!req.paid));
+      case 'lunchChange': return json(lunchChange(who, req.key, req.amount, req.kind, req.note, !!req.paid));
       case 'getDrawLog': return json({ ok: true, log: getDrawLog() });
       case 'addDrawLog': return json({ ok: true, log: addDrawLog(who, req.k || [], req.fx || []) });
       case 'clearDrawLog': PropertiesService.getScriptProperties().setProperty('DRAW_CLEAR_AT', String(Date.now())); return json({ ok: true, log: [] });
@@ -241,6 +242,7 @@ function doPost(e) {
       case 'cancelPack': return json({ ok: true, packs: cancelPack(who, String(req.id || '')) });
       case 'getMail': return json({ ok: true, mails: getMail(who) });
       case 'sendMail': return json(sendMail(who, String(req.to || ''), req.text));
+      case 'delMail': return json(delMail(who, req.id));
       case 'getBoard': return json({ ok: true, posts: getBoard() });
       case 'addPost': return json({ ok: true, posts: addPost(who, req.text) });
       case 'editPost': return json({ ok: true, posts: editPost(who, String(req.id || ''), req.text) });
@@ -262,7 +264,9 @@ function doPost(e) {
         if (!who.teacher && !isMonitor(who.key)) throw new Error('只有導師、班長、副班長可以儲存座位');
         return json({ ok: true, seats: saveSeats(req.seats || {}) });
       case 'rankOrder': return json(rankOrder(who, req.exam));
-      case 'rankInfo': return json({ ok: true, url: rankSheetUrl(), weight: CONFIG.RANK_POINT_WEIGHT, has: (() => { const R = examRanks(); return R ? R.per.map(p => Object.keys(p.rank).length > 0) : [false, false, false]; })() });
+      case 'rankInfo': return json({ ok: true, url: rankSheetUrl(), weight: CONFIG.RANK_POINT_WEIGHT, has: (() => { const R = examRanks(); return R ? R.per.map(p => Object.keys(p.rank).length > 0) : [false, false, false]; })(),
+        up: who.teacher ? examUploads().map(u => Object.fromEntries(Object.keys(u).map(d => [d, { n: Object.keys(u[d].rows).length, t: u[d].t, file: u[d].file }]))) : null, cuts: examCuts() });
+      case 'examUpload': return json(examUpload(who, req.exam, req.dept, req.rows || [], req.file));
       case 'getFaces': return json(getFaces(req.have || {}));
       case 'getFaceHD': return json(getFaceHD(String(req.code || '')));
       case 'investState': return json(investState(who));
@@ -1335,7 +1339,7 @@ function lunchRows(week) {
 function botMail(list, from) {
   if (!list.length) return;
   const sh = getSheet(SHEET_MAIL, HEAD_MAIL), now = new Date();
-  sh.getRange(sh.getLastRow() + 1, 1, list.length, HEAD_MAIL.length).setValues(list.map(m => [now, from || LUNCH_BOT, m[0], m[1], Utilities.getUuid().slice(0, 8)]));
+  sh.getRange(sh.getLastRow() + 1, 1, list.length, HEAD_MAIL.length).setValues(list.map(m => [now, from || LUNCH_BOT, m[0], m[1], Utilities.getUuid().slice(0, 8), '']));
 }
 const treasurers = () => { try { const m = cadreMap(); return Object.keys(m).filter(k => m[k].some(r => /^總務/.test(String(r).trim()))); } catch (e) { return []; } };
 /** 給 LINE 群組的報表（清楚的文字格式） */
@@ -1379,7 +1383,8 @@ function lunchTick() {
     if (L.locked && !L.skip && !props.getProperty(k3)) { // 週五 12:00（或提前）：截止，通知總務和有訂的同學
       const report = lunchReport(L, rows, students);
       botMail(treasurers().concat([CONFIG.TEACHER_NAME]).map(k => [k, '📋 本週便當登記已截止，以下是統計（可以複製傳到 LINE 群組）：\n\n' + report]));
-      botMail(yes.map(k => [k, '🍱 你登記了 ' + L.meal + ' 的便當。\n請在今天（' + L.cutDay + '）放學前把便當費交給總務，逾時未交會取消訂餐喔！']));
+      botMail(yes.map(k => [k, '🍱 你登記了 ' + L.meal + ' 的便當。\n請在今天（' + L.cutDay + '）放學前把便當費交給總務，逾時未交會取消訂餐喔！
+🪙 請繳交剛好的金額，不要讓總務還要準備零錢找你，貼心減輕幹部工作量！']));
       props.setProperty(k3, '1');
     }
   });
@@ -1395,6 +1400,7 @@ function getLunch(who) {
     rows: lunchWithTeacher(rows, students).people.map(k => { const W = lunchWithTeacher(rows, students).rows; return { key: k, choice: W[k] ? W[k].choice : '', paid: W[k] ? W[k].paid : false, time: W[k] ? W[k].time : '', auto: !!(W[k] && W[k].auto) }; }),
     me: who.teacher ? CONFIG.TEACHER_NAME : who.key, canPay: !who.teacher && treasurers().indexOf(who.key) >= 0,   // 只有總務股長可以勾繳費（導師不行）
     report: lunchReport(L, rows, students),
+    change: changeView(who), canChange: canChange(who),
   };
 }
 function setLunch(who, choice) {
@@ -1430,6 +1436,58 @@ function setLunchPaid(who, key, paid) {
     getSheet(SHEET_LUNCH, HEAD_LUNCH).getRange(cur.row, 5, 1, 2).setValues([[paid, paid ? mailName(who) + ' ' + Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'MM/dd HH:mm') : '']]);
   });
   return getLunch(who);
+}
+
+// ── 💸 便當零錢帳：總務收便當費時來不及找零，先記「欠同學多少元」，還錢時再記一筆；不分週，一直累計到還清 ──
+const SHEET_CHANGE = '便當零錢帳';
+const HEAD_CHANGE = ['編號', '同學', '金額', '類型', '時間', '登記人', '說明'];
+const changeSheet = () => textSheet(SHEET_CHANGE, HEAD_CHANGE, [1, 2, 4, 6, 7]);
+function changeRows() {
+  const sh = getSS().getSheetByName(SHEET_CHANGE);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_CHANGE.length).getValues().filter(r => r[0]).map(r => ({
+    id: String(r[0]), key: String(r[1]), amt: Number(r[2]) || 0, kind: String(r[3]), t: r[4] instanceof Date ? r[4].getTime() : 0,
+    time: r[4] instanceof Date ? Utilities.formatDate(r[4], CONFIG.TIMEZONE, 'MM/dd HH:mm') : '', by: String(r[5]), note: String(r[6]),
+  }));
+}
+/** 每位同學目前還被欠多少元（欠 − 還） */
+function changeBal(rows) {
+  const bal = {};
+  (rows || changeRows()).forEach(x => { bal[x.key] = (bal[x.key] || 0) + (x.kind === '還' ? -x.amt : x.amt); });
+  Object.keys(bal).forEach(k => { if (bal[k] <= 0) delete bal[k]; });
+  return bal;
+}
+const canChange = who => who.teacher || treasurers().indexOf(who.key) >= 0;
+/** 總務記一筆：kind＝owe（欠同學）或 repay（還同學）；可以同時勾「已繳費」 */
+function lunchChange(who, key, amount, kind, note, paid) {
+  if (!canChange(who)) throw new Error('只有總務股長可以記零錢帳');
+  key = String(key || '');
+  if (getStudents().students.indexOf(key) < 0 && key !== CONFIG.TEACHER_NAME) throw new Error('請選一位同學');
+  const amt = Math.round(Number(amount));
+  if (!(amt >= 1 && amt <= 2000)) throw new Error('金額要在 1～2000 元之間');
+  if (kind !== 'owe' && kind !== 'repay') throw new Error('請選「欠」或「還」');
+  let left = 0;
+  withLock(() => {
+    const now = changeBal()[key] || 0;
+    if (kind === 'repay' && amt > now) throw new Error('目前只欠他 ' + now + ' 元，不能還 ' + amt + ' 元');
+    const sh = changeSheet(), at = sh.getLastRow() + 1;
+    sh.getRange(at, 1, 1, HEAD_CHANGE.length).setValues([[Utilities.getUuid().slice(0, 8), key, amt, kind === 'owe' ? '欠' : '還', new Date(), mailName(who), String(note || '').slice(0, 60)]]);
+    sh.getRange(at, 5).setNumberFormat('yyyy/mm/dd hh:mm');
+    left = now + (kind === 'owe' ? amt : -amt);
+  });
+  if (paid) { try { setLunchPaid(who, key, true); } catch (e) { /* 這週沒訂便當就不用勾 */ } }
+  if (key !== CONFIG.TEACHER_NAME) botMail([[key, kind === 'owe'
+    ? '💸 總務收便當費時，還沒找你零錢：先欠你 ' + amt + ' 元（目前一共欠你 ' + left + ' 元），之後會還你。\n' + CONFIG.SITE_URL + '#tab=lunch'
+    : '💸 總務還你 ' + amt + ' 元零錢' + (left > 0 ? '（還欠你 ' + left + ' 元）' : '，已經全部還清了！') + '\n' + CONFIG.SITE_URL + '#tab=lunch']]);
+  return getLunch(who);
+}
+/** getLunch 用：總務、導師看全部；同學只看自己被欠多少 */
+function changeView(who) {
+  const rows = changeRows(), bal = changeBal(rows);
+  if (canChange(who)) return { bal: bal, log: rows.slice(-30).reverse().map(x => ({ key: x.key, amt: x.amt, kind: x.kind, time: x.time, by: x.by, note: x.note })) };
+  const me = who.teacher ? CONFIG.TEACHER_NAME : who.key, o = {};
+  if (bal[me]) o[me] = bal[me];
+  return { bal: o, log: [] };
 }
 
 // ── 📥 各項作業與繳交資料追蹤：導師、幹部（小老師）設定繳交項目和時間，勾選誰交了；逾期標示、LINE 報表、站內信提醒 ──
@@ -1952,13 +2010,25 @@ function mailRows() {
   if (!sh || sh.getLastRow() < 2) return [];
   return sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_MAIL.length).getValues()
     .filter(r => r[0] instanceof Date)
-    .map(r => ({ t: r[0].getTime(), time: Utilities.formatDate(r[0], CONFIG.TIMEZONE, 'MM/dd HH:mm'), from: String(r[1]), to: String(r[2]), text: String(r[3]), id: String(r[4]) }));
+    .map((r, i) => ({ row: i + 2, t: r[0].getTime(), time: Utilities.formatDate(r[0], CONFIG.TIMEZONE, 'MM/dd HH:mm'), from: String(r[1]), to: String(r[2]), text: String(r[3]), id: String(r[4]), del: !!r[5] }));
+}
+/** 收件人刪除一封信：App 上不再顯示（試算表留著紀錄，導師還是看得到） */
+function delMail(who, id) {
+  const me = mailName(who);
+  withLock(() => {
+    const m = mailRows().find(x => x.id === String(id) && x.to === me);
+    if (!m) throw new Error('找不到這封信');
+    const sh = getSheet(SHEET_MAIL, HEAD_MAIL);
+    if (sh.getRange(1, 6).getValue() !== '收件人刪除') sh.getRange(1, 6).setValue('收件人刪除');
+    sh.getRange(m.row, 6).setValue(Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'yyyy/MM/dd HH:mm'));
+  });
+  return { ok: true, mails: getMail(who) };
 }
 function getMail(who) {
   try { lunchTick(); } catch (e) { Logger.log('訂便當定時工作失敗：' + e); }
   try { investTick(); } catch (e) { Logger.log('投資競賽定時工作失敗：' + e); }
   const me = mailName(who), since = Date.now() - MAIL_DAYS * 86400e3;
-  return mailRows().filter(m => m.to === me && m.t >= since).sort((a, b) => b.t - a.t);
+  return mailRows().filter(m => m.to === me && m.t >= since && !m.del).sort((a, b) => b.t - a.t).map(m => ({ t: m.t, time: m.time, from: m.from, to: m.to, text: m.text, id: m.id }));
 }
 function sendMail(who, to, text) {
   text = String(text || '').trim().slice(0, 200);
@@ -1970,7 +2040,7 @@ function sendMail(who, to, text) {
     const today = ymd(new Date());
     if (!who.teacher && mailRows().filter(m => m.from === me && ymd(new Date(m.t)) === today).length >= MAIL_PER_DAY) throw new Error('今天已經寄了 ' + MAIL_PER_DAY + ' 封，明天再寄');
     const sh = getSheet(SHEET_MAIL, HEAD_MAIL);
-    sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_MAIL.length).setValues([[new Date(), me, to, text, Utilities.getUuid().slice(0, 8)]]);
+    sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_MAIL.length).setValues([[new Date(), me, to, text, Utilities.getUuid().slice(0, 8), '']]);
   });
   return { ok: true };
 }
@@ -3134,6 +3204,17 @@ function examRanks() {
     const p = k.split('|');
     return { key: p[0] + p[1] + p[2], dept: p[0], no: p[1], name: p[2], s: ex[k].map(v => (v === '' || isNaN(Number(v)) ? null : Number(v))) };
   });
+  // App 上傳的科排名：蓋過試算表裡同一次段考、同一科的成績
+  const ups = examUploads(), upMode = {};
+  ups.forEach((u, i) => Object.keys(u).forEach(d => {
+    upMode[i + d] = true;
+    list.forEach(x => { if (x.dept === d) x.s[i] = null; });
+    Object.keys(u[d].rows).forEach(key => {
+      let x = list.find(y => y.key === key);
+      if (!x) { const m = key.match(/^(\D+?)(\d+)(.*)$/) || [key, d, '', key]; x = { key: key, dept: d, no: m[2], name: m[3], s: [null, null, null] }; list.push(x); }
+      x.s[i] = Number(u[d].rows[key]);
+    });
+  }));
   const has = [0, 1, 2].map(i => list.some(x => x.s[i] != null));
   if (!has.some(Boolean)) return null;
   // 依數值排名：同值同名次（1、1、3）；asc＝小的在前
@@ -3152,7 +3233,7 @@ function examRanks() {
     if (!has[i]) return { deptRank: deptRank, pct: pct, bonus: bonus, score: score, rank: {} };
     depts.forEach(d => {
       const g = list.filter(x => x.dept === d && x.s[i] != null);
-      const r = byRank ? Object.fromEntries(g.map(x => [x.key, x.s[i]])) : rankBy(g, x => x.s[i], false);
+      const r = byRank || upMode[i + d] ? Object.fromEntries(g.map(x => [x.key, x.s[i]])) : rankBy(g, x => x.s[i], false);
       g.forEach(x => { deptRank[x.key] = r[x.key]; pct[x.key] = r[x.key] / g.length; });
     });
     // 綜合分數＝(1 − 百分比) × 100 ＋ 期間加扣分 × 權重；班名次依綜合分數（越高越前面）
@@ -3200,7 +3281,35 @@ function rankOrder(who, exam) {
   if (!R || !Object.keys(R.per[i].rank).length) throw new Error(EXAMS[i] + '還沒有成績，請先在「扣分統計」填成績並按「段考排名」');
   const rk = R.per[i].rank;
   const ranked = all.filter(k => rk[k]).sort((a, b) => rk[a] - rk[b] || a.localeCompare(b));
-  return { ok: true, order: ranked.concat(all.filter(k => !rk[k])), noRank: all.filter(k => !rk[k]), label: EXAMS[i] + '班名次', url: rankSheetUrl() };
+  const P = R.per[i], detail = {};
+  ranked.forEach(k => { detail[k] = { dr: P.deptRank[k], pct: Math.round(P.pct[k] * 1000) / 10, bonus: P.bonus[k] || 0, score: P.score[k], rank: rk[k] }; });
+  return { ok: true, order: ranked.concat(all.filter(k => !rk[k])), noRank: all.filter(k => !rk[k]), label: EXAMS[i] + '班名次', url: rankSheetUrl(), detail: detail, weight: Number(CONFIG.RANK_POINT_WEIGHT) || 0 };
+}
+/** 導師在 App 上傳的科排名：[{ 多: { rows: { 學生: 科名次 }, t, file }, 料: {…} }, 第二次, 第三次] */
+function examUploads() {
+  const props = PropertiesService.getScriptProperties();
+  return [0, 1, 2].map(i => { try { return JSON.parse(props.getProperty('EXAM_UP_' + (i + 1)) || '{}'); } catch (e) { return {}; } });
+}
+/** 上傳一科的科排名（rows：[{ key: 學生, rank: 科內名次 }]）。兩科都上傳後：
+ *  第一次排這次段考就記下結算時間（這段期間的加扣分到此為止），更新「段考排名」表、唯讀排名表、前五名交換位置卡 */
+function examUpload(who, exam, dept, rows, file) {
+  if (!who.teacher) throw new Error('只有導師可以上傳段考排名');
+  const i = Math.round(Number(exam));
+  if (!(i >= 0 && i <= 2)) throw new Error('請選第幾次段考');
+  if (dept !== '多' && dept !== '料') throw new Error('請選多媒科或資料科');
+  const students = getStudents().students, map = {};
+  (rows || []).forEach(r => { const k = String(r.key || ''), n = Number(r.rank); if (students.indexOf(k) >= 0 && k.indexOf(dept) === 0 && n >= 1 && n <= 200) map[k] = Math.round(n); });
+  if (!Object.keys(map).length) throw new Error('檔案裡沒有對到任何' + (dept === '多' ? '多媒科' : '資料科') + '的同學');
+  let both = false;
+  withLock(() => {
+    const props = PropertiesService.getScriptProperties(), all = examUploads();
+    all[i][dept] = { rows: map, t: Date.now(), file: String(file || '').slice(0, 60) };
+    props.setProperty('EXAM_UP_' + (i + 1), JSON.stringify(all[i]));
+    both = !!(all[i]['多'] && all[i]['料']);
+    if (both && !examCuts()[i]) props.setProperty('EXAM_CUT_' + (i + 1), String(Date.now()));
+  });
+  if (both) { try { showExamRank(); } catch (e) { Logger.log('段考排名表更新失敗：' + e); } }
+  return { ok: true, n: Object.keys(map).length, both: both, up: examUploads().map(u => Object.fromEntries(Object.keys(u).map(d => [d, { n: Object.keys(u[d].rows).length, t: u[d].t, file: u[d].file }]))), cuts: examCuts() };
 }
 /** 按鈕「段考排名」：更新「段考排名」工作表並切換過去；也會依最近一次段考發前五名的交換位置卡 */
 function showExamRank() {

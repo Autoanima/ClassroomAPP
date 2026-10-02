@@ -1940,3 +1940,57 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .lv-item.filed .lv-took, .lv-item.filed .lv-took.slow { color: var(--muted); font-weight: 400; font-size: 12px; }
 .lv-item.filed .lv-type { filter: saturate(.3); opacity: .8; }
 .lv-item.filed .lv-acts { background: transparent; padding: 6px 8px; }
+
+/* 飛鴿傳書：每封信右上角的刪除 */
+.mail-head { align-items: flex-start; }
+.mail-head .muted { margin-left: auto; }
+.mail-del { flex: none; width: 26px; height: 26px; margin: -4px -6px 0 2px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); font-size: 14px; cursor: pointer; }
+.mail-del:hover, .mail-del:focus-visible { background: var(--line); color: var(--text); }
+/* 繳交追蹤：已經全部交齊（或同學自己已經交了）的項目低調一點 */
+.hw-card.complete { opacity: .62; border-left: 0; padding-top: 10px; padding-bottom: 10px; }
+.hw-card.complete .hw-head { font-size: 15px; }
+.hw-card.complete .hw-tag { background: var(--bg); color: var(--muted); }
+.hw-card.complete .hw-prog span { background: var(--muted); }
+.hw-card.complete .hw-me.ok { background: transparent; color: var(--muted); padding: 2px 0; font-weight: 400; }
+.hw-card.complete .hw-remain { font-weight: 400; color: var(--muted); }
+.hw-card.complete .hw-btns .btn--primary { background: transparent; color: var(--text); border-color: var(--line); }
+.hw-card.complete:hover, .hw-card.complete:focus-within { opacity: 1; }
+
+/* 💸 便當零錢帳 */
+.tag.owe { background: #fff3bf; color: #8a5a00; }
+[data-theme="dark"] .tag.owe { background: #4a3b10; color: #ffd43b; }
+.chg-btn { flex: none; margin-left: auto; width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); cursor: pointer; font-size: 15px; }
+.chg-list { list-style: none; padding: 0; margin: 8px 0; }
+.chg-list li { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.chg-list li span { flex: 1; }
+.chg-list .btn { padding: 4px 12px; font-size: 13px; }
+.chg-pick { display: flex; gap: 8px; margin-top: 8px; }
+.chg-pick select { flex: 1; min-width: 0; }
+.chg-log ul { padding-left: 1.1em; margin: 6px 0 0; }
+.chg-mine { font-size: 15px; background: #fff9db; border-color: #ffe066; }
+[data-theme="dark"] .chg-mine { background: #3a3110; border-color: #6b5a12; }
+.chg-now { font-size: 16px; margin: 4px 0 10px; }
+.chg-box { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; display: grid; gap: 8px; }
+.chg-calc { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.chg-calc label, .chg-amt, .chg-part label { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+.chg-calc input, .chg-amt input, .chg-part input { width: 100%; min-width: 0; font-size: 16px; padding: 6px 8px; }
+.chg-amt { font-weight: 700; }
+.chg-part { display: flex; gap: 8px; align-items: center; }
+.chg-part label { flex: 1; }
+.chg-paid { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+
+.lc-exact { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: #fff9db; color: #7a5a00; font-size: 13.5px; line-height: 1.5; }
+[data-theme="dark"] .lc-exact { background: #3a3110; color: #ffe066; }
+
+/* 📤 上傳兩科段考排名 */
+.rank-up { margin: 10px 0 12px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 12px; background: var(--bg); display: grid; gap: 8px; }
+.ru-row { display: grid; grid-template-columns: 4.5em 1fr auto; gap: 8px; align-items: center; font-size: 14px; }
+.ru-name { font-weight: 700; }
+.ru-st { font-size: 13px; line-height: 1.35; min-width: 0; overflow-wrap: anywhere; }
+.ru-row .file-btn { padding: 6px 12px; font-size: 13px; white-space: nowrap; }
+.rk-why { display: block; font-size: 11px; color: var(--muted); font-weight: 400; }
+.chg-calc label, .chg-amt, .chg-part label { white-space: nowrap; }
+.chg-calc input, .chg-amt input, .chg-part input { flex: 1 1 0; width: 0; min-width: 0; }
+.chg-calc { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.hwt-row.complete { opacity: .5; }
+.hwt-row.complete .hwt-bar, .hwt-row.complete .hwt-bar i { background: var(--muted); }
