@@ -1,6 +1,6 @@
 'use strict';
 /* 🐾 班級寵物：同學被加分 → 從座位蹦出寵物蛋，跳到講台；1 天後孵化；寵物沿著教室四邊走來走去（不遮住大頭照）。
-   點寵物：愛心或音符＋叫聲、看血量、餵罐罐（1 點，+1 HP）。每天扣 1 HP，0 HP 就升天（幽靈飄走）。
+   點寵物：愛心或音符＋叫聲、看飽足度（🍚）、餵罐罐（1 點，+1 🍚）。每天餓掉 1 🍚，0 🍚 就跑出去自己覓食。
    外觀由主人（被加分的同學）上傳 PNG 去背；沒上傳就是貓咪。這是最不重要的功能：等其他分頁都載入完才讀。 */
 (() => {
   const A = window.App;
@@ -26,7 +26,7 @@
   const imgs = store.get('indoor.petimg', {});   // 圖片 id → data URL（存在這台裝置，有換才重新下載）
   const look = x => (x.imgId && imgs[x.imgId] ? `<img src="${imgs[x.imgId]}" alt="">` : CAT);
   async function loadImgs() {
-    for (const x of (P?.pets || []).filter(y => y.imgId && !imgs[y.imgId] && y.status !== '死亡')) {
+    for (const x of (P?.pets || []).filter(y => y.imgId && !imgs[y.imgId] && y.status !== '覓食')) {
       try { const r = await A.api('petImage', { id: x.id }); if (r.img) { imgs[x.imgId] = r.img; store.set('indoor.petimg', imgs); paintMap(true); if (A.currentTab() === 'pet') render(); } } catch { /* 下次再試 */ }
     }
   }
@@ -180,8 +180,78 @@
   window.addEventListener('resize', () => { geoAt = 0; });
   document.addEventListener('visibilitychange', () => { if (!document.hidden && A.currentTab() === 'seats') paintMap(); });
 
-  // ── 動畫：生蛋（從座位蹦到講台）、孵化、升天 ──
-  const seen = Object.assign({ egg: [], hatch: [], dead: [] }, store.get('indoor.pets.seen', {}));
+  // ── 動畫：得到蛋、按孵化（從座位跳到講台）、孵化、跑出去覓食 ──
+  const seen = Object.assign({ egg: [], hatch: [], dead: [], gone: [], got: [] }, store.get('indoor.pets.seen', {}));
+  // ── 孵化失敗（約 9/10）：孵出奇怪的東西然後離開。[圖示, 動畫, 配角, 是什麼, 做了什麼]（id 要和 Code.gs 的 PET_GONE 一樣）──
+  const GONE = {
+    bird: ['🐦', 'fly', '', '一隻小鳥', '拍拍翅膀，直接飛走了'],
+    butterfly: ['🦋', 'zigzag', '', '一隻蝴蝶', '翩翩飛出窗外了'],
+    mary: ['🙏', 'rise', '✨', '聖母瑪利亞', '帶著聖光，緩緩升空了'],
+    jesus: ['✝️', 'rise', '✨', '耶穌', '發出溫暖的光，緩緩升空了'],
+    buddha: ['🧘', 'lotus', '🪷', '佛祖', '坐在蓮花上，緩緩升空了'],
+    oldman: ['👴', 'runR', '💼', '一位趕著上班的老伯', '大喊「要遲到了！」就衝出教室'],
+    bento: ['🍱', 'trash', '🗑️', '一個中午沒人吃的便當', '被值日生拿去丟掉了'],
+    ferrari: ['🏎️', 'tow', '🚚', '一台法拉利跑車', '因為沒有停車位，被拖吊車拖走了'],
+    balloon: ['🎈', 'pop', '💥', '一顆氣球', '飄到天花板，「啵」一聲破掉了'],
+    chicken: ['🐔', 'runL', '', '一隻雞', '咕咕叫著衝去操場了'],
+    duck: ['🦆', 'waddle', '', '一隻鴨子', '搖搖擺擺去游泳池了'],
+    rocket: ['🚀', 'rocket', '🔥', '一艘火箭', '倒數 3、2、1，發射到外太空了'],
+    exam: ['📝', 'flutter', '💨', '一張 0 分的考卷', '被風吹出窗外，主人鬆了一口氣'],
+    ghost: ['👻', 'fade', '', '一隻小幽靈', '說「抱歉，走錯棟了」就穿牆離開'],
+    turtle: ['🐢', 'crawl', '', '一隻烏龜', '說要去上下一節課，慢慢爬走了'],
+    unicorn: ['🦄', 'rainbow', '🌈', '一隻獨角獸', '踩著彩虹離開了'],
+    alien: ['👽', 'ufo', '🛸', '一個外星人', '被飛碟光束吸回母艦了'],
+    fish: ['🐟', 'flop', '💦', '一條魚', '在講台上彈了兩下，跳回大海了'],
+    parcel: ['📦', 'deliver', '🛵', '一個快遞包裹', '地址寫錯，被外送員載走退回了'],
+    ninja: ['🥷', 'poof', '💨', '一位忍者', '「咻」一聲變成煙霧消失了'],
+    dino: ['🦖', 'fade', '', '一隻小恐龍', '發現自己早就絕種了，默默消失'],
+    phone: ['📱', 'confiscate', '👮', '一支手機', '上課時間被教官沒收了'],
+    bee: ['🐝', 'zigzag', '', '一隻蜜蜂', '嗡嗡嗡飛去找花了'],
+    volcano: ['🌋', 'volcano', '💨', '一座迷你火山', '「噗」一聲噴完煙就不見了'],
+    cash: ['💵', 'runR', '', '一張千元大鈔', '被總務收去當班費了'],
+    pizza: ['🍕', 'runR', '', '一片披薩', '被隔壁班聞香拿走了'],
+    snowman: ['⛄', 'melt', '', '一個雪人', '在台灣的天氣下融化了'],
+    penguin: ['🐧', 'waddle', '', '一隻企鵝', '熱到受不了，走去找冷氣了'],
+    dragon: ['🐉', 'fly', '', '一條龍', '說要去參加龍舟賽，飛走了'],
+    santa: ['🎅', 'sleigh', '🦌', '聖誕老公公', '發現走錯季節，坐雪橇飛走了'],
+    kite: ['🪁', 'zigzag', '', '一只風箏', '被風吹到天上去了'],
+    robot: ['🤖', 'runR', '', '一台掃地機器人', '自己跑去掃走廊了'],
+    cat: ['🐈', 'hop', '', '一隻野貓', '伸了個懶腰，跳窗出去曬太陽了'],
+    frog: ['🐸', 'hop', '', '一隻青蛙', '呱呱兩聲，跳去荷花池了'],
+    kangaroo: ['🦘', 'hop', '', '一隻袋鼠', '蹦蹦蹦跳回澳洲了'],
+    tiger: ['🐯', 'runL', '', '一隻老虎', '被動物園園長追回去了'],
+    boba: ['🧋', 'confiscate', '🧑‍🏫', '一杯珍珠奶茶', '被路過的老師拿走喝掉了'],
+    icecream: ['🍦', 'melt', '', '一支冰淇淋', '還來不及吃就融化了'],
+    octopus: ['🐙', 'poof', '💨', '一隻章魚', '噴了一團墨汁，溜回海裡了'],
+    bat: ['🦇', 'zigzag', '', '一隻蝙蝠', '嫌教室太亮，飛去找山洞了'],
+    bus: ['🚌', 'runL', '', '一台公車', '叭叭兩聲，載著空位開走了'],
+    riceball: ['🍙', 'melt', '', '一顆飯糰', '被肚子餓的值日生一口吃掉了'],
+    sock: ['🧦', 'flutter', '💨', '一隻臭襪子', '臭到自己飄出窗外了'],
+    lightning: ['⚡', 'poof', '💥', '一道閃電', '「轟」一聲劈下來就不見了'],
+    coffee: ['☕', 'confiscate', '🧑‍🏫', '一杯咖啡', '被熬夜改考卷的老師拿走了'],
+    sheep: ['🐑', 'fade', '💤', '一隻綿羊', '數到第 100 隻就睡著，被夢帶走了'],
+    hamster: ['🐹', 'runR', '', '一隻倉鼠', '跳上滾輪，跑去追夢了'],
+    star: ['⭐', 'rise', '✨', '一顆星星', '回到夜空上班了'],
+    tornado: ['🌪️', 'spin', '', '一陣小龍捲風', '轉啊轉的捲出教室了'],
+    snail: ['🐌', 'crawl', '', '一隻蝸牛', '說要去上課，爬了一整天才到門口']
+  };
+  const goneText = x => { const g = GONE[x.gone] || ['❓', 'fade', '', '一個神秘的東西', '一溜煙就不見了']; return { g, what: g[3], act: g[4] }; };
+  // 自己還有沒按孵化的蛋：打開座位時提醒一次
+  let waitTold = false;
+  function remindWait() {
+    if (waitTold || A.isTeacher() || !A.me()) return;
+    const n = P.pets.filter(x => x.status === '待孵' && x.owner === A.me()).length;
+    if (!n) return;
+    waitTold = true;
+    banner(`🥚 你有 <b>${n} 顆寵物蛋</b>還沒孵化！<br><span class="muted small">到「🐾 寵物」按「🐣 孵化」，蛋才會放到講台上。</span>`, 4000);
+  }
+  // 播放：蛋裂開 → 孵出來的東西做牠的動畫離開，頭上的對話框（約 3 秒）
+  async function playGone(x, at) {
+    const { g, what, act } = goneText(x);
+    const el = fx(`<span class="g-egg">${EGG}</span>${g[2] ? `<span class="g-help h-${g[1]}">${g[2]}</span>` : ''}${g[1] === 'ufo' ? '<span class="g-beam"></span>' : ''}<span class="g-actor a-${g[1]}">${g[0]}</span><span class="g-say">${esc(what)}<br>${esc(act)}</span>`, 'gone-fx', at.x, at.y);
+    banner(`🥚 <b>${esc(nm(x.owner))}</b> 的寵物蛋孵化了……竟然是<b>${esc(what)}</b>！<br>${esc(act)}。<span class="muted small">（只有約 1/10 的蛋會孵出真正的寵物）</span>`, 4200);
+    await wait(4400); el.remove();
+  }
   const markSeen = (k, id) => { seen[k] = [...seen[k].filter(x => x !== id), id].slice(-100); store.set('indoor.pets.seen', seen); };
   const wait = ms => new Promise(r => setTimeout(r, ms));
   let playing = false;
@@ -210,36 +280,48 @@
     geo = geometry(); if (!geo) return;
     const recent = t => Date.now() - t < 2 * 864e5;   // 換手機時，太久以前的就不重播
     const todo = [
-      ...P.pets.filter(x => !seen.egg.includes(x.id) && recent(x.born)).map(x => ['egg', x]),
-      ...P.pets.filter(x => x.status !== '蛋' && !seen.hatch.includes(x.id) && recent(x.hatch)).map(x => ['hatch', x]),
-      ...P.pets.filter(x => x.status === '死亡' && !seen.dead.includes(x.id) && recent(x.died)).map(x => ['dead', x]),
+      ...P.pets.filter(x => x.status === '待孵' && !seen.got.includes(x.id) && recent(x.born)).map(x => ['got', x]),
+      ...P.pets.filter(x => x.status === '蛋' && !seen.egg.includes(x.id) && recent(x.hatch - 864e5)).map(x => ['egg', x]),
+      ...P.pets.filter(x => (x.status === '寵物' || x.status === '覓食') && !seen.hatch.includes(x.id) && recent(x.hatch)).map(x => ['hatch', x]),
+      ...P.pets.filter(x => x.status === '覓食' && !seen.dead.includes(x.id) && recent(x.died)).map(x => ['dead', x]),
+      ...(P.gone || []).filter(x => !seen.gone.includes(x.id) && recent(x.hatch)).map(x => ['gone', x]),
     ];
-    if (!todo.length) { P.pets.forEach(x => { if (!seen.egg.includes(x.id)) markSeen('egg', x.id); if (x.status !== '蛋' && !seen.hatch.includes(x.id)) markSeen('hatch', x.id); if (x.status === '死亡' && !seen.dead.includes(x.id)) markSeen('dead', x.id); }); return; }
+    if (!todo.length) { P.pets.forEach(x => { if (x.status === '待孵' && !seen.got.includes(x.id)) markSeen('got', x.id); if (x.status !== '待孵' && !seen.egg.includes(x.id)) markSeen('egg', x.id); if (x.status !== '蛋' && x.status !== '待孵' && !seen.hatch.includes(x.id)) markSeen('hatch', x.id); if (x.status === '覓食' && !seen.dead.includes(x.id)) markSeen('dead', x.id); }); remindWait(); (P.gone || []).forEach(x => { if (!seen.gone.includes(x.id)) markSeen('gone', x.id); }); return; }
     playing = true;
     for (const [kind, x] of todo) {
       if (A.currentTab() !== 'seats') break;
       geo = geometry();
       const to = geo.board;
-      if (kind === 'egg') {
+      if (kind === 'got') {   // 得到一顆蛋：從座位蹦出來又落回座位（還沒按孵化）
+        const from = seatCenter(x.owner) || { x: to.x, y: geo.T + 40 };
+        const e = fx(EGG, 'egg-got', from.x, from.y);
+        banner(`🥚 <b>${esc(nm(x.owner))}</b> 被加分${x.reason ? `（${esc(x.reason)}）` : ''}，得到一顆<b>寵物蛋</b>！<br><span class="muted small">${x.owner === A.me() ? '到「🐾 寵物」按「🐣 孵化」，蛋才會放到講台上。' : '主人按「孵化」之後，蛋才會放到講台上。'}</span>`, 3500);
+        await wait(1600); e.remove();
+        markSeen('got', x.id);
+      } else if (kind === 'egg') {
         const slot = layer.querySelector(`.pet-egg[data-pet="${CSS.escape(x.id)}"]`);
         let dest = to;
         if (slot) { const r = slot.getBoundingClientRect(); dest = { x: r.left + r.width / 2 - geo.hr.left, y: r.top + r.height * 0.4 - geo.hr.top }; slot.style.visibility = 'hidden'; }
         const from = seatCenter(x.owner) || { x: dest.x, y: geo.T + 40 };
         const e = fx(EGG, 'egg-fly', from.x, from.y);
         e.style.setProperty('--dx', (dest.x - from.x) + 'px'); e.style.setProperty('--dy', (dest.y - from.y) + 'px');
-        banner(`🥚 <b>${esc(nm(x.owner))}</b> 被加分${x.reason ? `（${esc(x.reason)}）` : ''}，從座位蹦出了一顆<b>寵物蛋</b>！<br><span class="muted small">牠會跳到講台上，${x.status === '蛋' ? '一天後孵化' : '已經孵化了'}。</span>`, 5000);
+        banner(`🐣 <b>${esc(nm(x.owner))}</b> 按了「孵化」，寵物蛋跳到講台上了！<br><span class="muted small">一天後揭曉：只有約 1/10 會孵出真正的寵物。</span>`, 3500);
         await wait(1500); e.remove();
         if (slot) slot.style.visibility = '';
         markSeen('egg', x.id);
+      } else if (kind === 'gone') {
+        await playGone(x, to);
+        markSeen('gone', x.id); markSeen('egg', x.id);
       } else if (kind === 'hatch') {
         const e = fx(`<span class="hatch-egg">${EGG}</span><span class="hatch-pet">${look(x)}</span>`, 'egg-hatch', to.x, to.y);
-        banner(`🐣 <b>${esc(nm(x.owner))}</b> 的寵物蛋孵化了！${x.owner === A.me() ? '<br><span class="muted small">到「🐾 寵物」可以上傳牠的外觀、取名字。</span>' : ''}`, 5000);
+        banner(`🎉 太幸運了！<b>${esc(nm(x.owner))}</b> 的寵物蛋<b>真的孵出寵物</b>了（只有約 1/10 的機會）！${x.owner === A.me() ? '<br><span class="muted small">到「🐾 寵物」可以上傳牠的外觀、取名字。</span>' : ''}`, 5000);
         await wait(2400); e.remove();
         markSeen('hatch', x.id);
       } else {
-        const e = fx(`<span class="ghost-pet">${look(x)}</span><span class="ghost">👻</span><span class="halo">😇</span>`, 'pet-ghost', to.x, to.y - 10);
-        banner(`👻 <b>${esc(petName(x))}</b>（${esc(nm(x.owner))} 的寵物）沒有吃到罐罐，升天了…`, 5000);
-        await wait(3200); e.remove();
+        // 飽足度 0：揹著空碗跑出去自己覓食
+        const e = fx(`<span class="g-help h-runR">🍚</span><span class="g-actor a-runR">${look(x)}</span><span class="g-say">${esc(petName(x))}<br>肚子餓了，跑出去自己覓食了</span>`, 'gone-fx forage', to.x, to.y);
+        banner(`🍚 <b>${esc(petName(x))}</b>（${esc(nm(x.owner))} 的寵物）太久沒吃到罐罐，肚子餓了，<b>跑出去自己覓食</b>了…`, 3500);
+        await wait(4400); e.remove();
         markSeen('dead', x.id);
       }
       paintMap(true);
@@ -281,27 +363,31 @@
     else openCard(x.id);
   }, true);
 
-  // HP 條：格數＝這隻自己的上限；紅色＝現在的血量；空格＝還能餵的 HP
+  // 🍚 條：格數＝這隻自己的上限；紅色＝現在的飽足度；空格＝還能餵的 🍚
   const capOf = x => x.cap || P.max;
   const hpBar = x => {
-    const sib = P.pets.filter(y => y.owner === x.owner && y.status !== '死亡' && y.id !== x.id), caps = capOf(x) + sib.reduce((s, y) => s + capOf(y), 0);
+    const sib = P.pets.filter(y => y.owner === x.owner && y.status !== '覓食' && y.id !== x.id), caps = capOf(x) + sib.reduce((s, y) => s + capOf(y), 0);
     const room = Math.max(0, capOf(x) - x.hp);
-    return `<span class="pet-hp">${Array.from({ length: capOf(x) }, (_, i) => `<i class="${i < x.hp ? 'on' : ''}"></i>`).join('')}<b>${x.hp}/${capOf(x)} HP</b></span>
-      <span class="muted small">${room ? `${x.status === '蛋' ? '孵化後' : ''}還可以再餵 ${room} HP` : '血量滿了（到牠的上限）'}${sib.length ? `・主人的 ${sib.length + 1} 隻上限加起來 ${caps}/${P.max} HP` : ''}</span>`;
+    return `<span class="pet-hp" title="飽足度">${Array.from({ length: capOf(x) }, (_, i) => `<i class="${i < x.hp ? 'on' : ''}">🍚</i>`).join('')}<b>${x.hp}/${capOf(x)}</b></span>
+      <span class="muted small">${room ? `${x.status !== '寵物' ? '孵化後' : ''}還可以再餵 ${room} 🍚` : '吃飽了（到牠的上限）'}${sib.length ? `・主人的 ${sib.length + 1} 隻上限加起來 ${caps}/${P.max} 🍚` : ''}</span>`;
   };
   const full = x => x.hp >= capOf(x);
   const left = ms => { const m = Math.max(0, Math.round(ms / 60e3)); return m >= 60 ? `${Math.floor(m / 60)} 小時 ${m % 60} 分` : `${m} 分鐘`; };
   function cardHtml(x) {
     const mine = x.owner === A.me() || A.isTeacher();
-    let h = `<div class="pet-card${x.status === '死亡' ? ' dead' : ''}"><div class="pet-pic">${x.status === '蛋' ? EGG : look(x)}</div><div class="pet-info">
-      <b class="pet-nm">${x.status === '蛋' ? '寵物蛋' : esc(petName(x))}${x.status === '死亡' ? ' 😇' : ''}</b>
+    const isEgg = x.status === '蛋' || x.status === '待孵';
+    let h = `<div class="pet-card${x.status === '覓食' ? ' dead' : ''}"><div class="pet-pic">${isEgg ? EGG : look(x)}</div><div class="pet-info">
+      <b class="pet-nm">${isEgg ? '寵物蛋' : esc(petName(x))}${x.status === '覓食' ? ' 🍚' : ''}</b>
       <span class="muted small">主人：${esc(nm(x.owner))}${x.reason ? `・因為「${esc(x.reason)}」被加分` : ''}</span>
-      ${x.status === '蛋' ? `<span class="small">🥚 還有 ${left(x.hatch - Date.now())} 孵化・上限 ${capOf(x)} HP</span>${hpBar(x)}` : x.status === '死亡' ? '<span class="small muted">已經升天了，謝謝牠陪伴大家。</span>' : hpBar(x)}
+      ${x.status === '待孵' ? `<span class="small">🥚 還沒開始孵化：主人按「🐣 孵化」，蛋才會放到講台上，一天後孵化</span>${hpBar(x)}`
+        : x.status === '蛋' ? `<span class="small">🥚 在講台上孵化中，還有 ${left(x.hatch - Date.now())}・上限 ${capOf(x)} 🍚</span>${hpBar(x)}`
+        : x.status === '覓食' ? '<span class="small muted">肚子餓了，跑出去自己覓食了，謝謝牠陪伴大家。</span>' : hpBar(x)}
       ${x.fed && x.status === '寵物' ? `<span class="muted small">最近餵食：${esc(x.fed)}</span>` : ''}</div></div>
       ${x.status === '寵物' ? `<div class="pet-feeders"><b>🥫 最近一週餵牠的人</b>${(x.feeders || []).length ? `<div>${x.feeders.map(f => `<span class="pet-fd">${esc(nm(f.key))}<b>×${f.n}</b></span>`).join('')}</div><span class="muted small">餵越多次，牠越常跑去你的座位旁邊睡覺 💤</span>` : '<span class="muted small">這週還沒有人餵牠。</span>'}</div>` : ''}`;
-    if (x.status === '寵物' && !A.isGuest()) h += `<div class="actions"><button type="button" class="btn btn--primary wide" data-act="petFeed" data-id="${esc(x.id)}"${full(x) ? ' disabled' : ''}>🥫 餵罐罐（${P.food} 點，+1 HP）${full(x) ? '・吃飽了' : ''}</button></div>`;
-    if (A.isTeacher() && x.status !== '死亡') h += `<div class="actions"><button type="button" class="btn btn--danger wide" data-act="petDel" data-id="${esc(x.id)}">🗑 移除這${x.status === '蛋' ? '顆蛋' : '隻寵物'}（導師）</button></div>`;
-    if (mine && x.status !== '死亡') h += `<details class="pet-edit"${x.status === '寵物' && !x.imgId && x.owner === A.me() ? ' open' : ''}><summary>✏️ 主人專屬：取名字、上傳外觀</summary>
+    if (x.status === '寵物' && !A.isGuest()) h += `<div class="actions"><button type="button" class="btn btn--primary wide" data-act="petFeed" data-id="${esc(x.id)}"${full(x) ? ' disabled' : ''}>🥫 餵罐罐（${P.food} 點，+1 🍚）${full(x) ? '・吃飽了' : ''}</button></div>`;
+    if (x.status === '待孵' && (x.owner === A.me() || A.isTeacher())) h += `<div class="actions"><button type="button" class="btn btn--primary wide" data-act="petIncubate" data-id="${esc(x.id)}">🐣 孵化（放到講台上）</button></div>`;
+    if (A.isTeacher() && x.status !== '覓食') h += `<div class="actions"><button type="button" class="btn btn--danger wide" data-act="petDel" data-id="${esc(x.id)}">🗑 移除這${isEgg ? '顆蛋' : '隻寵物'}（導師）</button></div>`;
+    if (mine && x.status !== '覓食') h += `<details class="pet-edit"${x.status === '寵物' && !x.imgId && x.owner === A.me() ? ' open' : ''}><summary>✏️ 主人專屬：取名字、上傳外觀</summary>
       <label class="lv-f"><span>名字</span><input type="text" id="petNm" maxlength="12" value="${esc(x.name || '')}" placeholder="幫牠取個名字"></label>
       <label class="lv-f"><span>外觀圖片（建議 PNG 去背；沒上傳就是貓咪）</span><input type="file" id="petImg" accept="image/png,image/webp,image/gif,image/jpeg"></label>
       <div class="actions"><button type="button" class="btn wide" data-act="petSave" data-id="${esc(x.id)}">儲存</button></div></details>`;
@@ -310,7 +396,7 @@
   function openCard(id) {
     const x = P.pets.find(y => y.id === id);
     if (!x) return;
-    A.openSheet({ kind: 'pet', id }, A.sheetHead(x.status === '蛋' ? '🥚 寵物蛋' : `🐾 ${esc(petName(x))}`, '班級寵物') + cardHtml(x));
+    A.openSheet({ kind: 'pet', id }, A.sheetHead(x.status === '蛋' || x.status === '待孵' ? '🥚 寵物蛋' : `🐾 ${esc(petName(x))}`, '班級寵物') + cardHtml(x));
   }
   // 縮小外觀圖片（保留透明背景）
   async function shrink(file) {
@@ -330,16 +416,28 @@
   async function feed(id, b) {
     const x = P.pets.find(y => y.id === id);
     if (!x) return;
-    if (!await A.ask(`花 ${P.food} 點買一個罐罐，餵「${petName(x)}」？\n（+1 HP，最多到牠的上限 ${capOf(x)} HP）`, '餵食')) return;
+    if (!await A.ask(`花 ${P.food} 點買一個罐罐，餵「${petName(x)}」？\n（+1 🍚，最多到牠的上限 ${capOf(x)} 🍚）`, '餵食')) return;
     if (b) b.disabled = true;
-    try { P = await A.api('feedPet', { id }); toast('🥫 牠吃得好開心！+1 HP'); paintMap(true); if (A.sheetMode()?.kind === 'pet') openCard(id); if (A.currentTab() === 'pet') render(); A.emit('coins'); }
+    try { P = await A.api('feedPet', { id }); toast('🥫 牠吃得好開心！+1 🍚'); paintMap(true); if (A.sheetMode()?.kind === 'pet') openCard(id); if (A.currentTab() === 'pet') render(); A.emit('coins'); }
     catch (err) { toast(err.message); if (b) b.disabled = false; }
+  }
+  async function incubate(ids, b) {
+    if (b) b.disabled = true;
+    try {
+      P = await A.api('petIncubate', { ids }); pAt = Date.now();
+      toast(`🐣 ${ids.length > 1 ? `${ids.length} 顆蛋` : '蛋'}已經放到講台上，一天後孵化！`);
+      if (A.sheetMode()?.kind === 'pet') A.closeSheet();
+      if (A.currentTab() === 'pet') render();
+      paintMap(true);
+      if (A.currentTab() !== 'seats') toast('🐣 到「座位」可以看到蛋跳到講台上！');
+    } catch (err) { toast(err.message); if (b) b.disabled = false; }
   }
   A.sheetHandlers.pet = async (act, b) => {
     if (act === 'petFeed') return feed(b.dataset.id, b);
+    if (act === 'petIncubate') return incubate([b.dataset.id], b);
     if (act === 'petDel') {
       const x = P.pets.find(y => y.id === b.dataset.id);
-      if (!x || !await A.ask(`移除${nm(x.owner)}的這${x.status === '蛋' ? '顆寵物蛋' : '隻寵物'}？${x.reason ? `\n（原因：${x.reason}）` : ''}\n移除後不會再顯示，牠的 HP 會平均分給同一位主人其他的蛋／寵物。`, '移除', true)) return;
+      if (!x || !await A.ask(`移除${nm(x.owner)}的這${x.status === '蛋' ? '顆寵物蛋' : '隻寵物'}？${x.reason ? `\n（原因：${x.reason}）` : ''}\n移除後不會再顯示，牠的 🍚 會平均分給同一位主人其他的蛋／寵物。`, '移除', true)) return;
       b.disabled = true;
       try { P = await A.api('petDelete', { id: x.id }); toast('已移除'); A.closeSheet?.(); paintMap(true); if (A.currentTab() === 'pet') render(); }
       catch (err) { toast(err.message); b.disabled = false; }
@@ -356,18 +454,18 @@
       toast('✓ 已儲存'); paintMap(true); openCard(b.dataset.id); if (A.currentTab() === 'pet') render();
     } catch (err) { toast(err.message); b.disabled = false; b.textContent = '儲存'; }
   };
-  // ── 主人分配 HP：同一位主人的蛋和寵物共用 10 HP，可以互相移動（每隻至少 1 HP，總數不能變多）──
+  // ── 主人分配 🍚：同一位主人的蛋和寵物共用 10 🍚，可以互相移動（每隻至少 1 🍚，總數不能變多）──
   let allot = null;   // { owner, plan: { id: hp } }
   function allotHtml(owner) {
-    const list = P.pets.filter(x => x.owner === owner && x.status !== '死亡').sort((a, b) => a.born - b.born);
+    const list = P.pets.filter(x => x.owner === owner && x.status !== '覓食').sort((a, b) => a.born - b.born);
     if (list.length < 2) return '';
     if (!allot || allot.owner !== owner) allot = { owner, plan: Object.fromEntries(list.map(x => [x.id, capOf(x)])) };
     const total = list.reduce((s, x) => s + capOf(x), 0), now = Object.values(allot.plan).reduce((s, v) => s + v, 0);
-    return `<div class="panel pet-allot"><h3>⚖️ 分配 HP 上限（${esc(nm(owner))}的 ${list.length} 隻）</h3>
-      <p class="muted small">每一隻都有自己的 HP 上限，你的蛋和寵物的上限加起來最多 ${P.max} HP。可以互相移動上限（血量也會跟著移過去）：每隻至少 1 HP，加起來要剛好 ${total} HP。</p>
+    return `<div class="panel pet-allot"><h3>⚖️ 分配 🍚 上限（${esc(nm(owner))}的 ${list.length} 隻）</h3>
+      <p class="muted small">每一隻都有自己的 🍚 上限，你的蛋和寵物的上限加起來最多 ${P.max} 🍚。可以互相移動上限（飽足度也會跟著移過去）：每隻至少 1 🍚，加起來要剛好 ${total} 🍚。</p>
       ${list.map((x, i) => `<div class="pa-row"><span class="pa-pic">${x.status === '蛋' ? EGG : look(x)}</span><b>${x.status === '蛋' ? `寵物蛋 ${i + 1}` : esc(petName(x))}</b>
-        <button type="button" class="btn" data-pa="-" data-id="${esc(x.id)}"${allot.plan[x.id] <= 1 ? ' disabled' : ''}>−</button><b class="pa-hp">上限 ${allot.plan[x.id]} HP</b><button type="button" class="btn" data-pa="+" data-id="${esc(x.id)}"${now >= total ? ' disabled' : ''}>＋</button></div>`).join('')}
-      <div class="pa-sum ${now === total ? 'ok' : 'bad'}">加起來 ${now}／${total} HP${now < total ? `（還有 ${total - now} HP 沒分配）` : ''}</div>
+        <button type="button" class="btn" data-pa="-" data-id="${esc(x.id)}"${allot.plan[x.id] <= 1 ? ' disabled' : ''}>−</button><b class="pa-hp">上限 ${allot.plan[x.id]} 🍚</b><button type="button" class="btn" data-pa="+" data-id="${esc(x.id)}"${now >= total ? ' disabled' : ''}>＋</button></div>`).join('')}
+      <div class="pa-sum ${now === total ? 'ok' : 'bad'}">加起來 ${now}／${total} 🍚${now < total ? `（還有 ${total - now} 🍚 沒分配）` : ''}</div>
       <div class="actions"><button type="button" class="btn btn--primary wide" data-pa="save"${now === total ? '' : ' disabled'}>儲存分配</button></div></div>`;
   }
   // 商店：買罐罐 → 選一隻寵物餵
@@ -375,7 +473,7 @@
     if (!P) await load();
     const alive = (P?.pets || []).filter(x => x.status === '寵物');
     if (!alive.length) return toast('現在還沒有孵化的寵物');
-    A.openSheet({ kind: 'pet' }, A.sheetHead('🥫 買罐罐餵寵物', `一個罐罐 ${P.food} 點，+1 HP`) + alive.map(cardHtml).join('<hr class="pet-hr">'));
+    A.openSheet({ kind: 'pet' }, A.sheetHead('🥫 買罐罐餵寵物', `一個罐罐 ${P.food} 點，+1 🍚`) + alive.map(cardHtml).join('<hr class="pet-hr">'));
   };
 
   // ── 🐾 寵物分頁 ──
@@ -385,22 +483,32 @@
     if (!P) { root.innerHTML = `<div class="panel"><p class="muted">讀取中…</p></div>`; return; }
     const by = s => P.pets.filter(x => x.status === s);
     let h = `<details class="panel"><summary><b>📜 班級寵物怎麼玩？</b></summary><ol class="ar-ol">
-      <li>同學被<b>加幾分，就從他的座位蹦出幾顆寵物蛋</b>，依序排在講台上。</li>
-      <li>每一隻蛋／寵物都有<b>自己的 HP 上限</b>（例如 3 HP、4 HP）；同一位主人全部的蛋和寵物，<b>上限加起來最多 ${P.max} HP</b>。</li>
-      <li>第一顆蛋上限 ${P.max} HP；之後每多一顆新蛋，<b>上限最大的那隻會自動分 1 HP 給新蛋</b>。主人可以自己互相移動上限（例如 8／1／1，每隻至少 1 HP），所以最多同時有 ${P.max} 隻。</li>
-      <li>寵物升天後，牠的上限<b>不會</b>分回給其他隻。</li>
-      <li>蛋放 <b>1 天</b>後孵化。寵物的主人（被加分的同學）可以上傳牠的外觀（建議 PNG 去背），沒上傳就是<b>貓咪</b>。</li>
-      <li>寵物會在座位表的教室四邊走來走去；點牠會有愛心或音符，也可以看到<b>血量</b>。</li>
-      <li>寵物孵化後<b>每天扣 1 HP</b>。在商店或寵物卡買<b>罐罐（${P.food} 點）</b>餵牠，<b>+1 HP</b>（最多補到牠自己的上限）。</li>
+      <li>同學被<b>加幾分，就得到幾顆寵物蛋</b>。蛋先放在自己身上，<b>主人按「🐣 孵化」</b>，蛋才會從座位跳到講台上開始孵化。</li>
+      <li>每一隻蛋／寵物都有<b>自己的 🍚 上限</b>（例如 3 🍚、4 🍚）；同一位主人全部的蛋和寵物，<b>上限加起來最多 ${P.max} 🍚</b>。</li>
+      <li>第一顆蛋上限 ${P.max} 🍚；之後每多一顆新蛋，<b>上限最大的那隻會自動分 1 🍚 給新蛋</b>。主人可以自己互相移動上限（例如 8／1／1，每隻至少 1 🍚），所以最多同時有 ${P.max} 隻。</li>
+      <li>寵物跑出去覓食後，牠的上限<b>不會</b>分回給其他隻。</li>
+      <li>蛋放到講台上 <b>1 天</b>後孵化，但<b>只有約 1/10 的機會孵出真正的寵物</b>；其他會孵出各種奇怪的東西（小鳥、法拉利、趕上班的老伯…共 ${Object.keys(GONE).length} 種），然後就離開教室了。孵失敗的蛋，牠的 🍚 會平均分給同一位主人其他的蛋和寵物。</li>
+      <li>寵物的主人（被加分的同學）可以上傳牠的外觀（建議 PNG 去背），沒上傳就是<b>貓咪</b>。</li>
+      <li>寵物會在座位表的教室四邊走來走去；點牠會有愛心或音符，也可以看到牠的<b>飽足度 🍚</b>。</li>
+      <li>寵物孵化後<b>每天會餓掉 1 🍚</b>。在商店或寵物卡買<b>罐罐（${P.food} 點）</b>餵牠，<b>+1 🍚</b>（最多補到牠自己的上限）。</li>
       <li>寵物會記得這一週誰餵牠：<b>餵越多次，牠越常跑去你的座位旁邊睡覺</b> 💤。</li>
-      <li>血量變成 <b>0 HP</b>，寵物就會升天 👻。大家一起照顧牠吧！</li></ol></details>`;
+      <li>飽足度變成 <b>0 🍚</b>，寵物就會肚子餓、<b>跑出去自己覓食</b>，不回來了。大家一起照顧牠吧！</li></ol></details>`;
     const sec = (title, list) => (list.length ? `<div class="panel"><h3>${title}</h3><div class="pet-list">${list.map(x => `<div class="pet-row" data-petcard="${esc(x.id)}" role="button" tabindex="0">${cardHtml(x)}</div>`).join('')}</div></div>` : '');
     const meK = A.isTeacher() ? '' : A.me();
+    const waiting = by('待孵'), mineWait = waiting.filter(x => x.owner === meK);
+    if (mineWait.length) h += `<div class="panel pet-wait"><h3>🥚 你有 ${mineWait.length} 顆寵物蛋還沒孵化</h3>
+      <p class="small">按「🐣 孵化」，蛋才會放到講台上，一天後揭曉（只有約 1/10 會孵出真正的寵物，其他會孵出奇怪的東西跑掉）。</p>
+      <div class="pet-wait-eggs">${mineWait.map(() => EGG).join('')}</div>
+      <div class="actions"><button type="button" class="btn btn--primary wide" data-act="petIncubate" data-ids="${esc(mineWait.map(x => x.id).join(','))}">🐣 孵化${mineWait.length > 1 ? `（全部 ${mineWait.length} 顆）` : ''}</button></div></div>`;
     if (meK) h += allotHtml(meK);
     h += sec(`🐾 寵物（${by('寵物').length}）`, by('寵物').sort((a, b) => a.hp - b.hp));
-    h += sec(`🥚 寵物蛋（${by('蛋').length}）`, by('蛋'));
-    h += sec('😇 最近升天的寵物', by('死亡'));
-    if (!P.pets.length) h += `<div class="panel"><p class="muted">還沒有寵物。同學被加分時就會生出寵物蛋！</p></div>`;
+    h += sec(`🥚 講台上孵化中的蛋（${by('蛋').length}）`, by('蛋'));
+    h += sec(`🧺 還沒按孵化的蛋（${waiting.length}）`, waiting);
+    h += sec('🍚 最近跑出去覓食的寵物', by('覓食'));
+    const gone = (P.gone || []).slice().sort((a, b) => b.hatch - a.hatch);
+    if (gone.length) h += `<details class="panel"><summary><b>🥚 這週孵出的奇怪東西（${gone.length}）</b></summary><ul class="gone-list">${gone.map(x => { const { g, what, act } = goneText(x); const d = new Date(x.hatch);
+      return `<li><span class="gl-ico">${g[0]}</span><span><b>${esc(nm(x.owner))}</b> 的蛋孵出${esc(what)}，${esc(act)}。<span class="muted small">${d.getMonth() + 1}/${d.getDate()}</span></span></li>`; }).join('')}</ul></details>`;
+    if (!P.pets.length) h += `<div class="panel"><p class="muted">還沒有寵物。同學被加分時就會得到寵物蛋！</p></div>`;
     root.innerHTML = h;
   }
   $('#petRoot')?.addEventListener('click', async e => {
@@ -410,12 +518,13 @@
       if (v === '+' || v === '-') { allot.plan[pa.dataset.id] += v === '+' ? 1 : -1; render(); return; }
       if (v === 'save') {
         pa.disabled = true;
-        try { P = await A.api('petAllot', { owner: allot.owner, plan: allot.plan }); allot = null; toast('✓ 已重新分配 HP 上限'); render(); paintMap(true); } catch (err) { toast(err.message); pa.disabled = false; }
+        try { P = await A.api('petAllot', { owner: allot.owner, plan: allot.plan }); allot = null; toast('✓ 已重新分配 🍚 上限'); render(); paintMap(true); } catch (err) { toast(err.message); pa.disabled = false; }
         return;
       }
     }
     const b = e.target.closest('[data-act]');
     if (b?.dataset.act === 'petFeed') { e.stopPropagation(); return feed(b.dataset.id, b); }
+    if (b?.dataset.act === 'petIncubate') { e.stopPropagation(); return incubate(b.dataset.ids ? b.dataset.ids.split(',') : [b.dataset.id], b); }
     if (e.target.closest('details, input, button')) return;
     const r = e.target.closest('[data-petcard]');
     if (r) openCard(r.dataset.petcard);
@@ -438,8 +547,8 @@
 
   // ── 測試模式：存在這台裝置（規則和正式版一樣）──
   const tSpread = (list, n, order) => { const k = list.length, base = Math.floor(n / k), ord = (order || list.map((_, i) => i).sort(() => Math.random() - 0.5)).slice(0, n % k); return list.map((_, i) => base + (ord.includes(i) ? 1 : 0)); };
-  const tFix = all => [...new Set(all.filter(x => x.status !== '死亡').map(x => x.owner))].forEach(o => {
-    const list = all.filter(x => x.owner === o && x.status !== '死亡'), fresh = list.every(x => !x.cap);
+  const tFix = all => [...new Set(all.filter(x => x.status !== '覓食').map(x => x.owner))].forEach(o => {
+    const list = all.filter(x => x.owner === o && x.status !== '覓食'), fresh = list.every(x => !x.cap);
     list.forEach(x => { if (!x.cap) x.cap = Math.max(1, x.hp); });
     if (fresh) { const room = 10 - list.reduce((s, x) => s + x.cap, 0); if (room > 0) { const a = tSpread(list, room); list.forEach((x, i) => { x.cap += a[i]; }); } }
     if (list.reduce((s, x) => s + x.cap, 0) > 10) { const c = tSpread(list, 10); list.forEach((x, i) => { x.cap = Math.max(1, c[i]); }); }
@@ -449,19 +558,19 @@
     const KEY = 'indoor.pets.v1.test', all = store.get(KEY, null) || [], now = Date.now();
     tFix(all);
     rows.forEach(r => {
-      const live = all.filter(x => x.owner === r.student && x.status !== '死亡'), k = Math.max(0, Math.min(r.points || 1, 10 - live.length));
-      for (let i = 0; i < k; i++) {   // 第一顆上限 10 HP；之後上限最大的那隻分 1 HP 給新蛋
-        const big = all.filter(x => x.owner === r.student && x.status !== '死亡').sort((a, b) => b.cap - a.cap || a.born - b.born)[0];
+      const live = all.filter(x => x.owner === r.student && x.status !== '覓食'), k = Math.max(0, Math.min(r.points || 1, 10 - live.length));
+      for (let i = 0; i < k; i++) {   // 第一顆上限 10 🍚；之後上限最大的那隻分 1 🍚 給新蛋
+        const big = all.filter(x => x.owner === r.student && x.status !== '覓食').sort((a, b) => b.cap - a.cap || a.born - b.born)[0];
         let cap = 10;
         if (big) { if (big.cap > 1) { big.cap--; if (big.hp > 1) big.hp--; big.hp = Math.min(big.hp, big.cap); } cap = 1; }
-        all.push({ id: 'p' + now.toString(36) + Math.random().toString(36).slice(2, 6), owner: r.student, reason: r.reason || '', born: now + i, hatch: now + 864e5, name: '', imgId: '', hp: cap, cap, decay: '', status: '蛋', died: 0, fed: '' });
+        all.push({ id: 'p' + now.toString(36) + Math.random().toString(36).slice(2, 6), owner: r.student, reason: r.reason || '', born: now + i, hatch: 0, name: '', imgId: '', hp: cap, cap, decay: '', status: '待孵', died: 0, fed: '' });
       }
     });
     store.set(KEY, all);
   };
   const prevTest = A.testSeatApi;
   A.testSeatApi = async (action, p = {}) => {
-    if (!['getPets', 'feedPet', 'petLook', 'petImage', 'petAllot', 'petDelete'].includes(action)) return prevTest ? prevTest(action, p) : null;
+    if (!['getPets', 'feedPet', 'petLook', 'petImage', 'petAllot', 'petDelete', 'petIncubate'].includes(action)) return prevTest ? prevTest(action, p) : null;
     const KEY = 'indoor.pets.v1.test', all = store.get(KEY, null) || [], me = A.isTeacher() ? (A.D.teacherLabel || '導師') : A.me(), now = Date.now();
     if (!store.get(KEY, null)) {   // 第一次：補一顆蛋（最近被加分的同學）
       const k = A.students()[4] || A.students()[0];
@@ -469,29 +578,43 @@
     }
     const day = t => Math.floor((t + 8 * 3600e3) / 864e5);
     all.forEach(x => {
-      if (x.status === '蛋' && now >= x.hatch) { x.status = '寵物'; x.hp = Math.max(1, x.hp || 1); x.decay = day(x.hatch); }
-      if (x.status === '寵物' && day(now) > x.decay) { x.hp -= day(now) - x.decay; x.decay = day(now); if (x.hp <= 0) { x.hp = 0; x.status = '死亡'; x.died = now; } }
+      if (x.status === '蛋' && now >= x.hatch) {
+        if (Math.random() >= 0.1) { x.status = '飛走'; x.gone = Object.keys(GONE)[Math.floor(Math.random() * Object.keys(GONE).length)]; return; }
+        x.status = '寵物'; x.hp = Math.max(1, x.hp || 1); x.decay = day(x.hatch);
+      }
+      if (x.status === '寵物' && day(now) > x.decay) { x.hp -= day(now) - x.decay; x.decay = day(now); if (x.hp <= 0) { x.hp = 0; x.status = '覓食'; x.died = now; } }
     });
+    // 孵失敗的：從清單拿出來，🍚 分給同一位主人其他的
+    const GK = 'indoor.petsgone.v1.test', goneAll = store.get(GK, []);
+    for (let i = all.length - 1; i >= 0; i--) {
+      const x = all[i];
+      if (x.status !== '飛走') continue;
+      all.splice(i, 1); goneAll.push(x);
+      const rest = all.filter(y => y.owner === x.owner && y.status !== '覓食');
+      if (rest.length) { const o = rest.map((_, j) => j).sort(() => Math.random() - 0.5), ac = tSpread(rest, x.cap || 0, o), ah = tSpread(rest, x.hp || 0, o); rest.forEach((y, j) => { y.cap += ac[j]; y.hp = Math.min(y.cap, y.hp + ah[j]); }); }
+    }
+    store.set(GK, goneAll);
     tFix(all);
-    if (action === 'feedPet') { const x = all.find(y => y.id === p.id); if (!x || x.status !== '寵物') throw new Error('這隻寵物現在不能餵'); if (x.hp >= x.cap) throw new Error(`牠已經吃飽了（牠的上限是 ${x.cap} HP）`); x.hp++; x.fed = `${me} ${A.fmtTime(new Date())}`; (x.feedLog ||= []).push({ who: me, t: now }); }
+    if (action === 'feedPet') { const x = all.find(y => y.id === p.id); if (!x || x.status !== '寵物') throw new Error('這隻寵物現在不能餵'); if (x.hp >= x.cap) throw new Error(`牠已經吃飽了（牠的上限是 ${x.cap} 🍚）`); x.hp++; x.fed = `${me} ${A.fmtTime(new Date())}`; (x.feedLog ||= []).push({ who: me, t: now }); }
     if (action === 'petLook') { const x = all.find(y => y.id === p.id); if (p.name != null) x.name = String(p.name).slice(0, 12); if (p.data) { x.imgId = 'i' + now.toString(36); store.set('indoor.petimgdata.test', { ...store.get('indoor.petimgdata.test', {}), [x.imgId]: p.data }); } }
     if (action === 'petAllot') {
-      const list = all.filter(x => x.owner === (A.isTeacher() ? p.owner : me) && x.status !== '死亡'), total = list.reduce((s, x) => s + x.cap, 0), sum = list.reduce((s, x) => s + (p.plan[x.id] || 0), 0);
-      if (list.some(x => !(p.plan[x.id] >= 1))) throw new Error('每一隻的上限至少要 1 HP');
-      if (sum !== total) throw new Error(`上限加起來要剛好 ${total} HP`);
+      const list = all.filter(x => x.owner === (A.isTeacher() ? p.owner : me) && x.status !== '覓食'), total = list.reduce((s, x) => s + x.cap, 0), sum = list.reduce((s, x) => s + (p.plan[x.id] || 0), 0);
+      if (list.some(x => !(p.plan[x.id] >= 1))) throw new Error('每一隻的上限至少要 1 🍚');
+      if (sum !== total) throw new Error(`上限加起來要剛好 ${total} 🍚`);
       list.forEach(x => { const c = p.plan[x.id]; x.hp = Math.max(1, Math.min(c, x.hp + c - x.cap)); x.cap = c; });
     }
+    if (action === 'petIncubate') all.forEach(x => { if ((p.ids || []).includes(x.id) && x.status === '待孵' && (A.isTeacher() || x.owner === me)) { x.status = '蛋'; x.hatch = now + 864e5; } });
     if (action === 'petDelete') {
       const i = all.findIndex(y => y.id === p.id), x = all[i];
       if (i >= 0) {
         all.splice(i, 1);
-        const rest = all.filter(y => y.owner === x.owner && y.status !== '死亡');
-        if (rest.length && x.status !== '死亡') { const o = rest.map((_, i) => i).sort(() => Math.random() - 0.5), ac = tSpread(rest, x.cap, o), ah = tSpread(rest, x.hp, o); rest.forEach((y, j) => { y.cap += ac[j]; y.hp = Math.min(y.cap, y.hp + ah[j]); }); }
+        const rest = all.filter(y => y.owner === x.owner && y.status !== '覓食');
+        if (rest.length && x.status !== '覓食') { const o = rest.map((_, i) => i).sort(() => Math.random() - 0.5), ac = tSpread(rest, x.cap, o), ah = tSpread(rest, x.hp, o); rest.forEach((y, j) => { y.cap += ac[j]; y.hp = Math.min(y.cap, y.hp + ah[j]); }); }
       }
     }
     if (action === 'petImage') { const x = all.find(y => y.id === p.id); return { ok: true, img: store.get('indoor.petimgdata.test', {})[x?.imgId] || '' }; }
     store.set(KEY, all);
     const feeders = x => { const m = {}; (x.feedLog || []).filter(f => f.t > now - 7 * 864e5).forEach(f => { m[f.who] = (m[f.who] || 0) + 1; }); return Object.entries(m).map(([key, n]) => ({ key, n })).sort((a, b) => b.n - a.n); };
-    return { ok: true, pets: all.map(x => ({ ...x, img: x.imgId ? 1 : 0, feeders: feeders(x) })), me, now, food: 1, max: 10 };
+    return { ok: true, pets: all.map(x => ({ ...x, img: x.imgId ? 1 : 0, feeders: feeders(x) })), gone: goneAll.filter(x => now - x.hatch < 7 * 864e5), me, now, food: 1, max: 10 };
   };
 })();

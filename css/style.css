@@ -2020,3 +2020,138 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .cz-pp { display: flex; gap: 3px; margin-top: 6px; width: 100%; }
 .cz-pp i { flex: 1; height: 18px; border-radius: 4px; background: rgba(255,255,255,.16); color: rgba(255,255,255,.55); font-style: normal; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
 .cz-pp i.on { background: #fff; color: #222; }
+
+/* ── 🥚 孵化失敗：孵出奇怪的東西，做動畫離開（約 4 秒，對話框約 3 秒）── */
+.pet-fx.gone-fx { width: 0; height: 0; z-index: 30; pointer-events: none; font-size: 34px; overflow: visible; }
+.gone-fx > span { position: absolute; left: 0; top: 0; width: 1em; height: 1em; margin: -.5em 0 0 -.5em; line-height: 1em; text-align: center; }
+.gone-fx .g-egg { animation: g-crack .9s ease-in both; }
+.gone-fx .g-egg svg { width: 30px; height: 37px; }
+.gone-fx .g-actor { animation: 3.2s .8s both ease-in-out; }
+.gone-fx .g-help { animation: 3.2s .8s both ease-in-out; opacity: 0; }
+.gone-fx .g-say { width: auto; height: auto; margin: 0; left: 50%; top: 34px; bottom: auto; transform: translateX(-50%); min-width: 150px; max-width: 240px; padding: 6px 12px; border-radius: 14px; background: #fff; color: #222; font-size: 13px; font-weight: 700; line-height: 1.45; box-shadow: 0 4px 14px rgba(0,0,0,.25); animation: g-say 3.2s .8s both; }
+.gone-fx .g-say::after { content: ''; position: absolute; left: 50%; top: -6px; margin-left: -6px; border: 6px solid transparent; border-top: 0; border-bottom-color: #fff; }
+@keyframes g-crack { 0% { transform: rotate(0); } 20% { transform: rotate(-14deg); } 40% { transform: rotate(14deg); } 60% { transform: rotate(-9deg); } 80% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(.2); opacity: 0; } }
+@keyframes g-say { 0% { opacity: 0; transform: translateX(-50%) translateY(6px); } 8%, 90% { opacity: 1; transform: translateX(-50%) translateY(0); } 100% { opacity: 0; } }
+
+/* 飛走 */
+.a-fly { animation-name: g-fly !important; }
+@keyframes g-fly { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 25% { transform: translate(12px, -14px) rotate(-8deg); } 40% { transform: translate(50px, -60px) scaleY(.85); } 55% { transform: translate(100px, -120px); } 70% { transform: translate(150px, -180px) scaleY(.85); } 100% { opacity: .9; transform: translate(280px, -330px) rotate(-12deg); } }
+.a-zigzag { animation-name: g-zig !important; }
+@keyframes g-zig { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 25% { transform: translate(-45px, -60px) rotate(-15deg); } 45% { transform: translate(45px, -120px) rotate(15deg); } 65% { transform: translate(-45px, -180px) rotate(-15deg); } 85% { transform: translate(45px, -240px) rotate(15deg); } 100% { opacity: 0; transform: translate(0, -320px); } }
+.a-sleigh, .h-sleigh { animation-name: g-sleigh !important; }
+.h-sleigh { margin-left: .4em !important; }
+@keyframes g-sleigh { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 30% { transform: translate(30px, -20px); } 100% { opacity: 1; transform: translate(320px, -260px); } }
+/* 升空（聖人、星星）：發光 */
+.a-rise { animation-name: g-rise !important; filter: drop-shadow(0 0 10px #ffe066) drop-shadow(0 0 22px #fff3bf); }
+.h-rise { animation-name: g-rise-glow !important; font-size: 28px; }
+@keyframes g-rise { 0% { opacity: 0; transform: scale(.2); } 10% { opacity: 1; transform: scale(1); } 30% { transform: translateY(-12px) scale(1.12); } 100% { opacity: 0; transform: translateY(-300px) scale(1.35); } }
+@keyframes g-rise-glow { 0% { opacity: 0; } 15% { opacity: 1; transform: translate(-22px, -18px) scale(.8); } 50% { transform: translate(24px, -110px) scale(1.2); } 100% { opacity: 0; transform: translate(-10px, -300px) scale(1.4); } }
+.a-lotus { animation-name: g-rise !important; filter: drop-shadow(0 0 10px #ffe066); }
+.h-lotus { animation-name: g-lotus !important; }
+@keyframes g-lotus { 0% { opacity: 0; transform: translateY(22px) scale(.2); } 10% { opacity: 1; transform: translateY(22px) scale(1.15); } 30% { transform: translateY(10px) scale(1.25); } 100% { opacity: 0; transform: translateY(-278px) scale(1.5); } }
+/* 跑走 */
+.a-runR { animation-name: g-runR !important; }
+.h-runR { animation-name: g-runR-bag !important; }
+@keyframes g-runR { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 20% { transform: translate(-14px, 0) rotate(-8deg); } 30% { transform: translate(30px, -10px) rotate(8deg); } 40% { transform: translate(80px, 0); } 50% { transform: translate(130px, -10px); } 60% { transform: translate(180px, 0); } 100% { opacity: 1; transform: translate(460px, 0); } }
+@keyframes g-runR-bag { 0%, 7% { opacity: 0; } 8% { opacity: 1; transform: translate(14px, 10px) scale(.6); } 20% { transform: translate(0, 10px) scale(.6); } 40% { transform: translate(94px, 10px) scale(.6); } 60% { transform: translate(194px, 10px) scale(.6); } 100% { opacity: 1; transform: translate(474px, 10px) scale(.6); } }
+.a-runL { animation-name: g-runL !important; }
+@keyframes g-runL { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 20% { transform: translate(14px, 0); } 30% { transform: translate(-30px, -12px); } 40% { transform: translate(-80px, 0); } 50% { transform: translate(-130px, -12px); } 60% { transform: translate(-180px, 0); } 100% { opacity: 1; transform: translate(-460px, 0); } }
+.a-waddle { animation-name: g-waddle !important; }
+@keyframes g-waddle { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 18% { transform: translate(25px, 0) rotate(12deg); } 28% { transform: translate(50px, 0) rotate(-12deg); } 38% { transform: translate(75px, 0) rotate(12deg); } 48% { transform: translate(100px, 0) rotate(-12deg); } 58% { transform: translate(125px, 0) rotate(12deg); } 68% { transform: translate(150px, 0) rotate(-12deg); } 78% { transform: translate(175px, 0) rotate(12deg); } 100% { opacity: 0; transform: translate(240px, 0); } }
+.a-crawl { animation-name: g-crawl !important; animation-timing-function: linear !important; }
+@keyframes g-crawl { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 85% { opacity: 1; transform: translate(110px, 0); } 100% { opacity: 0; transform: translate(130px, 0); } }
+.a-hop { animation-name: g-hop !important; }
+@keyframes g-hop { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 20% { transform: translate(40px, -55px); } 30% { transform: translate(80px, 0) scaleY(.85); } 42% { transform: translate(130px, -65px); } 52% { transform: translate(180px, 0) scaleY(.85); } 66% { transform: translate(240px, -80px); } 78% { transform: translate(300px, 0); } 100% { opacity: 0; transform: translate(380px, -120px); } }
+.a-spin { animation-name: g-spin !important; }
+@keyframes g-spin { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 40% { transform: translate(40px, -10px) rotate(720deg) scale(1.3); } 70% { transform: translate(-40px, -40px) rotate(1440deg) scale(1.5); } 100% { opacity: 0; transform: translate(260px, -120px) rotate(2160deg) scale(1.8); } }
+.a-fade { animation-name: g-fade !important; }
+.h-fade { animation-name: g-zz !important; font-size: 22px; }
+@keyframes g-fade { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 45% { opacity: 1; transform: translate(6px, -4px); } 100% { opacity: 0; transform: translate(40px, -30px); filter: blur(4px); } }
+@keyframes g-zz { 0%, 20% { opacity: 0; transform: translate(18px, -20px); } 40% { opacity: 1; } 100% { opacity: 0; transform: translate(40px, -90px) scale(1.4); } }
+.a-melt { animation-name: g-melt !important; transform-origin: 50% 100%; }
+@keyframes g-melt { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 40% { transform: scale(1.05, .95); } 70% { transform: scale(1.35, .45); opacity: 1; } 100% { opacity: 0; transform: scale(1.7, .05); } }
+/* 氣球破掉 */
+.a-pop { animation-name: g-pop !important; }
+.h-pop { animation-name: g-pop-boom !important; }
+@keyframes g-pop { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 60% { transform: translate(8px, -150px) rotate(6deg); } 70% { opacity: 1; transform: translate(0, -160px) scale(1.5); } 72%, 100% { opacity: 0; transform: translate(0, -160px) scale(1.6); } }
+@keyframes g-pop-boom { 0%, 69% { opacity: 0; transform: translate(0, -160px) scale(.4); } 72% { opacity: 1; transform: translate(0, -160px) scale(1.3); } 100% { opacity: 0; transform: translate(0, -160px) scale(2.4); } }
+/* 火箭 */
+.a-rocket, .h-rocket { animation-name: g-rocket !important; animation-timing-function: ease-in !important; }
+.a-rocket { transform-origin: center; }
+.h-rocket { margin-top: .45em !important; font-size: 26px; }
+@keyframes g-rocket { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 14% { transform: translate(-3px, 0) rotate(-45deg); } 18% { transform: translate(3px, 0) rotate(-45deg); } 22% { transform: translate(-3px, 0) rotate(-45deg); } 26% { transform: translate(3px, 0) rotate(-45deg); } 30% { transform: translate(-3px, 0) rotate(-45deg); } 38% { transform: translate(0, 0) rotate(-45deg); } 100% { opacity: 1; transform: translate(0, -520px) rotate(-45deg); } }
+.h-rocket { animation-name: g-flame !important; animation-timing-function: ease-in !important; }
+@keyframes g-flame { 0%, 12% { opacity: 0; } 14% { opacity: 1; transform: translate(0, 4px) rotate(180deg) scale(.8); } 38% { opacity: 1; transform: translate(0, 4px) rotate(180deg) scale(1.2); } 100% { opacity: 1; transform: translate(0, -490px) rotate(180deg) scale(1.4); } }
+/* 被風吹走 */
+.a-flutter { animation-name: g-flutter !important; }
+.h-flutter { animation-name: g-wind !important; }
+@keyframes g-flutter { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 30% { transform: translate(45px, -30px) rotate(25deg); } 52% { transform: translate(-5px, -70px) rotate(-30deg); } 75% { transform: translate(80px, -120px) rotate(35deg); } 100% { opacity: 0; transform: translate(200px, -190px) rotate(-25deg); } }
+@keyframes g-wind { 0%, 8% { opacity: 0; transform: translate(-60px, 0); } 20% { opacity: 1; transform: translate(-40px, 0); } 60% { opacity: 1; transform: translate(10px, -20px); } 100% { opacity: 0; transform: translate(80px, -40px); } }
+/* 彩虹 */
+.a-rainbow { animation-name: g-rainbow !important; }
+.h-rainbow { animation-name: g-rainbow-trail !important; font-size: 48px; }
+@keyframes g-rainbow { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 100% { opacity: 1; transform: translate(320px, -200px); } }
+@keyframes g-rainbow-trail { 0%, 20% { opacity: 0; transform: translate(60px, -20px) scale(.5); } 45% { opacity: 1; transform: translate(110px, -60px) scale(1.2); } 100% { opacity: 0; transform: translate(220px, -130px) scale(1.6); } }
+/* 飛碟光束 */
+.a-ufo { animation-name: g-ufo-up !important; }
+.h-ufo { animation-name: g-ufo !important; font-size: 44px; }
+.gone-fx .g-beam { width: 70px; height: 150px; margin: -150px 0 0 -35px; background: linear-gradient(to bottom, rgba(140,255,170,.7), rgba(140,255,170,0)); clip-path: polygon(38% 0, 62% 0, 100% 100%, 0 100%); opacity: 0; animation: g-beam 3.2s .8s both; }
+@keyframes g-ufo { 0% { opacity: 0; transform: translate(0, -170px) scale(.4); } 15% { opacity: 1; transform: translate(0, -160px) scale(1); } 72% { transform: translate(0, -160px); } 100% { opacity: 1; transform: translate(360px, -340px) scale(.6); } }
+@keyframes g-beam { 0%, 18% { opacity: 0; } 25%, 68% { opacity: 1; } 72%, 100% { opacity: 0; } }
+@keyframes g-ufo-up { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 30% { transform: translate(0, 0) rotate(-10deg); } 68% { opacity: 1; transform: translate(0, -145px) scale(.35) rotate(360deg); } 70%, 100% { opacity: 0; transform: translate(0, -150px) scale(.2); } }
+/* 魚跳回大海 */
+.a-flop { animation-name: g-flop !important; }
+.h-flop { animation-name: g-splash !important; font-size: 22px; }
+@keyframes g-flop { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 18% { transform: translate(0, -45px) rotate(25deg); } 28% { transform: translate(0, 0) rotate(0); } 40% { transform: translate(0, -55px) rotate(-25deg); } 50% { transform: translate(0, 0); } 100% { opacity: 0; transform: translate(240px, -140px) rotate(540deg); } }
+@keyframes g-splash { 0%, 26% { opacity: 0; transform: translate(0, 18px) scale(.5); } 30% { opacity: 1; transform: translate(0, 18px) scale(1.2); } 40% { opacity: 0; } 48% { opacity: 1; transform: translate(0, 18px) scale(1.3); } 60%, 100% { opacity: 0; } }
+/* 被載走／拖走／沒收（配角從旁邊進來，再一起離開）*/
+.a-deliver { animation-name: g-carried !important; }
+.h-deliver { animation-name: g-scooter !important; }
+@keyframes g-scooter { 0% { opacity: 0; transform: translate(320px, 0); } 8% { opacity: 1; } 38% { transform: translate(40px, 0); } 55% { transform: translate(40px, 0); } 100% { opacity: 1; transform: translate(-420px, 0); } }
+@keyframes g-carried { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 40% { transform: translate(0, 0); } 55% { transform: translate(30px, -16px) scale(.7); } 100% { opacity: 1; transform: translate(-430px, -16px) scale(.7); } }
+.a-tow { animation-name: g-towed !important; }
+.h-tow { animation-name: g-truck !important; font-size: 40px; }
+@keyframes g-truck { 0% { opacity: 0; transform: translate(-330px, -2px); } 8% { opacity: 1; } 40% { transform: translate(-50px, -2px); } 55% { transform: translate(-50px, -2px); } 100% { opacity: 1; transform: translate(-520px, -2px); } }
+@keyframes g-towed { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 45% { transform: translate(0, 0); } 55% { transform: translate(-4px, -4px) rotate(-10deg); } 100% { opacity: 1; transform: translate(-474px, -4px) rotate(-10deg); } }
+.a-confiscate { animation-name: g-taken !important; }
+.h-confiscate { animation-name: g-officer !important; }
+@keyframes g-officer { 0% { opacity: 0; transform: translate(-320px, 0); } 8% { opacity: 1; } 38% { transform: translate(-42px, 0); } 55% { transform: translate(-42px, 0); } 100% { opacity: 1; transform: translate(-460px, 0); } }
+@keyframes g-taken { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 42% { transform: translate(0, 0); } 55% { transform: translate(-22px, -10px) scale(.75); } 100% { opacity: 1; transform: translate(-440px, -10px) scale(.75); } }
+/* 丟垃圾桶 */
+.a-trash { animation-name: g-trash !important; }
+.h-trash { animation-name: g-can !important; }
+@keyframes g-can { 0% { opacity: 0; transform: translate(80px, 4px) scale(.3); } 12% { opacity: 1; transform: translate(80px, 4px) scale(1); } 74% { transform: translate(80px, 4px) rotate(0); } 78% { transform: translate(80px, 4px) rotate(-12deg); } 82% { transform: translate(80px, 4px) rotate(10deg); } 86% { transform: translate(80px, 4px) rotate(0); } 100% { opacity: 0; transform: translate(80px, 4px); } }
+@keyframes g-trash { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 38% { transform: translate(0, 0); } 58% { transform: translate(40px, -70px) rotate(200deg); } 74% { opacity: 1; transform: translate(80px, -4px) rotate(360deg) scale(.45); } 76%, 100% { opacity: 0; transform: translate(80px, 4px) scale(.3); } }
+/* 煙霧消失 */
+.a-poof { animation-name: g-poof !important; }
+.h-poof { animation-name: g-smoke !important; font-size: 40px; }
+@keyframes g-poof { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 35% { transform: translate(0, -4px) rotate(-10deg); } 45% { opacity: 1; transform: rotate(10deg) scale(1.1); } 50%, 100% { opacity: 0; transform: scale(1.5); } }
+@keyframes g-smoke { 0%, 44% { opacity: 0; transform: scale(.3); } 50% { opacity: 1; transform: scale(1.2); } 100% { opacity: 0; transform: translate(0, -40px) scale(2.6); } }
+/* 火山 */
+.a-volcano { animation-name: g-volcano !important; }
+.h-volcano { animation-name: g-erupt !important; font-size: 36px; }
+@keyframes g-volcano { 0% { opacity: 0; transform: scale(.2); } 8% { opacity: 1; transform: scale(1); } 14% { transform: translate(-3px, 0); } 18% { transform: translate(3px, 0); } 22% { transform: translate(-3px, 0); } 26% { transform: translate(3px, 0); } 30% { transform: translate(-3px, 0); } 34% { transform: translate(0, 0) scale(1.15); } 60% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(.2); } }
+@keyframes g-erupt { 0%, 33% { opacity: 0; transform: translate(0, -24px) scale(.4); } 40% { opacity: 1; transform: translate(0, -40px) scale(1); } 100% { opacity: 0; transform: translate(10px, -170px) scale(2.6); } }
+/* 🐾 分頁：這週孵出的奇怪東西 */
+.gone-list { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 6px; }
+.gone-list li { display: flex; align-items: center; gap: 10px; font-size: 14px; line-height: 1.45; }
+.gl-ico { font-size: 26px; flex: none; width: 34px; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .gone-fx .g-actor, .gone-fx .g-help { animation-duration: .01s !important; animation-delay: 0s !important; } }
+
+/* 🍚 飽足度：一格一個碗，空的變灰 */
+.pet-hp i { width: auto; height: auto; background: none; border-radius: 0; font-style: normal; font-size: 15px; line-height: 1; filter: grayscale(1); opacity: .28; }
+.pet-hp i.on { filter: none; opacity: 1; }
+.pet-hp b { margin-left: 6px; }
+/* 跑出去覓食：寵物揹著碗跑走 */
+.gone-fx.forage .g-actor { font-size: 46px; }
+.gone-fx .g-actor svg, .gone-fx .g-actor img { width: 100%; height: 100%; object-fit: contain; }
+/* 得到一顆蛋：從座位蹦起來又落回去 */
+.pet-fx.egg-got { width: 30px; height: 37px; margin: -18px 0 0 -15px; animation: egg-got 1.6s ease-out both; }
+.pet-fx.egg-got svg { width: 100%; height: 100%; }
+@keyframes egg-got { 0% { transform: translateY(10px) scale(.3); opacity: 0; } 25% { transform: translateY(-46px) scale(1.2); opacity: 1; } 45% { transform: translateY(-30px) rotate(-12deg); } 60% { transform: translateY(-38px) rotate(12deg); } 85% { transform: translateY(0) scale(.7); opacity: 1; } 100% { transform: translateY(6px) scale(.2); opacity: 0; } }
+/* 🐾 分頁：還沒孵化的蛋 */
+.pet-wait { border: 2px solid #f6c453; }
+.pet-wait-eggs { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.pet-wait-eggs svg { width: 26px; height: 32px; animation: egg-wobble 1.6s ease-in-out infinite; }
+.pet-wait-eggs svg:nth-child(2n) { animation-delay: .4s; }
+@keyframes egg-wobble { 0%, 60%, 100% { transform: rotate(0); } 70% { transform: rotate(-10deg); } 80% { transform: rotate(10deg); } 90% { transform: rotate(-6deg); } }

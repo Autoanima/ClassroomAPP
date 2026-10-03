@@ -114,9 +114,9 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ petIncubate: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ lunchChange: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ petIncubate: 1, lunchChange: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
 const GUEST_OK = { getPets: 1, petImage: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { notifyCheck: 1, saveRecords: 1, uploadPhoto: 1, getCheckLive: 1, setCheckLive: 1 };
@@ -212,6 +212,7 @@ function doPost(e) {
       case 'petImage': return json(petImage(req.id));
       case 'petAllot': return json(petAllot(who, req.owner, req.plan || {}));
       case 'petDelete': return json(petDelete(who, req.id));
+      case 'petIncubate': return json(petIncubate(who, req.ids || req.id));
       case 'pointsBoard': return json(pointsBoard(who));
       case 'delPoints': return json(delPoints(req.id, who));
       case 'shopState': return json(shopState(who));
@@ -1611,11 +1612,18 @@ function remindHomework(who, id) {
 // ── 🐾 班級寵物：同學被加分 → 從座位蹦出一顆寵物蛋（每人每天最多一顆）→ 1 天後孵化（滿血 10 HP）；
 //    每天扣 1 HP，同學在商店買罐罐（1 點）餵食 +1 HP；0 HP 就升天。外觀由被加分的同學上傳（PNG 去背），沒上傳就是貓咪 ──
 const SHEET_PET = '班級寵物';
-const HEAD_PET = ['編號', '主人', '原因', '生蛋時間', '孵化時間', '名字', '圖片', '血量', '上次扣血日', '狀態', '死亡時間', '最近餵食', '上限'];
-const PET = { HATCH_H: 24, MAX_HP: 10, FOOD: 1 };
+const HEAD_PET = ['編號', '主人', '原因', '生蛋時間', '孵化時間', '名字', '圖片', '飽足度', '上次扣血日', '狀態', '離開時間', '最近餵食', '上限', '孵化結果'];
+const PET_BOT = '🐾 班級寵物';
+const PET = { HATCH_H: 24, MAX_HP: 10, FOOD: 1, HATCH_OK: 0.1 };   // HATCH_OK：孵出真正寵物的機率（其他會孵出奇怪的東西然後離開）
+// 孵化失敗時會孵出的東西（畫面上的動畫和文字在 js/pets.js 的 GONE）
+const PET_GONE = ['bird', 'butterfly', 'mary', 'jesus', 'buddha', 'oldman', 'bento', 'ferrari', 'balloon', 'chicken', 'duck', 'rocket', 'exam', 'ghost', 'turtle', 'unicorn', 'alien', 'fish', 'parcel', 'ninja',
+  'dino', 'phone', 'bee', 'volcano', 'cash', 'pizza', 'snowman', 'penguin', 'dragon', 'santa', 'kite', 'robot', 'cat', 'frog', 'kangaroo', 'tiger', 'boba', 'icecream', 'octopus', 'bat',
+  'bus', 'riceball', 'sock', 'lightning', 'coffee', 'sheep', 'hamster', 'star', 'tornado', 'snail'];
+const petLive = x => x.status === '待孵' || x.status === '蛋' || x.status === '寵物';
 const petSheet = () => {
   const sh = textSheet(SHEET_PET, HEAD_PET, [1, 2, 3, 6, 7, 9, 10, 12]);
   if (sh.getRange(1, 13).getValue() !== '上限') sh.getRange(1, 13).setValue('上限').setFontWeight('bold').setBackground('#ede7fb');
+  if (sh.getRange(1, 14).getValue() !== '孵化結果') sh.getRange(1, 14).setValue('孵化結果').setFontWeight('bold').setBackground('#ede7fb');
   return sh;
 };
 function petRows() {
@@ -1624,7 +1632,7 @@ function petRows() {
   const ms = v => (v instanceof Date ? v.getTime() : Number(v) || 0);
   return sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_PET.length).getValues().map((r, i) => ({
     row: i + 2, id: String(r[0]), owner: String(r[1]), reason: String(r[2]), born: ms(r[3]), hatch: ms(r[4]), name: String(r[5]), img: String(r[6]),
-    hp: Number(r[7]) || 0, decay: String(r[8]), status: String(r[9]), died: ms(r[10]), fed: String(r[11]), cap: Number(r[12]) || 0,
+    hp: Number(r[7]) || 0, decay: String(r[8]), status: String(r[9]) === '死亡' ? '覓食' : String(r[9]), died: ms(r[10]), fed: String(r[11]), cap: Number(r[12]) || 0, gone: String(r[13] || ''),
   })).filter(x => x.id && x.status !== '刪除');
 }
 /* HP 規則：
@@ -1650,12 +1658,13 @@ function petNewEggs(live, k) {
 /** 生蛋：被加幾分就生幾顆（每位主人的蛋＋活著的寵物最多 10 隻） */
 function petLay(owner, reason, when, n) {
   petFix();
-  const t = when || Date.now(), live = petRows().filter(x => x.owner === owner && x.status !== '死亡');
+  const t = when || Date.now(), live = petRows().filter(x => x.owner === owner && petLive(x));
   const k = Math.max(0, Math.min(Math.round(Number(n) || 1), PET.MAX_HP - live.length));
   if (!k) return 0;
   const sh = petSheet(), at = sh.getLastRow() + 1, eggs = petNewEggs(live, k);
-  sh.getRange(at, 1, k, HEAD_PET.length).setValues(eggs.map(e => [Utilities.getUuid().slice(0, 8), owner, String(reason || '').slice(0, 60), new Date(t), new Date(t + PET.HATCH_H * 3600e3), '', '', e.hp, '', '蛋', '', '', e.cap]));
+  sh.getRange(at, 1, k, HEAD_PET.length).setValues(eggs.map(e => [Utilities.getUuid().slice(0, 8), owner, String(reason || '').slice(0, 60), new Date(t), '', '', '', e.hp, '', '待孵', '', '', e.cap, '']));
   sh.getRange(at, 4, k, 2).setNumberFormat('yyyy/mm/dd hh:mm');
+  if (!when) botMail([[owner, '🥚 你' + (reason ? '因為「' + String(reason).slice(0, 40) + '」' : '') + '被加分，得到 ' + k + ' 顆寵物蛋！\n到「🐾 寵物」按「🐣 孵化」，蛋才會放到講台上開始孵化（一天後揭曉，只有約 1/10 會孵出真正的寵物）。\n' + CONFIG.SITE_URL + '#tab=pet']], PET_BOT);
   live.filter(x => x.lent).forEach(x => { sh.getRange(x.row, 8).setValue(x.hp); sh.getRange(x.row, 13).setValue(x.cap); });
   return k;
 }
@@ -1668,30 +1677,48 @@ function petDelete(who, id) {
     if (!x) throw new Error('找不到這顆蛋／這隻寵物');
     const sh = petSheet();
     sh.getRange(x.row, 10).setValue('刪除');
-    const rest = petRows().filter(r => r.owner === x.owner && r.status !== '死亡' && r.id !== x.id);
-    if (x.status !== '死亡' && rest.length) {
-      const order = rest.map((_, i) => i).sort(() => Math.random() - 0.5), addCap = petSpread(rest, x.cap, order), addHp = petSpread(rest, x.hp, order);   // 同一個順序：多分到上限的那隻也多分到血量
-      rest.forEach((r, i) => {
-        const cap = r.cap + addCap[i], hp = Math.min(cap, r.hp + addHp[i]);
-        sh.getRange(r.row, 8).setValue(hp); sh.getRange(r.row, 13).setValue(cap);
-      });
-    }
+    if (petLive(x)) petGiveAway(x);
     petFix();
   });
   return getPets(who);
+}
+/** 主人按「孵化」：蛋放到講台上，一天後孵化（導師也可以幫忙按） */
+function petIncubate(who, ids) {
+  ids = (Array.isArray(ids) ? ids : [ids]).map(String);
+  let n = 0;
+  withLock(() => {
+    const sh = petSheet(), now = Date.now();
+    petRows().filter(x => ids.indexOf(x.id) >= 0 && x.status === '待孵' && (who.teacher || x.owner === who.key)).forEach(x => {
+      sh.getRange(x.row, 5).setValue(new Date(now + PET.HATCH_H * 3600e3)).setNumberFormat('yyyy/mm/dd hh:mm');
+      sh.getRange(x.row, 10).setValue('蛋');
+      n++;
+    });
+  });
+  if (!n) throw new Error('沒有可以孵化的蛋');
+  return getPets(who);
+}
+/** 一隻蛋／寵物不見了（導師刪除、孵出奇怪的東西飛走）：牠的上限和血量平均分給同一位主人其他活著的 */
+function petGiveAway(x) {
+  const sh = petSheet(), rest = petRows().filter(r => r.owner === x.owner && petLive(r) && r.id !== x.id);
+  if (!rest.length) return;
+  const order = rest.map((_, i) => i).sort(() => Math.random() - 0.5), addCap = petSpread(rest, x.cap, order), addHp = petSpread(rest, x.hp, order);   // 同一個順序：多分到上限的那隻也多分到血量
+  rest.forEach((r, i) => {
+    const cap = r.cap + addCap[i], hp = Math.min(cap, r.hp + addHp[i]);
+    sh.getRange(r.row, 8).setValue(hp); sh.getRange(r.row, 13).setValue(cap);
+  });
 }
 /** 主人重新分配上限（只能互相移動，總數不變；每隻至少 1 HP）：上限移過去多少，血量也跟著移多少 */
 function petAllot(who, owner, plan) {
   owner = who.teacher ? String(owner || '') : who.key;
   withLock(() => {
     petTick();
-    const list = petRows().filter(x => x.owner === owner && x.status !== '死亡');
+    const list = petRows().filter(x => x.owner === owner && petLive(x));
     if (!list.length) throw new Error('沒有可以分配的寵物');
     const total = list.reduce((s, x) => s + x.cap, 0);
     const next = list.map(x => Math.round(Number((plan || {})[x.id])));
-    if (next.some(v => !(v >= 1))) throw new Error('每一隻的上限至少要 1 HP');
+    if (next.some(v => !(v >= 1))) throw new Error('每一隻的上限至少要 1 🍚');
     const sum = next.reduce((s, v) => s + v, 0);
-    if (sum !== total) throw new Error('只能互相移動，上限加起來要剛好 ' + total + ' HP（現在是 ' + sum + ' HP）');
+    if (sum !== total) throw new Error('只能互相移動，上限加起來要剛好 ' + total + ' 🍚（現在是 ' + sum + ' 🍚）');
     const sh = petSheet();
     list.forEach((x, i) => {
       const hp = Math.max(1, Math.min(next[i], x.hp + next[i] - x.cap));
@@ -1705,8 +1732,14 @@ function petTick() {
   const now = Date.now(), today = ymd(new Date()), sh = petSheet();
   const dayN = s => Math.round(Utilities.parseDate(s, CONFIG.TIMEZONE, 'yyyy/MM/dd').getTime() / 864e5);
   petRows().forEach(x => {
-    if (x.status === '蛋' && now >= x.hatch) {   // 孵化：從孵化那天開始算血量
-      x.status = '寵物'; x.hp = Math.max(1, x.hp || 1); x.decay = ymd(new Date(x.hatch));
+    if (x.status === '蛋' && now >= x.hatch) {
+      if (Math.random() >= PET.HATCH_OK) {   // 孵出奇怪的東西，然後離開（鳥飛走、法拉利被拖吊…）
+        x.status = '飛走'; x.gone = PET_GONE[Math.floor(Math.random() * PET_GONE.length)];
+        sh.getRange(x.row, 10).setValue('飛走'); sh.getRange(x.row, 14).setValue(x.gone);
+        petGiveAway(x);
+        return;
+      }
+      x.status = '寵物'; x.hp = Math.max(1, x.hp || 1); x.decay = ymd(new Date(x.hatch));   // 孵化：從孵化那天開始算血量
       sh.getRange(x.row, 8, 1, 3).setValues([[x.hp, x.decay, x.status]]);
     }
     if (x.status !== '寵物' || !x.decay || x.decay >= today) return;
@@ -1715,7 +1748,7 @@ function petTick() {
     x.hp -= days;
     if (x.hp <= 0) {   // 掛掉：死亡時間＝血量剛好歸零的那一天（牠的上限不會分回給其他隻）
       const deadDay = dayN(x.decay) + days + x.hp;
-      sh.getRange(x.row, 8, 1, 4).setValues([[0, today, '死亡', new Date(deadDay * 864e5 + 8 * 3600e3)]]);
+      sh.getRange(x.row, 8, 1, 4).setValues([[0, today, '覓食', new Date(deadDay * 864e5 + 8 * 3600e3)]]);
     } else sh.getRange(x.row, 8, 1, 2).setValues([[x.hp, today]]);
   });
   petFix();
@@ -1730,7 +1763,7 @@ function petSpread(list, n, order) {
 /** 檢查每位主人：補上舊資料沒有的上限、上限加起來不能超過 10 HP、血量不能超過自己的上限 */
 function petFix() {
   const by = {}, sh = petSheet();
-  petRows().filter(x => x.status !== '死亡').forEach(x => (by[x.owner] = by[x.owner] || []).push(x));
+  petRows().filter(petLive).forEach(x => (by[x.owner] = by[x.owner] || []).push(x));
   Object.keys(by).forEach(o => {
     const list = by[o], before = list.map(x => x.cap + '/' + x.hp);
     const fresh = list.every(x => !x.cap);   // 舊資料（還沒有上限欄）：上限先等於現在的血量，剩下的平均補到 10
@@ -1749,7 +1782,7 @@ function petFix() {
     });
   });
 }
-const petPub = x => ({ id: x.id, owner: x.owner, reason: x.reason, born: x.born, hatch: x.hatch, name: x.name, img: x.img ? 1 : 0, imgId: x.img, hp: x.hp, cap: x.cap, status: x.status, died: x.died, fed: x.fed });
+const petPub = x => ({ id: x.id, owner: x.owner, reason: x.reason, born: x.born, hatch: x.hatch, name: x.name, img: x.img ? 1 : 0, imgId: x.img, hp: x.hp, cap: x.cap, status: x.status, died: x.died, fed: x.fed, gone: x.gone });
 function getPets(who) {
   withLock(() => {
     // 第一次用：補上最近一次被加分的同學的寵物蛋
@@ -1778,7 +1811,9 @@ function getPets(who) {
   const fed = {};
   spendRows().forEach(r => { if (r.use !== '罐罐' || r.t < week) return; const m = fed[r.target] || (fed[r.target] = {}); m[r.who] = (m[r.who] || 0) + 1; });
   const feeders = id => Object.entries(fed[id] || {}).map(([k, n]) => ({ key: k, n: n })).sort((a, b) => b.n - a.n);
-  return { ok: true, pets: petRows().filter(x => x.status !== '死亡' || x.died > week).map(x => Object.assign(petPub(x), { feeders: feeders(x.id) })), me: who.teacher ? CONFIG.TEACHER_NAME : who.key, now: Date.now(), food: PET.FOOD, max: PET.MAX_HP };
+  const rows = petRows();
+  return { ok: true, pets: rows.filter(x => petLive(x) || (x.status === '覓食' && x.died > week)).map(x => Object.assign(petPub(x), { feeders: feeders(x.id) })),
+    gone: rows.filter(x => x.status === '飛走' && x.hatch > week).map(petPub), hatchOk: PET.HATCH_OK, me: who.teacher ? CONFIG.TEACHER_NAME : who.key, now: Date.now(), food: PET.FOOD, max: PET.MAX_HP };
 }
 /** 餵罐罐：花 1 點，+1 HP（最多補到這隻自己的上限） */
 function feedPet(who, id) {
@@ -1786,8 +1821,8 @@ function feedPet(who, id) {
   withLock(() => {
     petTick();
     const x = petRows().find(r => r.id === String(id));
-    if (!x || x.status !== '寵物') throw new Error('這隻寵物現在不能餵（還是蛋或已經升天了）');
-    if (x.hp >= x.cap) throw new Error('牠已經吃飽了（牠的上限是 ' + x.cap + ' HP）');
+    if (!x || x.status !== '寵物') throw new Error('這隻寵物現在不能餵（還是蛋，或已經跑出去覓食了）');
+    if (x.hp >= x.cap) throw new Error('牠已經吃飽了（牠的上限是 ' + x.cap + ' 🍚）');
     if (!who.teacher) {
       const c = coinsOf(me);
       if (c.coins < PET.FOOD) throw new Error('點數不夠（罐罐要 ' + PET.FOOD + ' 點，你有 ' + c.coins + ' 點）');
@@ -1803,7 +1838,7 @@ function petLook(who, id, name, data) {
   const x = petRows().find(r => r.id === String(id));
   if (!x) throw new Error('找不到這隻寵物');
   if (!who.teacher && x.owner !== who.key) throw new Error('只有寵物的主人可以改外觀');
-  if (x.status === '死亡') throw new Error('牠已經升天了');
+  if (x.status === '覓食') throw new Error('牠已經跑出去覓食了');
   let fid = '';
   if (data) {
     const m = String(data).match(/^data:image\/(png|jpeg|webp|gif);base64,(.+)$/);

@@ -100,7 +100,7 @@
     // 🐾 寵物罐罐：「我的配件」下面專門的位置
     const canFood = S.unlimited || S.coins >= 1;
     h += `<div class="panel shop-petfood"><h3>🥫 寵物罐罐</h3>
-      <div class="pf-row"><span class="pf-ico">🥫</span><div class="pf-what"><b>罐罐（1 點）</b><div class="muted small">餵班級寵物 +1 HP。寵物每天扣 1 HP，0 HP 就會升天；這週餵越多次，牠越常跑去你的座位旁邊睡覺 💤</div></div>
+      <div class="pf-row"><span class="pf-ico">🥫</span><div class="pf-what"><b>罐罐（1 點）</b><div class="muted small">餵班級寵物 +1 🍚。寵物每天會餓掉 1 🍚，0 🍚 就會跑出去自己覓食；這週餵越多次，牠越常跑去你的座位旁邊睡覺 💤</div></div>
         <button type="button" class="btn${canFood ? ' btn--primary' : ''}" data-s="petfood"${canFood ? '' : ' disabled'}>買來餵牠</button></div></div>`;
     const othersN = Object.values(S.others || {}).flat().length;
     const md = S.myDraw || {};
