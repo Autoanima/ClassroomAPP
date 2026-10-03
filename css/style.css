@@ -2164,3 +2164,8 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .cal-cell.addable:hover::after { content: '＋'; display: block; margin: auto; color: var(--accent); font-weight: 700; }
 .lv-new.flash { animation: lv-flash 1.4s ease-out; }
 @keyframes lv-flash { 0%, 40% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+/* 從日曆登記請假的浮動視窗 */
+.cz-box.lv-addbox { max-height: 88vh; overflow-y: auto; }
+.lv-addbox .cz-head b { font-size: 17px; }
+.lv-addbox .lv-pick { max-height: 30vh; }

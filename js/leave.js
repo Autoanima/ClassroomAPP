@@ -40,12 +40,13 @@
     if (!L) { root.innerHTML = `<div class="panel"><p class="muted">讀取中…</p></div>`; return; }
     L.rows.sort((a, b) => byKey(a.key, b.key));
     let h = rulesHtml();
-    h += formHtml();
+    if (!isT()) h += formHtml();
     // 導師：總表（可以確認、退回）；班長、副班長：自己的請假＋唯讀的總表；其他同學：自己的請假
     if (!isT()) h += mineHtml();
     h += calendarHtml();
+    if (isT()) h += formHtml();
     if (isT() || L.monitor) h += teacherHtml(!isT());
-    h += `<div id="calZoomHost">${zoomHtml()}</div>`;
+    h += `<div id="calZoomHost">${addD ? addHtml() : zoomHtml()}</div>`;
     root.innerHTML = h;
   }
   // 請假規則：預設收起來；導師可以編輯
@@ -77,23 +78,37 @@
       : `<div class="lv-rules-text">${txt ? esc(txt).replace(/\n/g, '<br>') : '<span class="muted">（導師還沒填寫請假規則）</span>'}</div>${isT() ? '<button type="button" class="link-btn" data-lv="rulesEdit">✏️ 編輯請假規則</button>' : ''}`;
     return `<details class="panel lv-rules"${rulesEdit ? ' open' : ''}><summary><b>📜 請假規則</b></summary>${body}</details>`;
   }
-  function formHtml() {
+  // pre：欄位 id 的開頭（頁面上的是 lv，浮動視窗的是 pop）；d：預設的日期（起訖都是這一天）
+  function formBody(pre, d) {
     const pOpt = sel => PERIODS.map(p => `<option value="${p}"${p === sel ? ' selected' : ''}>${pName(p)}</option>`).join('');
-    const who = isT() ? `<label class="lv-f" id="lvOne"${lvType === '公假' ? ' hidden' : ''}><span>同學</span><select id="lvKey"><option value="">— 選擇同學 —</option>${A.students().slice().sort(byKey).map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join('')}</select></label>
-      <div class="lv-f lv-multi" id="lvMulti"${lvType === '公假' ? '' : ' hidden'}><span>同學（公假可以一次選很多位）<b id="lvMultiN"></b></span>
-        <div class="lv-pick">${A.students().slice().sort(byKey).map(k => `<label><input type="checkbox" value="${esc(k)}" data-lvm> ${esc(nm(k))}</label>`).join('')}</div></div>` : '';
-    return `<details class="panel lv-new"${isT() ? '' : ' open'}><summary><b>${isT() ? '➕ 幫同學登記請假' : '📝 我要請假'}</b></summary>
-      <div class="lv-types">${TYPES.map(t => `<button type="button" data-lv="type" data-v="${t}" aria-pressed="${t === lvType}">${t}</button>`).join('')}</div>
+    const day = (d || today()).replace(/\//g, '-');
+    const who = isT() ? `<label class="lv-f" id="${pre}One"${lvType === '公假' ? ' hidden' : ''}><span>同學</span><select id="${pre}Key"><option value="">— 選擇同學 —</option>${A.students().slice().sort(byKey).map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join('')}</select></label>
+      <div class="lv-f lv-multi" id="${pre}Multi"${lvType === '公假' ? '' : ' hidden'}><span>同學（公假可以一次選很多位）<b id="${pre}MultiN"></b></span>
+        <div class="lv-pick">${A.students().slice().sort(byKey).map(k => `<label><input type="checkbox" value="${esc(k)}" data-lvm="${pre}"> ${esc(nm(k))}</label>`).join('')}</div></div>` : '';
+    return `<div class="lv-types">${TYPES.map(t => `<button type="button" data-lv="type" data-pre="${pre}" data-v="${t}" aria-pressed="${t === lvType}">${t}</button>`).join('')}</div>
       ${who}
       <div class="lv-grid">
-        <label class="lv-f"><span>從</span><input type="date" id="lvFrom" value="${today().replace(/\//g, '-')}"></label>
-        <label class="lv-f"><span>&nbsp;</span><select id="lvFromP">${pOpt(1)}</select></label>
-        <label class="lv-f"><span>到</span><input type="date" id="lvTo" value="${today().replace(/\//g, '-')}" min="${today().replace(/\//g, '-')}"></label>
-        <label class="lv-f"><span>&nbsp;</span><select id="lvToP">${pOpt(7)}</select></label>
+        <label class="lv-f"><span>從</span><input type="date" id="${pre}From" value="${day}"></label>
+        <label class="lv-f"><span>&nbsp;</span><select id="${pre}FromP">${pOpt(1)}</select></label>
+        <label class="lv-f"><span>到</span><input type="date" id="${pre}To" value="${day}" min="${day}"></label>
+        <label class="lv-f"><span>&nbsp;</span><select id="${pre}ToP">${pOpt(7)}</select></label>
       </div>
-      <label class="lv-f"><span>說明（可不填）</span><input type="text" id="lvNote" maxlength="200" placeholder="例如：看醫生、家裡有事"></label>
-      <p class="muted small">假卡流程：家長簽名 → 導師簽名 → 教官室（特殊情形再送學務處、校長室）。全部簽完後，在下面按「📷 學生上傳假卡」。<br><b>公假</b>：填寫公差單 → 導師簽名 → 教官簽名，完成後由導師確認；公差單照片可以選擇上傳（選填）。</p>
-      <div class="actions"><button type="button" class="btn btn--primary wide" data-lv="add">送出請假登記</button></div></details>`;
+      <label class="lv-f"><span>說明（可不填）</span><input type="text" id="${pre}Note" maxlength="200" placeholder="例如：看醫生、家裡有事"></label>
+      <p class="muted small">假卡流程：家長簽名 → 導師簽名 → 教官室（特殊情形再送學務處、校長室）。全部簽完後，按「📷 學生上傳假卡」。<br><b>公假</b>：填寫公差單 → 導師簽名 → 教官簽名，完成後由導師確認；公差單照片可以選擇上傳（選填）。</p>
+      <div class="actions"><button type="button" class="btn btn--primary wide" data-lv="add" data-pre="${pre}">送出請假登記</button></div>`;
+  }
+  // 頁面上的登記表：導師的「幫同學登記請假」放在日曆下面、預設收起來（備用；平常用日曆的 ＋）
+  function formHtml() {
+    return `<details class="panel lv-new"${isT() ? '' : ' open'}><summary><b>${isT() ? '➕ 幫同學登記請假' : '📝 我要請假'}</b>${isT() ? ' <span class="muted small">（備用；也可以在日曆上點日期或 ＋）</span>' : ''}</summary>
+      ${formBody('lv')}</details>`;
+  }
+  // 浮動視窗：從日曆點某一天或 ＋ 打開
+  let addD = null;
+  function addHtml() {
+    const title = `${Number(addD.slice(5, 7))}/${Number(addD.slice(8))}（週${wdName(addD)}）`;
+    return `<div class="cal-zoom pop" data-lv="addClose"><div class="cz-box lv-addbox" data-lv="zoomBox" role="dialog" aria-label="登記 ${title} 的請假">
+      <div class="cz-head"><b>📝 ${title}・${isT() ? '幫同學登記請假' : '我要請假'}</b><button type="button" class="close-btn" data-lv="addClose" aria-label="關閉">✕</button></div>
+      ${formBody('pop', addD)}</div></div>`;
   }
   // 公假：線下流程不一樣（公差單），文字跟著換
   const isGong = x => x?.type === '公假';
@@ -232,17 +247,8 @@
   const canAdd = () => !A.isGuest() && (isT() || !!A.me());
   // 從行事曆登記：打開「幫同學登記請假／我要請假」，起訖日期都預設那一天
   function addOn(d) {
-    zoom = null; paintZoom();
-    const f = document.querySelector('#leaveRoot .lv-new');
-    if (!f) return;
-    f.open = true;
-    const v = d.replace(/\//g, '-');
-    const from = $('#lvFrom'), to = $('#lvTo');
-    if (from) from.value = v;
-    if (to) { to.min = v; to.value = v; }
-    f.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    f.classList.remove('flash'); void f.offsetWidth; f.classList.add('flash');
-    toast(`📅 已把日期設成 ${Number(d.slice(5, 7))}/${Number(d.slice(8))}，${isT() ? '選同學' : '選假別'}後送出`);
+    zoom = null; addD = d; paintZoom();
+    setTimeout(() => (isT() && lvType !== '公假' ? $('#popKey') : null)?.focus(), 50);
   }
   function calendarHtml() {
     calMonth ||= today().slice(0, 7);
@@ -289,8 +295,8 @@
   }
   function paintZoom() {
     const host = $('#calZoomHost');
-    if (host) host.innerHTML = zoomHtml();
-    document.body.style.overflow = zoom ? 'hidden' : '';
+    if (host) host.innerHTML = addD ? addHtml() : zoomHtml();
+    document.body.style.overflow = zoom || addD ? 'hidden' : '';
   }
   // ── 編輯（假別、日期、節次、說明）──
   function openEdit(x) {
@@ -419,13 +425,15 @@
       render(); return;
     }
     if (act === 'calAdd') { e.stopPropagation(); return addOn(b.dataset.d); }
+    if (act === 'addClose') { addD = null; paintZoom(); return; }
     if (act === 'calDay') { zoom = { d: b.dataset.d, id: null, pop: true }; paintZoom(); zoom.pop = false; return; }
     if (act === 'zoomClose') { zoom = null; paintZoom(); return; }
     if (act === 'zoomBack') { zoom.id = null; paintZoom(); return; }
     if (act === 'zoomItem') { zoom.id = b.dataset.id; paintZoom(); return; }
     if (act === 'type') {
       lvType = b.dataset.v; b.parentElement.querySelectorAll('button').forEach(y => y.setAttribute('aria-pressed', y === b));
-      if ($('#lvOne')) { $('#lvOne').hidden = lvType === '公假'; $('#lvMulti').hidden = lvType !== '公假'; }   // 公假：可以一次選很多位同學
+      const pre = b.dataset.pre || 'lv';
+      if ($(`#${pre}One`)) { $(`#${pre}One`).hidden = lvType === '公假'; $(`#${pre}Multi`).hidden = lvType !== '公假'; }   // 公假：可以一次選很多位同學
       return;
     }
     if (act === 'view') { view = b.dataset.v; render(); return; }
@@ -442,9 +450,10 @@
       render(); return;
     }
     if (act === 'add') {
-      const row = { type: lvType, from: $('#lvFrom').value.replace(/-/g, '/'), fromP: Number($('#lvFromP').value), to: $('#lvTo').value.replace(/-/g, '/'), toP: Number($('#lvToP').value), note: $('#lvNote').value.trim() };
-      if (isT() && lvType === '公假') { row.keys = [...document.querySelectorAll('[data-lvm]:checked')].map(c => c.value); if (!row.keys.length) return toast('請勾選同學'); }
-      else if (isT()) { row.key = $('#lvKey').value; if (!row.key) return toast('請選擇同學'); }
+      const pre = b.dataset.pre || 'lv', f = id => $(`#${pre}${id}`);
+      const row = { type: lvType, from: f('From').value.replace(/-/g, '/'), fromP: Number(f('FromP').value), to: f('To').value.replace(/-/g, '/'), toP: Number(f('ToP').value), note: f('Note').value.trim() };
+      if (isT() && lvType === '公假') { row.keys = [...document.querySelectorAll(`[data-lvm="${pre}"]:checked`)].map(c => c.value); if (!row.keys.length) return toast('請勾選同學'); }
+      else if (isT()) { row.key = f('Key').value; if (!row.key) return toast('請選擇同學'); }
       if (!row.from || !row.to) return toast('請選擇日期');
       if (row.to < row.from || (row.to === row.from && row.toP < row.fromP)) return toast('結束的時間要在開始之後');
       const text = `${row.keys ? `${row.keys.length} 位同學：${row.keys.map(nm).join('、')}\n` : isT() ? nm(row.key) + '\n' : ''}${row.type}：${when(row)}${row.note ? '\n' + row.note : ''}`;
@@ -454,6 +463,7 @@
       if (!await A.ask(`送出請假登記？\n${text}`, '送出')) return;
       b.disabled = true;
       try { L = await A.api('addLeave', { row }); toast(row.keys ? `✓ 已幫 ${row.keys.length} 位同學登記公假，也通知他們了` : isT() ? '✓ 已幫同學登記，也通知他了' : row.type === '公假' ? '✓ 已登記，也通知導師了。記得填寫公差單、請導師和教官簽名（公差單照片可以選擇上傳）' : '✓ 已登記，也通知導師了。記得跑完假卡流程後上傳假卡'); } catch (err) { toast(err.message); b.disabled = false; return; }
+      if (pre === 'pop') { addD = null; document.body.style.overflow = ''; }
       render(); return;
     }
     if (!x) return;
@@ -486,8 +496,8 @@
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && zoom) { zoom = null; paintZoom(); } });
   // 選了「從」的日期：「到」至少要從同一天開始（早於的話自動改成同一天）
   document.addEventListener('change', e => {
-    if (e.target.matches?.('[data-lvm]')) { const n = document.querySelectorAll('[data-lvm]:checked').length; const o = $('#lvMultiN'); if (o) o.textContent = n ? `已選 ${n} 位` : ''; }
-    const to = { lvFrom: 'lvTo', edFrom: 'edTo' }[e.target.id];
+    if (e.target.matches?.('[data-lvm]')) { const pre = e.target.dataset.lvm, n = document.querySelectorAll(`[data-lvm="${pre}"]:checked`).length; const o = $(`#${pre}MultiN`); if (o) o.textContent = n ? `已選 ${n} 位` : ''; }
+    const to = { lvFrom: 'lvTo', popFrom: 'popTo', edFrom: 'edTo' }[e.target.id];
     if (!to || !e.target.value) return;
     const t = document.getElementById(to);
     if (!t) return;
