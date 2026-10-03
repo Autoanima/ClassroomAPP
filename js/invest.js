@@ -147,9 +147,11 @@
       ${boardList(p)}</details>`).join('')}</div>`;
     return h;
   }
+  // 座號 → 「座號 名字」（名單裡找得到才加名字）
+  const withName = code => { const k = A.students().find(y => codeOf(y) === code), n = k && A.parseKey(k).name; return n ? `${esc(code)} <span class="ib-nm">${esc(n)}</span>` : esc(code); };
   function boardList(b) {
-    return `<ol class="inv-board-list">${b.top.map(x => `<li><span class="ib-r">${x.rank <= 3 ? ['🥇', '🥈', '🥉'][x.rank - 1] : x.rank}</span><b>${esc(x.code)}</b><span class="${updn(x.ret)}">${pct(x.ret)}</span></li>`).join('') || '<li class="muted">沒有人得獎</li>'}</ol>
-      ${b.steady ? `<p class="ib-steady">🐢 穩健獎：<b>${esc(b.steady.code)}</b> <span class="${updn(b.steady.ret)}">${pct(b.steady.ret)}</span></p>` : ''}`;
+    return `<ol class="inv-board-list">${b.top.map(x => `<li><span class="ib-r">${x.rank <= 3 ? ['🥇', '🥈', '🥉'][x.rank - 1] : x.rank}</span><b>${withName(x.code)}</b><span class="${updn(x.ret)}">${pct(x.ret)}</span></li>`).join('') || '<li class="muted">沒有人得獎</li>'}</ol>
+      ${b.steady ? `<p class="ib-steady">🐢 穩健獎：<b>${withName(b.steady.code)}</b> <span class="${updn(b.steady.ret)}">${pct(b.steady.ret)}</span></p>` : ''}`;
   }
 
   function rulesHtml() {
@@ -355,6 +357,9 @@
     }
     btn.hidden = false;
     btn.innerHTML = `📊 <span>${month(B.season)} 月投資競賽${B.final ? '結果' : '（暫定）'}</span>`;
+    const bk = `${B.season}${B.final ? 'F' : 'P'}`, seenB = store.get('indoor.invboard.first', {});
+    if (!seenB[bk]) { seenB[bk] = Date.now(); store.set('indoor.invboard.first', Object.fromEntries(Object.entries(seenB).slice(-6))); }
+    btn.classList.toggle('quiet', Date.now() - seenB[bk] > 3 * 864e5 && !boardOpen);
     btn.setAttribute('aria-expanded', boardOpen);
     pan.hidden = !boardOpen;
     if (boardOpen) {

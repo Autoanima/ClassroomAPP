@@ -2214,3 +2214,8 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 
 /* 投資競賽按鈕：放在寵物底下，不會遮住寵物 */
 .inv-board-btn { z-index: 5; }
+
+/* 投資競賽榜單：名字；按鈕新榜單出現 3 天後變低調 */
+.ib-nm { font-weight: 400; font-size: 14px; margin-left: 4px; }
+.inv-board-btn.quiet { animation: none; border-width: 1px; border-color: var(--line); background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 400; padding: 3px 9px; box-shadow: none; opacity: .85; }
+[data-theme="dark"] .inv-board-btn.quiet { background: var(--surface); color: var(--muted); }

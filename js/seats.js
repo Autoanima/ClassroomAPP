@@ -174,7 +174,6 @@
         <button type="button" data-sub="swap" aria-selected="${sub === 'swap'}">🔁 交換位置</button>
       </div>`;
       if (sub === 'swap') h += A.isTeacher() ? `<p class="muted small tip">💡 點一個座位、再點另一個座位，兩人就互換；點空位就是搬過去。</p>` : swapBanner();
-      if (sub === 'chart') h += `<p class="muted small tip">點同學的大頭照可以放大，再點一次關閉。</p>`;
       if (sub === 'sel' && sel && sel.status !== 'idle') h += teacherBanner();
       if (canLive() && dirty()) {
         const n = Object.keys({ ...chart, ...saved }).filter(k => (chart[k] || '') !== (saved[k] || '')).length;
