@@ -229,6 +229,21 @@
   const ppBar = r => `<span class="cal-pp" aria-label="${rangeText(r)}">${[1, 2, 3, 4, 5, 6, 7].map(p => `<i class="${p >= Math.max(1, r.a) && p <= r.b ? 'on' : ''}"></i>`).join('')}</span>`;
   const ppBig = r => `<span class="cz-pp" aria-label="${rangeText(r)}">${[1, 2, 3, 4, 5, 6, 7].map(p => `<i class="${p >= Math.max(1, r.a) && p <= r.b ? 'on' : ''}">${p}</i>`).join('')}</span>`;
   const rangeText = r => (r.all ? '全天' : r.a === r.b ? pName(r.a) : `${pName(r.a)}～${pName(r.b)}`);
+  const canAdd = () => !A.isGuest() && (isT() || !!A.me());
+  // 從行事曆登記：打開「幫同學登記請假／我要請假」，起訖日期都預設那一天
+  function addOn(d) {
+    zoom = null; paintZoom();
+    const f = document.querySelector('#leaveRoot .lv-new');
+    if (!f) return;
+    f.open = true;
+    const v = d.replace(/\//g, '-');
+    const from = $('#lvFrom'), to = $('#lvTo');
+    if (from) from.value = v;
+    if (to) { to.min = v; to.value = v; }
+    f.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    f.classList.remove('flash'); void f.offsetWidth; f.classList.add('flash');
+    toast(`📅 已把日期設成 ${Number(d.slice(5, 7))}/${Number(d.slice(8))}，${isT() ? '選同學' : '選假別'}後送出`);
+  }
   function calendarHtml() {
     calMonth ||= today().slice(0, 7);
     const [y, m] = calMonth.split('/').map(Number);
@@ -239,7 +254,7 @@
     for (let dd = 1; dd <= days; dd++) {
       const d = ymdStr(new Date(y, m - 1, dd)), wd = new Date(y, m - 1, dd).getDay();
       const on = L.rows.filter(x => dayRange(x, d));
-      cells.push(`<div class="cal-cell${d === td ? ' today' : ''}${wd % 6 === 0 ? ' wkend' : ''}${on.length ? ' has' : ''}"${on.length ? ` data-lv="calDay" data-d="${d}" role="button" tabindex="0" aria-label="${m}月${dd}日 ${on.length} 人請假"` : ''}><span class="cal-d">${dd}</span>
+      cells.push(`<div class="cal-cell${d === td ? ' today' : ''}${wd % 6 === 0 ? ' wkend' : ''}${on.length ? ' has' : canAdd() ? ' addable' : ''}"${on.length ? ` data-lv="calDay" data-d="${d}" role="button" tabindex="0" aria-label="${m}月${dd}日 ${on.length} 人請假"` : canAdd() ? ` data-lv="calAdd" data-d="${d}" role="button" tabindex="0" aria-label="登記 ${m}月${dd}日 的請假"` : ''}><span class="cal-d">${dd}</span>
         ${on.map(x => `<span class="cal-nm ${deptCls(x.key)} ${TYPE_CLS[x.type] || ''}">${esc(A.parseKey(x.key).name || x.key)}${ppBar(dayRange(x, d))}</span>`).join('')}</div>`);
     }
     return `<div class="panel lv-cal"><div class="cal-head"><button type="button" class="btn" data-lv="calPrev" aria-label="上個月">‹</button>
@@ -269,7 +284,7 @@
         : '<p class="muted">這一天沒有人請假。</p>';
     }
     return `<div class="cal-zoom${zoom.pop ? ' pop' : ''}" data-lv="zoomClose"><div class="cz-box" data-lv="zoomBox" role="dialog" aria-label="${title} 請假">
-      <div class="cz-head">${x ? '<button type="button" class="btn" data-lv="zoomBack" aria-label="回到名單">‹</button>' : ''}<b>📅 ${title}${x ? '' : `・${on.length} 人請假`}</b><button type="button" class="close-btn" data-lv="zoomClose" aria-label="關閉">✕</button></div>
+      <div class="cz-head">${x ? '<button type="button" class="btn" data-lv="zoomBack" aria-label="回到名單">‹</button>' : ''}<b>📅 ${title}${x ? '' : `・${on.length} 人請假`}</b>${canAdd() ? `<button type="button" class="cz-add" data-lv="calAdd" data-d="${d}" aria-label="登記 ${title} 的請假" title="登記這一天的請假">＋</button>` : ''}<button type="button" class="close-btn" data-lv="zoomClose" aria-label="關閉">✕</button></div>
       ${body}</div></div>`;
   }
   function paintZoom() {
@@ -403,6 +418,7 @@
       try { L = await A.api(act === 'gOk' ? 'setLeaveStatus' : 'cancelLeave', { ids, status: '已確認', reply: '' }); toast(act === 'gOk' ? `✓ 已確認 ${ids.length} 位` : `已取消 ${ids.length} 位`); } catch (err) { toast(err.message); b.disabled = false; return; }
       render(); return;
     }
+    if (act === 'calAdd') { e.stopPropagation(); return addOn(b.dataset.d); }
     if (act === 'calDay') { zoom = { d: b.dataset.d, id: null, pop: true }; paintZoom(); zoom.pop = false; return; }
     if (act === 'zoomClose') { zoom = null; paintZoom(); return; }
     if (act === 'zoomBack') { zoom.id = null; paintZoom(); return; }

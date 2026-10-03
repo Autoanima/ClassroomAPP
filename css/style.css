@@ -2155,3 +2155,12 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .pet-wait-eggs svg { width: 26px; height: 32px; animation: egg-wobble 1.6s ease-in-out infinite; }
 .pet-wait-eggs svg:nth-child(2n) { animation-delay: .4s; }
 @keyframes egg-wobble { 0%, 60%, 100% { transform: rotate(0); } 70% { transform: rotate(-10deg); } 80% { transform: rotate(10deg); } 90% { transform: rotate(-6deg); } }
+
+/* 請假行事曆：＋ 登記這一天；空白的日子也可以點 */
+.cz-add { flex: none; width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; font-size: 26px; font-weight: 700; line-height: 1; cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.cz-add:active { transform: scale(.94); }
+.cal-cell.addable { cursor: pointer; }
+.cal-cell.addable:hover, .cal-cell.addable:focus-visible { background: var(--accent-soft); }
+.cal-cell.addable:hover::after { content: '＋'; display: block; margin: auto; color: var(--accent); font-weight: 700; }
+.lv-new.flash { animation: lv-flash 1.4s ease-out; }
+@keyframes lv-flash { 0%, 40% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
