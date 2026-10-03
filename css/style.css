@@ -2211,3 +2211,6 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .pf-say { position: absolute; left: 0; bottom: 22px; transform: translateX(-50%); white-space: nowrap; padding: 3px 10px; border-radius: 12px; background: rgba(255,255,255,.95); color: #222; font-size: 12px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,.25); animation: pa-say 3.2s both; }
 @keyframes pa-say { 0% { opacity: 0; translate: 0 6px; } 10%, 85% { opacity: 1; translate: 0 0; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .pet.party .pet-body { animation: none !important; } }
+
+/* 投資競賽按鈕：放在寵物底下，不會遮住寵物 */
+.inv-board-btn { z-index: 5; }
