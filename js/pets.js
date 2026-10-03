@@ -94,6 +94,7 @@
     }
     geo = geometry(); geoAt = Date.now();
     placeEggs();
+    if (party?.phase === 'play') party.ids.forEach((id, i) => { const el = layer.querySelector(`.pet[data-pet="${CSS.escape(id)}"]`); if (el) { el.classList.add('party', PARTY[party.ids.length].cls); el.classList.toggle('lead', i === 0); el.style.setProperty('--i', i); } });
     stop(); raf = requestAnimationFrame(tick);   // 每次都重新開始（之前在背景時排的那一次可能一直沒跑）
   }
   function placeEggs() {
@@ -107,6 +108,62 @@
     box.style.setProperty("--es", Math.max(0.3, k).toFixed(2));
     box.classList.toggle("tiny", k < 0.6);   // 很小的時候不寫座號，免得字疊在一起
   }
+  // ── 🎉 寵物之間的互動：兩隻以上時偶爾（30～70 秒一次）聚在一起；2～6 隻，每種隻數的互動都不一樣，平常還是各走各的 ──
+  const PARTY = {
+    2: { name: '💕 碰碰鼻子', cls: 'pa-nuzzle', ms: 4200, gap: 26 },
+    3: { name: '🎶 圍在一起跳舞', cls: 'pa-dance', ms: 5200, gap: 30 },
+    4: { name: '🚂 排隊開火車，嘟嘟！', cls: 'pa-train', ms: 6500, gap: 27 },
+    5: { name: '📸 拍團體照，笑一個！', cls: 'pa-photo', ms: 5200, gap: 30 },
+    6: { name: '🤸 疊羅漢！小心…', cls: 'pa-stack', ms: 6200, gap: 28 },
+  };
+  let party = null, nextParty = Date.now() + 15000 + Math.random() * 20000, forceK = 0;
+  if (A.TEST) A.testPetParty = k => { forceK = k; nextParty = 0; };   // 測試模式：馬上來一場 k 隻的聚會
+  // 每一隻要站的位置（沿著教室的邊邊排；疊羅漢往上疊；火車沿著邊邊一起走）
+  function partySlots(q) {
+    const k = q.ids.length, g = PARTY[k].gap;
+    if (k === 4 && q.phase === 'play') return q.ids.map((_, i) => along(geo, q.s - i * g / geo.per));
+    const P0 = along(geo, q.s), P1 = along(geo, q.s + 3 / geo.per), tl = Math.hypot(P1.x - P0.x, P1.y - P0.y) || 1, tx = (P1.x - P0.x) / tl, ty = (P1.y - P0.y) / tl;
+    if (k === 6) return [[-1, 0], [0, 0], [1, 0], [-0.5, 1], [0.5, 1], [0, 2]].map(([u, v]) => ({ x: P0.x + tx * u * g, y: P0.y + ty * u * g - v * 21 }));
+    return q.ids.map((_, i) => ({ x: P0.x + tx * (i - (k - 1) / 2) * g, y: P0.y + ty * (i - (k - 1) / 2) * g }));
+  }
+  function startParty() {
+    const free = Object.entries(pets).filter(([, p]) => p.mode === 'path' && p.x != null);
+    if (free.length < 2) { nextParty = Date.now() + 20000; return; }
+    const k = Math.min(free.length, forceK || 2 + Math.floor(Math.random() * (Math.min(6, free.length) - 1)));
+    forceK = 0;
+    const pick = free.sort(() => Math.random() - 0.5).slice(0, k);
+    // 集合地點：上面或下面的邊（橫的才排得開、疊得起來），靠近第一隻、離轉角遠一點
+    const p0 = pick[0][1], x = Math.max(geo.L + 80, Math.min(geo.R - 80, p0.x));
+    const s0 = p0.y < (geo.T + geo.B) / 2 ? (x - geo.L) / geo.per : (geo.w + geo.h + (geo.R - x)) / geo.per;
+    party = { ids: pick.map(([id]) => id), s: s0, phase: 'gather', until: Date.now() + 9000 };
+    pick.forEach(([, p], i) => { p.party = i + 1; p.mode = 'party'; });
+  }
+  function playParty() {
+    const q = party, k = q.ids.length, def = PARTY[k];
+    q.phase = 'play'; q.until = Date.now() + def.ms;
+    const slots = partySlots(q), cx = slots.reduce((t, a) => t + a.x, 0) / k, cy = Math.min(...slots.map(a => a.y));
+    q.ids.forEach((id, i) => { const pp = pets[id]; if (pp) pp.face = k === 2 ? (i === 0 ? 1 : -1) : (slots[i].x <= cx ? 1 : -1); });
+    layer.querySelectorAll('.pet').forEach(el => {
+      const i = q.ids.indexOf(el.dataset.pet);
+      if (i < 0) return;
+      el.classList.add('party', def.cls); el.classList.toggle('lead', i === 0); el.style.setProperty('--i', i);
+    });
+    const deco = {
+      2: '<span class="pf-up">💕</span><span class="pf-up d2">❤️</span><span class="pf-up d3">💗</span>',
+      3: '<span class="pf-up">🎵</span><span class="pf-up d2">🎶</span><span class="pf-up d3">♪</span><span class="pf-disco">🪩</span>',
+      4: '<span class="pf-toot">💨</span>',
+      5: '<span class="pf-cam">📸</span><span class="pf-flash"></span>',
+      6: '<span class="pf-boom">🎉</span><span class="pf-boom d2">🎊</span><span class="pf-boom d3">✨</span>',
+    }[k];
+    q.fx = fx(`${deco}<span class="pf-say">${def.name}</span>`, 'party-fx pk' + k, cx, cy - 36);
+  }
+  function endParty() {
+    const q = party; party = null;
+    q.fx?.remove();
+    layer?.querySelectorAll('.pet.party').forEach(el => el.classList.remove('party', 'lead', ...Object.values(PARTY).map(d => d.cls)));
+    q.ids.forEach(id => { const pp = pets[id]; if (!pp) return; delete pp.party; pp.mode = 'back'; pp.s = nearestS(pp); pp.to = along(geo, pp.s); });
+    nextParty = Date.now() + 30000 + Math.random() * 40000;
+  }
   let last = 0;
   function tick(t) {
     raf = 0;
@@ -114,12 +171,39 @@
     const dt = Math.min(0.1, (t - (last || t)) / 1000); last = t;
     if (Date.now() - geoAt > 1500) { geo = geometry(); geoAt = Date.now(); placeEggs(); }
     if (geo) {
+      // 聚會：時間到就找幾隻來；走到定位就開始；時間到就散會
+      if (!party && !playing && Date.now() > nextParty && Object.keys(pets).length >= 2) startParty();
+      let slots = null;
+      if (party) {
+        if (party.ids.some(id => !pets[id])) endParty();
+        else {
+          if (party.phase === 'play' && party.ids.length === 4) party.s += 30 * dt / geo.per;   // 火車往前開
+          slots = partySlots(party);
+          const there = party.ids.every((id, i) => Math.hypot(pets[id].x - slots[i].x, pets[id].y - slots[i].y) < 1.5);
+          if (party.phase === 'gather' && (there || Date.now() > party.until)) { playParty(); slots = partySlots(party); }
+          else if (party.phase === 'play' && Date.now() > party.until) { endParty(); slots = null; }
+          if (party?.phase === 'play' && party.ids.length === 4 && party.fx) { party.fx.style.left = slots[0].x + 'px'; party.fx.style.top = (slots[0].y - 36) + 'px'; }
+        }
+      }
       Object.entries(pets).forEach(([id, p]) => {
         const el = layer.querySelector(`.pet[data-pet="${CSS.escape(id)}"]`);
         if (!el) return;
         if (p.x == null || isNaN(p.x)) { const q = along(geo, p.s); p.x = q.x; p.y = q.y; }
         let b;
-        if (p.mode === 'path') {
+        const inParty = !!(p.party && party && slots);
+        let moving = false;
+        if (inParty) {
+          const to = slots[p.party - 1];
+          if (party.phase === 'gather') {
+            const step = 46 * dt, dx = to.x - p.x, dy = to.y - p.y, d = Math.hypot(dx, dy);
+            if (Math.abs(dx) > 0.5) p.face = dx > 0 ? 1 : -1;
+            b = d <= step ? { ...to } : { x: p.x + dx / d * step, y: p.y + dy / d * step };
+            moving = d > step;
+          } else {
+            if (party.ids.length === 4 && Math.abs(to.x - p.x) > 0.01) p.face = to.x > p.x ? 1 : -1;   // 火車：面向前進的方向
+            b = to; moving = party.ids.length === 4;
+          }
+        } else if (p.mode === 'path') {
           // 走一段、停一下；偶爾去餵過牠的同學旁邊睡覺（這週餵越多次，越常去）
           if (Date.now() > p.until) {
             const spot = maybeSleep(p);
@@ -133,7 +217,7 @@
             if (Math.abs(b.x - a.x) > 0.01) p.face = b.x > a.x ? 1 : -1;
           }
         }
-        if (p.mode !== 'path') {
+        if (!inParty && p.mode !== 'path') {
           if (p.mode === 'sleep') {
             const s2 = seatSpot(p.seat);   // 座位表重畫、縮放時跟著座位
             if (s2) p.to = s2;
@@ -148,7 +232,7 @@
         }
         p.x = b.x; p.y = b.y;
         el.style.transform = `translate(${b.x - 17}px, ${b.y - 30}px)`;
-        el.classList.toggle('walk', p.mode === 'go' || p.mode === 'back' || (p.mode === 'path' && p.walk));
+        el.classList.toggle('walk', inParty ? moving : p.mode === 'go' || p.mode === 'back' || (p.mode === 'path' && p.walk));
         el.classList.toggle('sleep', p.mode === 'sleep');
         el.style.setProperty('--face', p.face);
       });
@@ -491,6 +575,7 @@
       <li>寵物的主人（被加分的同學）可以上傳牠的外觀（建議 PNG 去背），沒上傳就是<b>貓咪</b>。</li>
       <li>寵物會在座位表的教室四邊走來走去；點牠會有愛心或音符，也可以看到牠的<b>飽足度 🍚</b>。</li>
       <li>寵物孵化後<b>每天會餓掉 1 🍚</b>。在商店或寵物卡買<b>罐罐（${P.food} 點）</b>餵牠，<b>+1 🍚</b>（最多補到牠自己的上限）。</li>
+      <li>有兩隻以上的寵物時，牠們偶爾會聚在一起玩：<b>2 隻碰碰鼻子、3 隻跳舞、4 隻開火車、5 隻拍團體照、6 隻疊羅漢</b> 🎉</li>
       <li>寵物會記得這一週誰餵牠：<b>餵越多次，牠越常跑去你的座位旁邊睡覺</b> 💤。</li>
       <li>飽足度變成 <b>0 🍚</b>，寵物就會肚子餓、<b>跑出去自己覓食</b>，不回來了。大家一起照顧牠吧！</li></ol></details>`;
     const sec = (title, list) => (list.length ? `<div class="panel"><h3>${title}</h3><div class="pet-list">${list.map(x => `<div class="pet-row" data-petcard="${esc(x.id)}" role="button" tabindex="0">${cardHtml(x)}</div>`).join('')}</div></div>` : '');

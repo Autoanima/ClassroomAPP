@@ -2169,3 +2169,45 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .cz-box.lv-addbox { max-height: 88vh; overflow-y: auto; }
 .lv-addbox .cz-head b { font-size: 17px; }
 .lv-addbox .lv-pick { max-height: 30vh; }
+
+/* ── 🎉 寵物聚會（2～6 隻）── */
+.pet.party { z-index: 2; }
+/* 2 隻：碰碰鼻子 */
+.pet.pa-nuzzle .pet-body { animation: pa-nuzzle 1.3s ease-in-out infinite !important; }
+@keyframes pa-nuzzle { 0%, 100% { translate: 0 0; rotate: 0deg; } 35% { translate: calc(var(--face, 1) * 6px) -2px; rotate: calc(var(--face, 1) * 10deg); } 50% { translate: calc(var(--face, 1) * 3px) 0; rotate: 0deg; } 65% { translate: calc(var(--face, 1) * 7px) -1px; rotate: calc(var(--face, 1) * 12deg); } }
+/* 3 隻：輪流跳、轉身跳舞 */
+.pet.pa-dance .pet-body { animation: pa-dance 1s ease-in-out infinite !important; animation-delay: calc(var(--i, 0) * .33s) !important; }
+@keyframes pa-dance { 0%, 100% { translate: 0 0; rotate: 0deg; scale: 1 1; } 25% { translate: 0 -16px; rotate: -14deg; } 50% { translate: 0 0; scale: -1 1; } 75% { translate: 0 -9px; rotate: 14deg; scale: -1 1; } }
+.pf-disco { position: absolute; left: 0; top: -26px; font-size: 22px; transform: translateX(-50%); animation: pa-disco 1.2s linear infinite; }
+@keyframes pa-disco { from { rotate: 0deg; } to { rotate: 360deg; } }
+/* 4 隻：開火車（車頭戴著火車頭，後面冒煙）*/
+.pet.pa-train .pet-body { animation: petHop .32s ease-in-out infinite !important; animation-delay: calc(var(--i, 0) * .08s) !important; }
+.pet.pa-train.lead::before { content: '🚂'; position: absolute; left: 50%; top: -20px; transform: translateX(-50%) scaleX(calc(var(--face, 1) * -1)); font-size: 18px; }
+.pf-toot { position: absolute; left: 0; top: 0; font-size: 18px; animation: pa-toot .9s ease-out infinite; }
+@keyframes pa-toot { 0% { opacity: 0; transform: translate(-50%, 8px) scale(.5); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -26px) scale(1.6); } }
+/* 5 隻：拍團體照（閃光那一下一起跳起來）*/
+.pet.pa-photo .pet-body { animation: pa-photo 5.2s ease-in-out both !important; }
+@keyframes pa-photo { 0%, 30% { translate: 0 0; scale: 1 1; } 34% { scale: 1.05 .92; } 38%, 44% { translate: 0 -18px; scale: 1 1; rotate: calc(var(--face, 1) * -8deg); } 50%, 100% { translate: 0 0; rotate: 0deg; } }
+.pf-cam { position: absolute; left: 0; top: -6px; font-size: 26px; transform: translateX(-50%); animation: pa-cam 5.2s both; }
+@keyframes pa-cam { 0% { opacity: 0; translate: 0 10px; } 10%, 90% { opacity: 1; translate: 0 0; } 36% { scale: 1.3; } 40% { scale: 1; } 100% { opacity: 0; } }
+.pf-flash { position: absolute; left: 0; top: 40px; width: 200px; height: 120px; margin: -60px 0 0 -100px; border-radius: 50%; background: radial-gradient(closest-side, rgba(255,255,255,.95), rgba(255,255,255,0)); opacity: 0; animation: pa-flash 5.2s both; }
+@keyframes pa-flash { 0%, 35% { opacity: 0; } 37% { opacity: 1; } 48%, 100% { opacity: 0; } }
+/* 6 隻：疊羅漢，最後垮掉 */
+.pet.pa-stack .pet-body { animation: pa-stack 6.2s ease-in-out both !important; }
+@keyframes pa-stack { 0%, 15% { rotate: 0deg; } 25% { rotate: -4deg; } 35% { rotate: 4deg; } 45% { rotate: -5deg; } 55% { rotate: 5deg; } 65% { rotate: -3deg; translate: 0 0; } 74% { rotate: calc(var(--i, 0) * 15deg - 35deg); translate: calc(var(--i, 0) * 4px - 10px) 8px; } 88% { rotate: calc(var(--i, 0) * 15deg - 35deg); translate: calc(var(--i, 0) * 4px - 10px) 8px; } 100% { rotate: 0deg; translate: 0 0; } }
+.pf-boom { position: absolute; left: 0; top: 0; font-size: 22px; opacity: 0; animation: pa-boom 6.2s both; }
+.pf-boom.d2 { animation-name: pa-boom2; }
+.pf-boom.d3 { animation-name: pa-boom3; }
+@keyframes pa-boom { 0%, 70% { opacity: 0; transform: translate(-50%, 20px) scale(.4); } 76% { opacity: 1; transform: translate(-60px, -20px) scale(1.2); } 100% { opacity: 0; transform: translate(-80px, -50px) scale(1); } }
+@keyframes pa-boom2 { 0%, 72% { opacity: 0; transform: translate(-50%, 20px) scale(.4); } 78% { opacity: 1; transform: translate(30px, -26px) scale(1.2); } 100% { opacity: 0; transform: translate(50px, -60px) scale(1); } }
+@keyframes pa-boom3 { 0%, 74% { opacity: 0; transform: translate(-50%, 20px) scale(.4); } 80% { opacity: 1; transform: translate(-10px, -40px) scale(1.3); } 100% { opacity: 0; transform: translate(-10px, -80px) scale(1); } }
+/* 愛心、音符往上飄 */
+.pf-up { position: absolute; left: 0; top: 14px; font-size: 16px; opacity: 0; animation: pa-up 1.6s ease-out infinite; }
+.pf-up.d2 { animation-delay: .55s; left: -12px; }
+.pf-up.d3 { animation-delay: 1.1s; left: 12px; }
+@keyframes pa-up { 0% { opacity: 0; transform: translate(-50%, 10px) scale(.6); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -34px) scale(1.2); } }
+/* 頭上的字 */
+.party-fx { width: 0; height: 0; z-index: 12; overflow: visible; }
+.pf-say { position: absolute; left: 0; bottom: 22px; transform: translateX(-50%); white-space: nowrap; padding: 3px 10px; border-radius: 12px; background: rgba(255,255,255,.95); color: #222; font-size: 12px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,.25); animation: pa-say 3.2s both; }
+@keyframes pa-say { 0% { opacity: 0; translate: 0 6px; } 10%, 85% { opacity: 1; translate: 0 0; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .pet.party .pet-body { animation: none !important; } }
