@@ -132,7 +132,7 @@
       try {
         const P = parse(list[i].grid, list[i].bg);
         h += nowHtml(P);
-        h += `<div class="panel tt-panel">${P.title ? `<p class="muted small tt-title">${esc(P.title)}</p>` : ''}${gridHtml(P)}</div>`;
+        h += `<div class="panel tt-panel">${gridHtml(P)}</div>`;   // 試算表上面的標題（學校、教師、適用期間）不顯示
       } catch (e) { h += `<div class="panel"><p class="lock-msg">「${esc(list[i].name)}」格式讀不懂：${esc(e.message)}</p></div>`; }
     } else h += `<div class="panel"><p class="muted">${!tAt ? '讀取中…' : '導師還沒有設定課表。'}</p></div>`;
     if (A.isTeacher()) h += adminHtml();
