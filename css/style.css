@@ -1258,6 +1258,15 @@ body.ww-open { overflow: hidden; }
 .ir-ret { font-weight: 700; }
 .ir-tag { display: block; font-size: 12px; white-space: nowrap; color: var(--muted); margin-top: 1px; }
 .ir-who { min-width: 0; line-height: 1.35; }
+.ir-pf { all: unset; cursor: pointer; border-bottom: 1px dashed var(--line); }
+.ir-pf:hover, .ir-pf:focus-visible { color: var(--accent); border-bottom-color: currentColor; }
+.pf-sum { margin: 4px 0 12px; }
+.pf-row { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.pf-top { display: flex; align-items: center; gap: 6px; }
+.pf-w { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pf-bar { height: 6px; border-radius: 3px; background: var(--line); margin: 5px 0 3px; overflow: hidden; }
+.pf-bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.pf-bar.cash i { background: var(--muted); }
 .inv-sub { margin-top: 14px; font-size: 14px; color: var(--muted); }
 .inv-text { font-size: 14px; line-height: 1.65; }
 .inv-text ol, .inv-text ul { padding-left: 1.3em; margin: 6px 0; }

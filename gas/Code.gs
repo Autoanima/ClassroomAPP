@@ -4126,10 +4126,12 @@ function investState(who) {
       status: /^已取消/.test(t.status) ? t.status : f ? (f.fail ? '已取消（' + f.fail + '）' : '已成交') : '待成交', fill: f && !f.fail ? f : null };
   });
   const st = standingsOf(R.books, season);
-  const pub = x => ({ code: pubCode(x.key), name: who.teacher ? x.key : '', me: x.key === me, ret: x.ret, total: x.total, value: x.value, rank: x.rank, eligible: x.eligible, diary: x.diary, prize: x.prize, steady: x.steady, teacher: !!x.noPrize });
+  // 投資組合（排行榜點名字看）：現金＋每檔持股的市值與成本
+  const pf = k => { const bk = R.books[k]; return bk ? { cash: bk.cash, hold: bk.holdings.map(h => ({ c: h.code, u: h.units, v: h.value, k: h.cost })) } : null; };
+  const pub = x => ({ pf: pf(x.key), code: pubCode(x.key), name: who.teacher ? x.key : '', me: x.key === me, ret: x.ret, total: x.total, value: x.value, rank: x.rank, eligible: x.eligible, diary: x.diary, prize: x.prize, steady: x.steady, teacher: !!x.noPrize });
   // 累計排行（長期投資）：從開始到現在的報酬率
   const total = Object.keys(R.books).filter(k => R.books[k].diary > 0).map(k => ({ key: k, t: R.books[k].total, v: R.books[k].value }))
-    .sort((a, c) => c.t - a.t).map(x => ({ code: pubCode(x.key), name: who.teacher ? x.key : '', me: x.key === me, total: x.t, value: x.v, teacher: x.key === CONFIG.TEACHER_NAME }));
+    .sort((a, c) => c.t - a.t).map(x => ({ pf: pf(x.key), code: pubCode(x.key), name: who.teacher ? x.key : '', me: x.key === me, total: x.t, value: x.v, teacher: x.key === CONFIG.TEACHER_NAME }));
   const stocks = InvestEngine.STOCKS.map(s => {
     const ds = Object.keys(P[s.code]).filter(d => P[s.code][d].c > 0).sort(), l = ds.length;
     return Object.assign({}, s, { date: ds[l - 1] || '', close: l ? P[s.code][ds[l - 1]].c : 0, prev: l > 1 ? P[s.code][ds[l - 2]].c : 0,

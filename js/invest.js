@@ -120,12 +120,31 @@
   // 外部走勢圖：Yahoo 奇摩股市「技術分析」（可以切換日、週、月 K 線；29 檔都是上市股票，代號加 .TW）
   const chartUrl = code => `https://tw.stock.yahoo.com/quote/${encodeURIComponent(code)}.TW/technical-analysis`;
 
+  // 排行榜上的名字：點了看投資組合
+  const nameOf = x => (x.name && x.name !== x.code ? A.parseKey(x.name).name || x.name : '');
+  const whoBtn = x => { const n = nameOf(x), t = `${esc(x.code)}${n ? ` <span class="muted small">${esc(n)}</span>` : ''}`;
+    return x.pf ? `<button type="button" class="ir-pf" data-iv="pf" data-c="${esc(x.code)}" title="看投資組合">${t}</button>` : t; };
+  function openPf(code) {
+    const x = (S.standings || []).find(y => y.code === code && y.pf) || (S.total || []).find(y => y.code === code && y.pf);
+    if (!x) return;
+    const P = x.pf, tot = P.cash + P.hold.reduce((t, h) => t + h.v, 0) || 1, n = nameOf(x) || (A.students().find(k => codeOf(k) === code) && A.parseKey(A.students().find(k => codeOf(k) === code)).name) || '';
+    const rows = P.hold.slice().sort((a, b) => b.v - a.v).map(h => { const s = STOCK[h.c] || { short: h.c, name: '' }, k = kindOf(s), w = h.v / tot;
+      return `<div class="pf-row"><div class="pf-top"><b>${esc(s.short)}</b> <span class="inv-kind ${k[1]}">${k[0]}</span><span class="pf-w">${(w * 100).toFixed(1)}%</span></div>
+        <div class="pf-bar"><i style="width:${(w * 100).toFixed(1)}%"></i></div>
+        <div class="muted small">${unit(h.u)} 單位・市值 ${coin(h.v)} 枚${h.k ? `・<span class="${updn(h.v - h.k)}">${pct(h.v / h.k - 1)}</span>` : ''}</div></div>`; }).join('');
+    A.openSheet({ kind: 'invpf' }, `<h3>💼 ${esc(code)}${n ? ' ' + esc(n) : ''} 的投資組合</h3>
+      <p class="pf-sum">總值 <b>${coin(tot)}</b> 枚${x.ret != null ? `・本季 <span class="${updn(x.ret)}">${pct(x.ret)}</span>` : ''}${x.total != null ? `・累計 <span class="${updn(x.total)}">${pct(x.total)}</span>` : ''}</p>
+      ${rows || '<p class="muted small">目前沒有持股，全部都是現金。</p>'}
+      <div class="pf-row"><div class="pf-top"><b>💵 現金</b><span class="pf-w">${(P.cash / tot * 100).toFixed(1)}%</span></div><div class="pf-bar cash"><i style="width:${Math.max(0, P.cash / tot * 100).toFixed(1)}%"></i></div><div class="muted small">${coin(P.cash)} 枚</div></div>
+      <p class="muted small">以最近一次收盤價計算。看看別人怎麼分配，想想自己為什麼這樣配。</p>
+      <button type="button" class="btn wide" data-act="close">關閉</button>`);
+  }
   function rankHtml() {
     const L = S.standings, R = S.rules;
     const el = L.filter(x => x.eligible), no = L.filter(x => !x.eligible);
     const row = x => `<div class="inv-row${x.me ? ' me' : ''}">
       <span class="ir-rank">${x.rank ? (x.rank <= 3 ? ['🥇', '🥈', '🥉'][x.rank - 1] : x.rank) : ''}</span>
-      <span class="ir-who">${esc(x.code)}${x.name && x.name !== x.code ? ` <span class="muted small">${esc(A.parseKey(x.name).name || x.name)}</span>` : ''}${x.me ? ' <span class="tag">我</span>' : ''}${x.teacher ? ' <span class="muted small">（不領獎）</span>' : ''}${x.prize || x.steady || !x.eligible ? `<span class="ir-tag">${x.prize ? `🏆+${x.prize}` : ''}${x.steady ? ' 🐢穩健' : ''}${x.eligible ? '' : '尚未交易'}</span>` : ''}</span>
+      <span class="ir-who">${whoBtn(x)}${x.me ? ' <span class="tag">我</span>' : ''}${x.teacher ? ' <span class="muted small">（不領獎）</span>' : ''}${x.prize || x.steady || !x.eligible ? `<span class="ir-tag">${x.prize ? `🏆+${x.prize}` : ''}${x.steady ? ' 🐢穩健' : ''}${x.eligible ? '' : '尚未交易'}</span>` : ''}</span>
       <span class="ir-ret ${updn(x.ret)}">${pct(x.ret)}</span>
       <span class="ir-val">${coin(x.value)}</span></div>`;
     const seg = (v, t) => `<button type="button" data-iv="rk" data-v="${v}" aria-pressed="${(ui.rk || 'season') === v}">${t}</button>`;
@@ -134,7 +153,7 @@
       return h + `<div class="panel"><h3>📈 累計報酬率排行 <span class="muted small">（從一開始到現在，不發獎，看長期表現）</span></h3>
         <div class="inv-row head"><span class="ir-rank">#</span><span class="ir-who">座號</span><span class="ir-ret">累計</span><span class="ir-val">投資幣</span></div>
         ${(S.total || []).map((x, i) => `<div class="inv-row${x.me ? ' me' : ''}"><span class="ir-rank">${i + 1}</span>
-          <span class="ir-who">${esc(x.code)}${x.name && x.name !== x.code ? ` <span class="muted small">${esc(A.parseKey(x.name).name || x.name)}</span>` : ''}${x.me ? ' <span class="tag">我</span>' : ''}</span>
+          <span class="ir-who">${whoBtn(x)}${x.me ? ' <span class="tag">我</span>' : ''}</span>
           <span class="ir-ret ${updn(x.total)}">${pct(x.total)}</span><span class="ir-val">${coin(x.value)}</span></div>`).join('') || '<p class="muted small">還沒有人開始投資。</p>'}
         <p class="muted small">長期來看，穩定成長、少犯大錯的人通常會慢慢爬上來。</p></div>`;
     }
@@ -288,6 +307,7 @@
     if (!b || b.disabled) return;
     const act = b.dataset.iv;
     if (act === 'view') { ui.view = b.dataset.v; saveUi(); render(); window.scrollTo({ top: 0 }); return; }
+    if (act === 'pf') return openPf(b.dataset.c);
     if (act === 'rk') { ui.rk = b.dataset.v; saveUi(); render(); return; }
     if (act === 'gall') { GROUPS.forEach(g => { ui.groups[g] = b.dataset.v === '1'; }); saveUi(); render(); return; }
     if (act === 'buy') return openOrder('買', b.dataset.code);
@@ -442,7 +462,8 @@
     const pendSell = {};
     mine.filter(t => t.status === '待成交' && t.side === '賣').forEach(t => { pendSell[t.code] = (pendSell[t.code] || 0) + t.units; });
     const sellable = Object.fromEntries(b.holdings.map(h => [h.code, E.sellable(b, h.code, days, next, pendSell[h.code])]));
-    const pub = x => ({ code: x.key === T ? T : codeOf(x.key), key: x.key, teacher: x.key === T, name: A.isTeacher() ? x.key : '', me: x.key === me, ret: x.ret, total: x.total, value: x.value, rank: x.rank, eligible: x.eligible, diary: x.diary, prize: x.prize, steady: x.steady });
+    const pf = k => { const bk = books[k]; return bk ? { cash: bk.cash, hold: bk.holdings.map(h => ({ c: h.code, u: h.units, v: h.value, k: h.cost })) } : null; };
+    const pub = x => ({ pf: pf(x.key), code: x.key === T ? T : codeOf(x.key), key: x.key, teacher: x.key === T, name: A.isTeacher() ? x.key : '', me: x.key === me, ret: x.ret, total: x.total, value: x.value, rank: x.rank, eligible: x.eligible, diary: x.diary, prize: x.prize, steady: x.steady });
     const stocks = E.STOCKS.map(s => {
       const ds = Object.keys(P[s.code]).sort(), l = ds.length;
       return { ...s, date: ds[l - 1], close: P[s.code][ds[l - 1]].c, prev: P[s.code][ds[l - 2]].c, hist: ds.slice(-40).map(d => [d, P[s.code][d].c]), divs: ds.filter(d => P[s.code][d].div > 0).map(d => [d, P[s.code][d].div]) };
@@ -452,7 +473,7 @@
       me: { cash: b.cash, avail: b.avail, value: b.value, total: b.total, ret: ms.ret, start: ms.start, diary: b.diary, eligible: b.eligible, holdings: b.holdings, divs: b.divs, snaps: b.snaps.slice(-60), sellable },
       trades: mine, standings: st.list.map(pub),
       total: Object.keys(books).filter(k => books[k].diary > 0).sort((x, y) => books[y].total - books[x].total)
-        .map(k => ({ code: k === T ? T : codeOf(k), name: A.isTeacher() ? k : '', me: k === me, total: books[k].total, value: books[k].value })),
+        .map(k => ({ pf: pf(k), code: k === T ? T : codeOf(k), name: A.isTeacher() ? k : '', me: k === me, total: books[k].total, value: books[k].value })),
       board: { season, final: false, top: st.list.filter(x => x.rank && (x.rank <= 10 || x.prize)).map(x => ({ rank: x.rank, code: x.key === T ? T : codeOf(x.key), ret: x.ret, value: x.value })), steady: st.steady ? { code: codeOf(st.steady.key), ret: st.steady.ret } : null },
       past: [], fetched: Date.now(),
     };
