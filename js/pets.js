@@ -354,7 +354,7 @@
   }
   async function playGone(x, at) {
     const { g, what, act } = goneText(x);
-    await notice(goneArt(x.gone), `<h3>🥚 ${esc(nm(x.owner))} 的寵物蛋孵化了！</h3><p>竟然是<b>${esc(what)}</b>！</p><p class="muted small">只有約 1/10 的蛋會孵出真正的寵物，其他會孵出奇怪的東西，然後離開教室。</p>`, '確定，看牠怎麼離開');
+    await notice(goneArt(x.gone), `<h3>🥚 ${esc(nm(x.owner))} 的寵物蛋孵化了！</h3><p>竟然是<b>${esc(what)}</b>！</p><p class="muted small">只有約 1/10 的蛋會孵出真正的寵物，其他會孵出奇怪的東西，然後離開教室。</p>`, '真的假的?!!!?');
     if (A.currentTab() !== 'seats') return;
     geo = geometry(); if (geo) at = geo.board;
     const help = goneHelp(x.gone);
