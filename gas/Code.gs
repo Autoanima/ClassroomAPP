@@ -1491,8 +1491,12 @@ function courseHelpers(course) {
   let roles = {};
   try { roles = rosterSheet() ? cadreMap() : {}; } catch (e) { roles = {}; }
   const out = [];
-  Object.keys(roles).forEach(k => roles[k].forEach(r => { const m = String(r).match(/^(.+?)小老師/); if (m && subseq(m[1], c)) out.push(k); }));
+  Object.keys(roles).forEach(k => roles[k].forEach(r => { const m = String(r).match(/^(.+?)小老師/); if ((m && subseq(m[1], c)) || courseRoleRule(c, r)) out.push(k); }));
   return out.filter((k, i) => out.indexOf(k) === i);
+}
+/** 有些課的小老師就是某個股長：體育課＝體育股長、康樂股長 */
+function courseRoleRule(course, role) {
+  return /體育/.test(course) && /^(體育|康樂)(股長)?$/.test(String(role).trim());
 }
 function setCourseHelpers(who, course, keys) {
   if (!who.teacher) throw new Error('只有導師可以設定小老師');

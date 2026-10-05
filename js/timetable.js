@@ -286,7 +286,9 @@
   function helpersOf(c) {
     const k = ckey(c);
     if (H[k]) return H[k];
-    return A.students().filter(s => (A.jobsOf?.(s)?.roles || []).some(r => { const m = String(r).match(/^(.+?)小老師/); return m && sub(m[1], k); }));
+    // 體育課的小老師＝體育股長、康樂股長
+    const rule = r => /體育/.test(k) && /^(體育|康樂)(股長)?$/.test(String(r).trim());
+    return A.students().filter(s => (A.jobsOf?.(s)?.roles || []).some(r => { const m = String(r).match(/^(.+?)小老師/); return (m && sub(m[1], k)) || rule(r); }));
   }
   let openC = null;
   function openCourse(c, info) {
@@ -295,7 +297,7 @@
     const canPost = A.isTeacher() || hs.includes(me), posts = POSTS.filter(q => q.course === k).sort((a, b) => b.t - a.t);
     let h = A.sheetHead(`📚 ${esc(c)}`, info ? esc(info) : '課程');
     h += `<div class="ttc-sec"><b>🙋 小老師</b>${hs.length ? `<div class="ttc-hs">${hs.map(x => `<span class="ttc-h${x === me ? ' me' : ''}">${esc(nm(x))}</span>`).join('')}</div>` : '<p class="muted small">還沒有小老師。</p>'}
-      ${!H[k] && hs.length ? '<p class="muted small">（從幹部名單的「小老師」職位自動帶入）</p>' : ''}</div>`;
+      ${!H[k] && hs.length ? `<p class="muted small">（從幹部名單${/體育/.test(k) ? '的體育股長、康樂股長' : '的「小老師」職位'}自動帶入）</p>` : ''}</div>`;
     if (A.isTeacher()) h += `<details class="ttc-set"><summary class="small"><b>✏️ 設定這門課的小老師</b></summary>
       <div class="lv-pick">${A.students().map(x => `<label><input type="checkbox" value="${esc(x)}" data-ttch${hs.includes(x) ? ' checked' : ''}> ${esc(nm(x))}</label>`).join('')}</div>
       <p class="muted small">都不勾＝改回看幹部名單裡「${esc(c.slice(0, 2))}小老師」的職位。</p>
