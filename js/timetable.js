@@ -84,7 +84,9 @@
     const now = new Date(), dow = now.getDay(), m = now.getHours() * 60 + now.getMinutes();
     const today = P.days.findIndex(d => '日一二三四五六'.indexOf(d.name) === dow);
     const nowRow = P.rows.findIndex(r => { const [a, b] = range(r.time); return a != null && b != null && m >= a && m < b; });
-    let h = `<div class="tt-grid" style="--days:${P.days.length}">`;
+    // 有分組上課（左右並排）的那幾天，欄寬一點
+    const cols = P.days.map((d, i) => (P.blocks.some(b => b.day === i && b.items.length > 1) ? 'minmax(0, 1.45fr)' : 'minmax(0, 1fr)')).join(' ');
+    let h = `<div class="tt-grid" style="--days:${P.days.length};grid-template-columns:var(--tt-label, 2.35em) ${cols}">`;
     h += `<div class="tt-h tt-corner"></div>${P.days.map((d, i) => `<div class="tt-h${i === today ? ' today' : ''}" style="grid-column:${i + 2}">${esc(d.name)}</div>`).join('')}`;
     P.rows.forEach((r, ri) => {
       const row = ri + 2;

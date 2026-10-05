@@ -2297,3 +2297,23 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 #ttcText { width: 100%; box-sizing: border-box; font-size: 15px; }
 .tt-sw { margin-bottom: 8px; }
 [data-theme="dark"] .tt-c.tint { background: var(--tint); color: #2b2f36; }   /* 分組上課：深色模式也照試算表的淺色底 */
+
+/* 分組上課：左右並排，兩邊都佔滿整個時段（例如週三 1、2 節：程式語言與設計｜點陣影像）*/
+.tt-b.split { flex-direction: row; align-items: stretch; }
+.tt-b.split .tt-c { flex: 1 1 0; min-width: 0; padding: 4px 2px; }
+.tt-b.split .tt-course { font-size: 12.5px; }
+.tt-b.split .tt-teacher { font-size: 10px; }
+.tt-b.split .tt-room { font-size: 9px; }
+@media (min-width: 700px) { .tt-grid { --tt-label: 5.5em; } .tt-b.split .tt-course { font-size: 15px; } }
+
+/* 手機：格子內距小一點，三個字的課名（會計學、國語文）放得下一行 */
+@media (max-width: 699px) {
+  .tt-panel { padding: 8px 5px; }
+  .tt-grid { gap: 2px; }
+  .tt-b { padding: 5px 2px; }
+  .tt-course { font-size: 14px; letter-spacing: -.3px; }
+  .tt-b.split .tt-c { padding: 4px 1px; }
+  .tt-b.split .tt-course { font-size: 12px; }
+  .tt-b.split .tt-teacher { font-size: 9.5px; letter-spacing: -.5px; }
+  .tt-p b { font-size: 14px; }
+}
