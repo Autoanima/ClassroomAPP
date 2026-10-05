@@ -2237,3 +2237,63 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .pn-card .btn { margin-top: 12px; }
 @keyframes pn-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes pn-bob { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-6px) rotate(3deg); } }
+
+/* ── 📅 課表（手機也看得清楚：課名大、老師名字淡）── */
+.tt-panel { padding: 10px 8px; }
+.tt-title { margin: 0 4px 8px; }
+.tt-grid { display: grid; grid-template-columns: 2.7em repeat(var(--days, 5), minmax(0, 1fr)); gap: 3px; }
+.tt-h { text-align: center; font-weight: 800; font-size: 15px; padding: 4px 0; border-radius: 8px; color: var(--muted); grid-row: 1; }
+.tt-h.today { background: var(--accent); color: #fff; }
+.tt-p { grid-column: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2px 0; line-height: 1.1; }
+.tt-p b { font-size: 15px; }
+.tt-p small { font-size: 9px; color: var(--muted); letter-spacing: -.3px; word-break: break-all; }
+.tt-p.brk b { font-size: 11px; color: var(--muted); font-weight: 600; }
+.tt-p.brk small { display: none; }
+.tt-p.now b { color: var(--accent); }
+.tt-brk { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 11px; color: var(--muted); background: var(--bg); border-radius: 6px; min-height: 20px; }
+.tt-brk small { font-size: 10px; }
+.tt-b { display: flex; flex-direction: column; justify-content: center; gap: 3px; min-height: 62px; padding: 6px 4px; border-radius: 10px; background: hsl(var(--h) 70% 93%); color: hsl(var(--h) 45% 22%); text-align: center; overflow: hidden; }
+[data-theme="dark"] .tt-b { background: hsl(var(--h) 28% 24%); color: hsl(var(--h) 60% 90%); }
+.tt-b.today { box-shadow: inset 0 0 0 1.5px hsl(var(--h) 50% 60%); }
+.tt-b.live { box-shadow: 0 0 0 3px var(--accent); }
+.tt-c { display: flex; flex-direction: column; gap: 1px; }
+.tt-course { font-size: 15px; font-weight: 800; line-height: 1.2; word-break: break-all; }
+.tt-teacher { font-size: 11px; font-weight: 400; opacity: .6; }
+.tt-room { font-size: 10px; opacity: .55; }
+.tt-b.split .tt-course { font-size: 13px; }
+.tt-div { display: block; height: 1px; margin: 2px 6px; background: currentColor; opacity: .25; }
+.tt-now { display: grid; gap: 6px; font-size: 15px; }
+.tt-now > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.tt-now .tt-teacher { font-size: 12px; color: var(--muted); opacity: 1; }
+.tt-tag { font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--bg); color: var(--muted); }
+.tt-tag.live { background: var(--accent); color: #fff; }
+@media (min-width: 700px) { .tt-course { font-size: 17px; } .tt-teacher { font-size: 12px; } .tt-b { min-height: 72px; } .tt-grid { grid-template-columns: 5.5em repeat(var(--days, 5), minmax(0, 1fr)); gap: 5px; } .tt-p small { font-size: 11px; } }
+
+.tt-p small { font-size: 9.5px; letter-spacing: 0; line-height: 1.15; margin-top: 1px; }
+.tt-brk b { font-weight: 700; }
+.tt-brk.now { color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+
+/* 課表：一般的課中性灰；分組上課照試算表底色（洋紅、藍）*/
+.tt-b { background: #eceef1; color: #2b2f36; }
+[data-theme="dark"] .tt-b { background: #33363d; color: #e9ecef; }
+.tt-b.today { box-shadow: inset 0 0 0 1.5px #adb5bd; }
+.tt-b.live { box-shadow: 0 0 0 3px var(--accent); }
+.tt-b.split { padding: 3px; gap: 3px; justify-content: stretch; }
+.tt-b.split .tt-c { flex: 1; justify-content: center; border-radius: 7px; padding: 4px 2px; }
+.tt-c.tint { background: var(--tint); color: #2b2f36; }
+[data-theme="dark"] .tt-c.tint { background: color-mix(in srgb, var(--tint) 30%, #2b2d33); color: #f1f3f5; }
+.tt-c { cursor: pointer; position: relative; }
+.tt-c.has-post::after { content: '📢'; position: absolute; top: -4px; right: -2px; font-size: 10px; }
+.tt-div { display: none; }
+/* 點課程的卡片 */
+.ttc-sec { margin: 10px 0; }
+.ttc-hs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.ttc-h { padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 14px; }
+.ttc-h.me { background: var(--accent); color: #fff; }
+.ttc-post { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--bg); }
+.ttc-ph { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.ttc-pt { font-size: 15px; line-height: 1.55; margin-top: 2px; white-space: normal; }
+.ttc-set { margin: 6px 0; }
+#ttcText { width: 100%; box-sizing: border-box; font-size: 15px; }
+.tt-sw { margin-bottom: 8px; }
+[data-theme="dark"] .tt-c.tint { background: var(--tint); color: #2b2f36; }   /* 分組上課：深色模式也照試算表的淺色底 */

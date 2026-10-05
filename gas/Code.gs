@@ -114,11 +114,11 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ petIncubate: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ petIncubate: 1, lunchChange: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, lunchChange: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
-const GUEST_OK = { getPets: 1, petImage: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
+const GUEST_OK = { getTimetable: 1, getPets: 1, petImage: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { notifyCheck: 1, saveRecords: 1, uploadPhoto: 1, getCheckLive: 1, setCheckLive: 1 };
 const MONITOR_OK = { addDrawLog: 1, getDrawFx: 1, drawUsed: 1 };   // 用學生身分登入的班長、副班長：可以抽籤
 
@@ -207,6 +207,11 @@ function doPost(e) {
       case 'addPoints': return json(addPoints(req.rows || [], who));
       case 'getPoints': return json({ ok: true, rows: getPoints(req.days, who) });
       case 'getPets': return json(getPets(who));
+      case 'getTimetable': return json(getTimetable());
+      case 'setTimetable': return json(setTimetable(who, req.tt || {}));
+      case 'setCourseHelpers': return json(setCourseHelpers(who, req.course, req.keys));
+      case 'postCourse': return json(postCourse(who, req.course, req.text));
+      case 'delCoursePost': return json(delCoursePost(who, req.id));
       case 'feedPet': return json(feedPet(who, req.id));
       case 'petLook': return json(petLook(who, req.id, req.name, req.data));
       case 'petImage': return json(petImage(req.id));
@@ -1442,6 +1447,99 @@ function setLunchPaid(who, key, paid) {
   return getLunch(who);
 }
 
+// ── 📅 課表：導師在 App 用試算表網址或檔案更新（App 先讀成表格，這裡只存表格內容）；全班都看得到 ──
+// 存在好幾個 Script Property（每個最多 9KB）：TIMETABLE_N＝份數，TIMETABLE_0、_1…
+function ttRead() {
+  const P = PropertiesService.getScriptProperties(), n = Number(P.getProperty('TIMETABLE_N') || 0);
+  if (!n) { const old = P.getProperty('TIMETABLE'); return old ? JSON.parse(old) : null; }
+  let s = '';
+  for (let i = 0; i < n; i++) s += P.getProperty('TIMETABLE_' + i) || '';
+  try { return JSON.parse(s); } catch (e) { return null; }
+}
+function getTimetable() {
+  const tt = ttRead();
+  return { ok: true, tt: tt, helpers: courseHelperMap(), posts: coursePosts() };
+}
+function setTimetable(who, tt) {
+  if (!who.teacher) throw new Error('只有導師可以更新課表');
+  const cell = c => String(c == null ? '' : c).slice(0, 120);
+  const g = a => (Array.isArray(a) ? a : []).slice(0, 40).map(r => (Array.isArray(r) ? r : []).slice(0, 30).map(cell));
+  const sheets = (Array.isArray(tt.sheets) ? tt.sheets : tt.grid ? [{ name: '課表', grid: tt.grid }] : []).slice(0, 6)
+    .map(x => Object.assign({ name: String(x.name || '課表').slice(0, 40), grid: g(x.grid) }, x.bg ? { bg: g(x.bg) } : {}))
+    .filter(x => x.grid.length);
+  if (!sheets.length) throw new Error('課表是空的');
+  const s = JSON.stringify({ sheets: sheets, src: String(tt.src || '').slice(0, 300), t: Date.now() });
+  if (s.length > 60000) throw new Error('課表太大了（請刪掉多餘的分頁、欄和列）');
+  const P = PropertiesService.getScriptProperties(), n = Math.ceil(s.length / 8000);
+  for (let i = 0; i < n; i++) P.setProperty('TIMETABLE_' + i, s.slice(i * 8000, (i + 1) * 8000));
+  P.setProperty('TIMETABLE_N', String(n));
+  return getTimetable();
+}
+// ── 📚 課程的小老師與公告：點課表上的課程可以看到；小老師（和導師）可以發公告 ──
+const SHEET_CPOST = '課程公告';
+const HEAD_CPOST = ['編號', '課程', '內容', '發布人', '時間', '狀態'];
+const courseKey = c => String(c || '').replace(/\s+/g, '').slice(0, 30);
+const subseq = (a, b) => { let i = 0; for (const ch of b) if (ch === a[i]) i++; return i === a.length; };
+/** 導師手動設定的小老師：{ 課程: [學生] } */
+function courseHelperMap() {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('TT_HELPERS') || '{}'); } catch (e) { return {}; }
+}
+/** 這門課的小老師：導師設定的優先；沒設定就看幹部名單裡「○○小老師」的職位（國文小老師 → 國語文） */
+function courseHelpers(course) {
+  const c = courseKey(course), man = courseHelperMap();
+  if (man[c]) return man[c];
+  let roles = {};
+  try { roles = rosterSheet() ? cadreMap() : {}; } catch (e) { roles = {}; }
+  const out = [];
+  Object.keys(roles).forEach(k => roles[k].forEach(r => { const m = String(r).match(/^(.+?)小老師/); if (m && subseq(m[1], c)) out.push(k); }));
+  return out.filter((k, i) => out.indexOf(k) === i);
+}
+function setCourseHelpers(who, course, keys) {
+  if (!who.teacher) throw new Error('只有導師可以設定小老師');
+  const c = courseKey(course);
+  if (!c) throw new Error('請選課程');
+  const all = getStudents().students, ok = (Array.isArray(keys) ? keys : []).map(String).filter(k => all.indexOf(k) >= 0);
+  withLock(() => {
+    const m = courseHelperMap();
+    if (ok.length) m[c] = ok; else delete m[c];   // 清空＝改回看幹部名單
+    PropertiesService.getScriptProperties().setProperty('TT_HELPERS', JSON.stringify(m));
+  });
+  return getTimetable();
+}
+function coursePosts() {
+  const sh = getSS().getSheetByName(SHEET_CPOST);
+  if (!sh || sh.getLastRow() < 2) return [];
+  const since = Date.now() - 90 * 864e5;
+  return sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_CPOST.length).getValues()
+    .filter(r => r[0] && r[4] instanceof Date && r[4].getTime() >= since && String(r[5]) !== '刪除')
+    .map(r => ({ id: String(r[0]), course: String(r[1]), text: String(r[2]), by: String(r[3]), t: r[4].getTime(), time: Utilities.formatDate(r[4], CONFIG.TIMEZONE, 'MM/dd HH:mm') }))
+    .slice(-300);
+}
+function postCourse(who, course, text) {
+  const c = courseKey(course), me = who.teacher ? CONFIG.TEACHER_NAME : who.key;
+  text = String(text || '').trim().slice(0, 500);
+  if (!c) throw new Error('請選課程');
+  if (!text) throw new Error('請寫公告內容');
+  if (!who.teacher && courseHelpers(c).indexOf(who.key) < 0) throw new Error('只有這門課的小老師（和導師）可以發公告');
+  withLock(() => {
+    const sh = textSheet(SHEET_CPOST, HEAD_CPOST, [1, 2, 3, 4, 6]), at = sh.getLastRow() + 1;
+    sh.getRange(at, 1, 1, HEAD_CPOST.length).setValues([[Utilities.getUuid().slice(0, 8), c, text, me, new Date(), '']]);
+    sh.getRange(at, 5).setNumberFormat('yyyy/mm/dd hh:mm');
+  });
+  return getTimetable();
+}
+function delCoursePost(who, id) {
+  const me = who.teacher ? CONFIG.TEACHER_NAME : who.key;
+  withLock(() => {
+    const sh = getSS().getSheetByName(SHEET_CPOST);
+    if (!sh || sh.getLastRow() < 2) throw new Error('找不到這則公告');
+    const v = sh.getRange(2, 1, sh.getLastRow() - 1, 4).getValues(), i = v.findIndex(r => String(r[0]) === String(id));
+    if (i < 0) throw new Error('找不到這則公告');
+    if (!who.teacher && String(v[i][3]) !== me) throw new Error('只能刪自己發的公告');
+    sh.getRange(i + 2, 6).setValue('刪除');
+  });
+  return getTimetable();
+}
 // ── 💸 便當零錢帳：總務收便當費時來不及找零，先記「欠同學多少元」，還錢時再記一筆；不分週，一直累計到還清 ──
 const SHEET_CHANGE = '便當零錢帳';
 const HEAD_CHANGE = ['編號', '同學', '金額', '類型', '時間', '登記人', '說明'];

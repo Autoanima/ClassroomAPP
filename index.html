@@ -75,6 +75,7 @@
       <button type="button" role="tab" data-tab="seats">🪑 座位</button>
       <button type="button" role="tab" data-tab="lunch">🍱 便當</button>
       <button type="button" role="tab" data-tab="leave">📝 請假</button>
+      <button type="button" role="tab" data-tab="tt">📅 課表</button>
       <button type="button" role="tab" data-tab="hw">📥 繳交</button>
       <button type="button" role="tab" data-tab="shop">🛍 商店</button>
       <button type="button" role="tab" data-tab="fund">💰 班費</button>
@@ -135,6 +136,10 @@
 
     <section id="tab-leave" class="tab" hidden>
       <div id="leaveRoot"></div>
+    </section>
+
+    <section id="tab-tt" class="tab" hidden>
+      <div id="ttRoot"></div>
     </section>
 
     <section id="tab-lunch" class="tab" hidden>
@@ -212,7 +217,7 @@
   <input id="faceInput" type="file" accept="image/*" hidden>
 
   <script>
-    ['config.js', 'js/map-data.js', 'js/sel-engine.js', 'js/app.js', 'js/seats.js', 'js/points.js', 'js/draw.js', 'js/shop.js', 'js/line.js', 'js/board.js', 'js/mail.js', 'js/fund.js', 'js/lunch.js', 'js/giftbox.js', 'js/vocab.js', 'js/invest-engine.js', 'js/invest.js', 'js/leave.js', 'js/arena.js', 'js/homework.js', 'js/pboard.js', 'js/pet-art.js', 'js/pets.js', 'js/prefetch.js'].forEach(function (s) {
+    ['config.js', 'js/map-data.js', 'js/sel-engine.js', 'js/app.js', 'js/seats.js', 'js/points.js', 'js/draw.js', 'js/shop.js', 'js/line.js', 'js/board.js', 'js/mail.js', 'js/fund.js', 'js/lunch.js', 'js/giftbox.js', 'js/vocab.js', 'js/invest-engine.js', 'js/invest.js', 'js/leave.js', 'js/timetable.js', 'js/arena.js', 'js/homework.js', 'js/pboard.js', 'js/pet-art.js', 'js/pets.js', 'js/prefetch.js'].forEach(function (s) {
       document.write('<script src="' + s + '?v=' + __V + '"><\/script>');
     });
     document.write('<script>App.boot();<\/script>');
