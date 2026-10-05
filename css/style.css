@@ -2324,3 +2324,9 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .tt-c.has-helper::before { content: ''; position: absolute; right: 3px; bottom: 3px; width: 7px; height: 7px; border-radius: 50%; background: #40c057; box-shadow: 0 0 0 1.5px rgba(255,255,255,.85), 0 0 5px #40c057; }
 .tt-b:not(.split) .tt-c.has-helper::before { right: -1px; bottom: -2px; }
 .tt-b:not(.split) .tt-c { flex: 1 1 auto; justify-content: center; }   /* 讓綠燈在格子的右下角 */
+
+/* 有小老師：低調的灰色小點（不要太顯眼） */
+.tt-c.has-helper::before { width: 5px; height: 5px; background: #868e96; box-shadow: none; opacity: .75; }
+/* 「現在／下一節」的課名放大 */
+.tt-now > div > b { font-size: 19px; font-weight: 800; }
+.tt-now > div { align-items: center; }
