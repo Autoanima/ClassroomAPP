@@ -2317,3 +2317,5 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
   .tt-b.split .tt-teacher { font-size: 9.5px; letter-spacing: -.5px; }
   .tt-p b { font-size: 14px; }
 }
+
+.tt-c.no-open { cursor: default; }   /* 沒有小老師的課：同學點了不會開視窗 */
