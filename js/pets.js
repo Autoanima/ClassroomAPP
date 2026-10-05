@@ -333,12 +333,34 @@
     banner(`🥚 你有 <b>${n} 顆寵物蛋</b>還沒孵化！<br><span class="muted small">到「🐾 寵物」按「🐣 孵化」，蛋才會放到講台上。</span>`, 4000);
   }
   // 播放：蛋裂開 → 孵出來的東西做牠的動畫離開，頭上的對話框（約 3 秒）
+  // 訊息視窗：圖＋說明，按「確定」才繼續（動畫在按下之後才開始播）
+  function notice(pic, html, btn = '確定') {
+    return new Promise(res => {
+      const w = document.createElement('div');
+      w.className = 'pet-notice';
+      w.innerHTML = `<div class="pn-card" role="alertdialog" aria-modal="true"><div class="pn-pic">${pic}</div><div class="pn-text">${html}</div>
+        <button type="button" class="btn btn--primary wide">${btn}</button></div>`;
+      document.body.appendChild(w);
+      const b = w.querySelector('button');
+      b.focus();
+      b.addEventListener('click', async () => {
+        w.remove();
+        // 按確定後：把講台捲到畫面中間，再開始播動畫（不然可能在畫面外面）
+        const st = host()?.wrap.querySelector('[data-tch]');
+        if (st) { const r = st.getBoundingClientRect(); if (r.top < 120 || r.bottom > innerHeight - 40) { st.scrollIntoView({ behavior: 'smooth', block: 'center' }); await wait(650); } }
+        res();
+      });
+    });
+  }
   async function playGone(x, at) {
     const { g, what, act } = goneText(x);
+    await notice(goneArt(x.gone), `<h3>🥚 ${esc(nm(x.owner))} 的寵物蛋孵化了！</h3><p>竟然是<b>${esc(what)}</b>！</p><p class="muted small">只有約 1/10 的蛋會孵出真正的寵物，其他會孵出奇怪的東西，然後離開教室。</p>`, '確定，看牠怎麼離開');
+    if (A.currentTab() !== 'seats') return;
+    geo = geometry(); if (geo) at = geo.board;
     const help = goneHelp(x.gone);
     const el = fx(`<span class="g-egg">${EGG}</span>${help ? `<span class="g-help h-${g[1]}">${help}</span>` : ''}${g[1] === 'ufo' ? '<span class="g-beam"></span>' : ''}<span class="g-actor a-${g[1]}">${goneArt(x.gone)}</span><span class="g-say">${esc(what)}<br>${esc(act)}</span>`, 'gone-fx', at.x, at.y);
-    banner(`🥚 <b>${esc(nm(x.owner))}</b> 的寵物蛋孵化了……竟然是<b>${esc(what)}</b>！<br>${esc(act)}。<span class="muted small">（只有約 1/10 的蛋會孵出真正的寵物）</span>`, 4200);
-    await wait(4400); el.remove();
+    banner(`🥚 <b>${esc(nm(x.owner))}</b> 的寵物蛋孵化了……竟然是<b>${esc(what)}</b>！<br>${esc(act)}。<span class="muted small">（只有約 1/10 的蛋會孵出真正的寵物）</span>`, 7400);
+    await wait(7800); el.remove();
   }
   const markSeen = (k, id) => { seen[k] = [...seen[k].filter(x => x !== id), id].slice(-100); store.set('indoor.pets.seen', seen); };
   const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -401,15 +423,17 @@
         await playGone(x, to);
         markSeen('gone', x.id); markSeen('egg', x.id);
       } else if (kind === 'hatch') {
+        await notice(look(x), `<h3>🎉 太幸運了！</h3><p><b>${esc(nm(x.owner))}</b> 的寵物蛋<b>真的孵出寵物</b>了！</p><p class="muted small">只有約 1/10 的機會。${x.owner === A.me() ? '到「🐾 寵物」可以幫牠取名字、上傳外觀。' : ''}</p>`, '確定，看牠出來');
         const e = fx(`<span class="hatch-egg">${EGG}</span><span class="hatch-pet">${look(x)}</span>`, 'egg-hatch', to.x, to.y);
         banner(`🎉 太幸運了！<b>${esc(nm(x.owner))}</b> 的寵物蛋<b>真的孵出寵物</b>了（只有約 1/10 的機會）！${x.owner === A.me() ? '<br><span class="muted small">到「🐾 寵物」可以上傳牠的外觀、取名字。</span>' : ''}`, 5000);
         await wait(2400); e.remove();
         markSeen('hatch', x.id);
       } else {
         // 飽足度 0：揹著空碗跑出去自己覓食
+        await notice(look(x), `<h3>🍚 ${esc(petName(x))} 肚子餓了</h3><p>${esc(nm(x.owner))} 的寵物太久沒吃到罐罐，<b>要跑出去自己覓食</b>了…</p><p class="muted small">在商店或寵物卡買罐罐餵寵物，牠們就不會跑走。</p>`, '確定');
         const e = fx(`<span class="g-help h-runR">🍚</span><span class="g-actor a-runR">${look(x)}</span><span class="g-say">${esc(petName(x))}<br>肚子餓了，跑出去自己覓食了</span>`, 'gone-fx forage', to.x, to.y);
-        banner(`🍚 <b>${esc(petName(x))}</b>（${esc(nm(x.owner))} 的寵物）太久沒吃到罐罐，肚子餓了，<b>跑出去自己覓食</b>了…`, 3500);
-        await wait(4400); e.remove();
+        banner(`🍚 <b>${esc(petName(x))}</b>（${esc(nm(x.owner))} 的寵物）太久沒吃到罐罐，肚子餓了，<b>跑出去自己覓食</b>了…`, 7400);
+        await wait(7800); e.remove();
         markSeen('dead', x.id);
       }
       paintMap(true);
