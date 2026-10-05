@@ -2319,3 +2319,8 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 }
 
 .tt-c.no-open { cursor: default; }   /* 沒有小老師的課：同學點了不會開視窗 */
+
+/* 有小老師的課：右下角綠燈 */
+.tt-c.has-helper::before { content: ''; position: absolute; right: 3px; bottom: 3px; width: 7px; height: 7px; border-radius: 50%; background: #40c057; box-shadow: 0 0 0 1.5px rgba(255,255,255,.85), 0 0 5px #40c057; }
+.tt-b:not(.split) .tt-c.has-helper::before { right: -1px; bottom: -2px; }
+.tt-b:not(.split) .tt-c { flex: 1 1 auto; justify-content: center; }   /* 讓綠燈在格子的右下角 */

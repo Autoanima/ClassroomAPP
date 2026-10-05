@@ -78,8 +78,8 @@
     const [course = '', teacher = '', ...rest] = x.t.split('\n').map(y => y.trim()).filter(Boolean);
     const bg = split ? (isWhite(x.bg) ? SPLIT[x.j] || SPLIT[0] : x.bg) : '';
     // 點得開：導師都可以（順便設定小老師）；同學只有這門課有小老師（或有公告）才點得開
-    const posted = POSTS.some(q => q.course === ckey(course)), open = A.isTeacher() || posted || helpersOf(course).length > 0;
-    return `<div class="tt-c${bg ? ' tint' : ''}${posted ? ' has-post' : ''}${open ? '' : ' no-open'}"${open ? ` data-tt="course" data-c="${esc(course)}" data-info="${esc([teacher, ...rest].join('・'))}" role="button" tabindex="0"` : ''}${bg ? ` style="--tint:${esc(bg)}"` : ''}><b class="tt-course">${esc(course)}</b>${teacher ? `<span class="tt-teacher">${esc(teacher)}</span>` : ''}${rest.length ? `<span class="tt-room">${esc(rest.join(' '))}</span>` : ''}</div>`;
+    const posted = POSTS.some(q => q.course === ckey(course)), helped = helpersOf(course).length > 0, open = A.isTeacher() || posted || helped;
+    return `<div class="tt-c${bg ? ' tint' : ''}${posted ? ' has-post' : ''}${helped ? ' has-helper' : ''}${open ? '' : ' no-open'}"${open ? ` data-tt="course" data-c="${esc(course)}" data-info="${esc([teacher, ...rest].join('・'))}" role="button" tabindex="0"` : ''}${bg ? ` style="--tint:${esc(bg)}"` : ''}><b class="tt-course">${esc(course)}</b>${teacher ? `<span class="tt-teacher">${esc(teacher)}</span>` : ''}${rest.length ? `<span class="tt-room">${esc(rest.join(' '))}</span>` : ''}</div>`;
   }
 
   function gridHtml(P) {
