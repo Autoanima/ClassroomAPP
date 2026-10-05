@@ -485,7 +485,8 @@
       render(); return;
     }
     if (act === 'cancel') {
-      if (!await A.ask(`取消這筆請假？\n${x.type}：${when(x)}`, '取消這筆', true)) return;
+      const lateNote = !isT() && isLate(x) ? `\n\n⚠️ 這筆已經逾期 ${lateDays(x)} 天沒上傳${docOf(x)}，取消後已經扣的 ${lateMinus(lateDays(x))} 分不會消失（重新請假也一樣）。` : '';
+      if (!await A.ask(`取消這筆請假？\n${x.type}：${when(x)}${lateNote}`, '取消這筆', true)) return;
       try { L = await A.api('cancelLeave', { id: x.id }); toast('已取消'); } catch (err) { toast(err.message); }
       render();
     }

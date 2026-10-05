@@ -3560,7 +3560,7 @@ function json(obj) {
 
 // ════════ 📝 請假：同學登記、上傳簽好章的假卡；導師看總表、確認或退回 ════════
 const SHEET_LEAVE = '請假';
-const HEAD_LEAVE = ['編號', '登記時間', '同學', '假別', '開始日期', '開始節', '結束日期', '結束節', '說明', '狀態', '假卡', '導師備註', '登記人', '更新時間', '假卡上傳時間'];
+const HEAD_LEAVE = ['編號', '登記時間', '同學', '假別', '開始日期', '開始節', '結束日期', '結束節', '說明', '狀態', '假卡', '導師備註', '登記人', '更新時間', '假卡上傳時間', '取消人'];
 const LEAVE_TYPES = ['事假', '病假', '公假', '喪假', '生理假', '身心調適假'];
 const LEAVE_BOT = '📝 請假通知';
 // 狀態：已登記（還沒交假卡）→ 已上傳假卡（等導師確認）→ 已確認；或 退回、已取消
@@ -3574,6 +3574,7 @@ function leaveRows() {
     key: String(r[2]).trim(), type: String(r[3]), from: d(r[4]), fromP: Number(r[5]) || 0, to: d(r[6]), toP: Number(r[7]) || 0, note: String(r[8]),
     status: String(r[9]), cards: String(r[10] || '').split(',').filter(String), reply: String(r[11]), by: String(r[12]),
     cardT: r[14] instanceof Date ? r[14].getTime() : 0,   // 第一次上傳假卡的時間（算「登記 → 上傳假卡」花了幾天）
+    upd: r[13] instanceof Date ? r[13].getTime() : 0, cancelBy: String(r[15] || ''),
   })).filter(x => x.id);
 }
 const leavePub = x => ({ id: x.id, time: x.time, t: x.t, cardT: x.cardT, key: x.key, type: x.type, from: x.from, fromP: x.fromP, to: x.to, toP: x.toP, note: x.note, status: x.status, cards: x.cards, reply: x.reply, by: x.by });
@@ -3597,12 +3598,14 @@ function leaveTick() {
 function leaveLatePenalties(rst) {
   const lim = (Number(CONFIG.LEAVE_LATE_DAYS) || 3) * 864e5, per = Number(CONFIG.LEAVE_LATE_PER) || 0.1, now = Date.now(), out = [];
   leaveRows().forEach(x => {
-    if (!x.t || x.t < (rst || 0) || x.status === '已取消' || x.type === '公假') return;   // 公假的公差單是選填，不扣分
-    const stop = x.cardT || ((x.status === '已登記' || x.status === '退回') ? now : 0);   // 導師直接確認、沒有假卡的：不扣
+    if (!x.t || x.t < (rst || 0) || x.type === '公假') return;   // 公假的公差單是選填，不扣分
+    // 已取消：導師取消的不扣；同學自己取消的，逾期的部分照算（算到取消那一刻），不能用「取消再重新請假」躲掉扣分
+    if (x.status === '已取消' && x.cancelBy !== '本人') return;
+    const stop = x.cardT || ((x.status === '已登記' || x.status === '退回') ? now : x.status === '已取消' ? x.upd : 0);   // 導師直接確認、沒有假卡的：不扣
     if (!stop) return;
     const days = Math.ceil((stop - x.t - lim) / 864e5);
     if (days <= 0) return;
-    out.push({ key: x.key, days: days, p: -Math.round(days * per * 100) / 100, t: x.t + lim, text: leaveText(x), done: !!x.cardT });
+    out.push({ key: x.key, days: days, p: -Math.round(days * per * 100) / 100, t: x.t + lim, text: leaveText(x) + (x.status === '已取消' ? '，本人已取消' : ''), done: !!x.cardT });
   });
   return out;
 }
@@ -3640,7 +3643,7 @@ function addLeaveOne(who, r) {
   const note = String(r.note || '').trim().slice(0, 200), id = Utilities.getUuid().slice(0, 8), by = who.teacher ? CONFIG.TEACHER_NAME : who.key;
   withLock(() => {
     const sh = leaveSheet();
-    sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_LEAVE.length).setValues([[id, new Date(), key, type, from, fromP, to, toP, note, '已登記', '', '', by, new Date(), '']]);
+    sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_LEAVE.length).setValues([[id, new Date(), key, type, from, fromP, to, toP, note, '已登記', '', '', by, new Date(), '', '']]);
   });
   const x = { type: type, from: from, fromP: fromP, to: to, toP: toP };
   if (!who.teacher) botMail([[CONFIG.TEACHER_NAME, '📝 ' + key + ' 登記了請假\n' + leaveText(x) + (note ? '\n說明：' + note : '') + (type === '公假' ? '\n（公差單照片是選填；簽完後就可以在「請假」總表確認）\n' : '\n（簽好的' + leaveDoc(x) + '上傳後，就可以在「請假」總表確認）\n') + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
@@ -3743,7 +3746,12 @@ function cancelLeave(who, id, quiet) {
   const x = leaveRows().find(r => r.id === id);
   if (!x || (!who.teacher && x.key !== who.key)) throw new Error('找不到這筆請假');
   if (!who.teacher && x.status === '已確認') throw new Error('導師已經確認了，要取消請直接跟導師說');
-  withLock(() => { const sh = leaveSheet(); sh.getRange(x.row, 10).setValue('已取消'); sh.getRange(x.row, 14).setValue(new Date()); });
+  withLock(() => {
+    const sh = leaveSheet();
+    sh.getRange(x.row, 10).setValue('已取消'); sh.getRange(x.row, 14).setValue(new Date());
+    if (sh.getRange(1, 16).getValue() !== '取消人') sh.getRange(1, 16).setValue('取消人').setFontWeight('bold');
+    sh.getRange(x.row, 16).setValue(who.teacher ? '導師' : '本人');
+  });
   // 同學自己取消：通知導師（導師幫同學取消：通知同學）
   if (!who.teacher) botMail([[CONFIG.TEACHER_NAME, '🗑 ' + x.key + ' 取消了請假\n' + leaveText(x) + (x.cards.length ? '\n（原本已上傳假卡 ' + x.cards.length + ' 張）' : '') + '\n紀錄還留在試算表「請假」工作表（狀態：已取消）。\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
   else botMail([[x.key, '🗑 導師取消了你的請假\n' + leaveText(x) + '\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
