@@ -122,7 +122,7 @@
     let h = '';
     if (list.length) {
       let i = list.findIndex(s => s.name === view);
-      if (i < 0) i = A.isTeacher() ? Math.max(0, list.findIndex(s => /導師|老師|教師/.test(s.name))) : Math.max(0, list.findIndex(s => !/導師|老師|教師/.test(s.name)));
+      if (i < 0) i = Math.max(0, list.findIndex(s => !/導師|老師|教師/.test(s.name)));   // 預設學生課表；切換過就停在上次選的（記在這台裝置）
       if (list.length > 1) {
         const names = list.map(tabName), dup = n => names.filter(x => x === n).length > 1;
         h += `<div class="subsw tt-sw">${list.map((s, k) => `<button type="button" data-tt="view" data-v="${esc(s.name)}" aria-selected="${k === i}">${dup(names[k]) ? esc(s.name) : names[k]}</button>`).join('')}</div>`;
