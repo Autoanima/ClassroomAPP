@@ -320,6 +320,9 @@
     snail: ['🐌', 'crawl', '', '一隻蝸牛', '說要去上課，爬了一整天才到門口']
   };
   const goneText = x => { const g = GONE[x.gone] || ['❓', 'fade', '', '一個神秘的東西', '一溜煙就不見了']; return { g, what: g[3], act: g[4] }; };
+  // 圖案：自己畫的 SVG（js/pet-art.js），沒有的才用 emoji
+  const goneArt = id => window.PET_ART?.art?.[id] || GONE[id]?.[0] || '❓';
+  const goneHelp = id => window.PET_ART?.help?.[id] || GONE[id]?.[2] || '';
   // 自己還有沒按孵化的蛋：打開座位時提醒一次
   let waitTold = false;
   function remindWait() {
@@ -332,7 +335,8 @@
   // 播放：蛋裂開 → 孵出來的東西做牠的動畫離開，頭上的對話框（約 3 秒）
   async function playGone(x, at) {
     const { g, what, act } = goneText(x);
-    const el = fx(`<span class="g-egg">${EGG}</span>${g[2] ? `<span class="g-help h-${g[1]}">${g[2]}</span>` : ''}${g[1] === 'ufo' ? '<span class="g-beam"></span>' : ''}<span class="g-actor a-${g[1]}">${g[0]}</span><span class="g-say">${esc(what)}<br>${esc(act)}</span>`, 'gone-fx', at.x, at.y);
+    const help = goneHelp(x.gone);
+    const el = fx(`<span class="g-egg">${EGG}</span>${help ? `<span class="g-help h-${g[1]}">${help}</span>` : ''}${g[1] === 'ufo' ? '<span class="g-beam"></span>' : ''}<span class="g-actor a-${g[1]}">${goneArt(x.gone)}</span><span class="g-say">${esc(what)}<br>${esc(act)}</span>`, 'gone-fx', at.x, at.y);
     banner(`🥚 <b>${esc(nm(x.owner))}</b> 的寵物蛋孵化了……竟然是<b>${esc(what)}</b>！<br>${esc(act)}。<span class="muted small">（只有約 1/10 的蛋會孵出真正的寵物）</span>`, 4200);
     await wait(4400); el.remove();
   }
@@ -594,7 +598,7 @@
     h += sec('🍚 最近跑出去覓食的寵物', by('覓食'));
     const gone = (P.gone || []).slice().sort((a, b) => b.hatch - a.hatch);
     if (gone.length) h += `<details class="panel"><summary><b>🥚 這週孵出的奇怪東西（${gone.length}）</b></summary><ul class="gone-list">${gone.map(x => { const { g, what, act } = goneText(x); const d = new Date(x.hatch);
-      return `<li><span class="gl-ico">${g[0]}</span><span><b>${esc(nm(x.owner))}</b> 的蛋孵出${esc(what)}，${esc(act)}。<span class="muted small">${d.getMonth() + 1}/${d.getDate()}</span></span></li>`; }).join('')}</ul></details>`;
+      return `<li><span class="gl-ico">${goneArt(x.gone)}</span><span><b>${esc(nm(x.owner))}</b> 的蛋孵出${esc(what)}，${esc(act)}。<span class="muted small">${d.getMonth() + 1}/${d.getDate()}</span></span></li>`; }).join('')}</ul></details>`;
     if (!P.pets.length) h += `<div class="panel"><p class="muted">還沒有寵物。同學被加分時就會得到寵物蛋！</p></div>`;
     root.innerHTML = h;
   }
