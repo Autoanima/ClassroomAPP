@@ -528,14 +528,16 @@
       return;
     }
     if (act !== 'petSave') return;
-    const f = $('#petImg')?.files?.[0];
+    // 欄位找按鈕旁邊的（🐾 分頁裡有好幾張卡片，id 會重複）
+    const box = b.closest('.pet-edit') || document;
+    const f = box.querySelector('#petImg')?.files?.[0];
     b.disabled = true; b.textContent = '儲存中…';
     try {
       const data = f ? await shrink(f) : null;
-      P = await A.api('petLook', { id: b.dataset.id, name: $('#petNm').value, data });
+      P = await A.api('petLook', { id: b.dataset.id, name: box.querySelector('#petNm').value, data });
       const x = P.pets.find(y => y.id === b.dataset.id);
       if (data && x?.imgId) { imgs[x.imgId] = data; store.set('indoor.petimg', imgs); }
-      toast('✓ 已儲存'); paintMap(true); openCard(b.dataset.id); if (A.currentTab() === 'pet') render();
+      toast('✓ 已儲存'); paintMap(true); if (A.sheetMode()?.kind === 'pet') openCard(b.dataset.id); if (A.currentTab() === 'pet') render();
     } catch (err) { toast(err.message); b.disabled = false; b.textContent = '儲存'; }
   };
   // ── 主人分配 🍚：同一位主人的蛋和寵物共用 10 🍚，可以互相移動（每隻至少 1 🍚，總數不能變多）──
@@ -610,6 +612,7 @@
     const b = e.target.closest('[data-act]');
     if (b?.dataset.act === 'petFeed') { e.stopPropagation(); return feed(b.dataset.id, b); }
     if (b?.dataset.act === 'petIncubate') { e.stopPropagation(); return incubate(b.dataset.ids ? b.dataset.ids.split(',') : [b.dataset.id], b); }
+    if (b?.dataset.act === 'petSave' || b?.dataset.act === 'petDel') { e.stopPropagation(); return A.sheetHandlers.pet(b.dataset.act, b); }   // 🐾 分頁裡的卡片：儲存外觀、導師移除
     if (e.target.closest('details, input, button')) return;
     const r = e.target.closest('[data-petcard]');
     if (r) openCard(r.dataset.petcard);

@@ -2219,3 +2219,5 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .ib-nm { font-weight: 400; font-size: 14px; margin-left: 4px; }
 .inv-board-btn.quiet { animation: none; border-width: 1px; border-color: var(--line); background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 400; padding: 3px 9px; box-shadow: none; opacity: .85; }
 [data-theme="dark"] .inv-board-btn.quiet { background: var(--surface); color: var(--muted); }
+
+.pet-hp i.on { background: none; }   /* 🍚 不要紅底 */
