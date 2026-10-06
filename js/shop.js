@@ -102,12 +102,6 @@
     h += `<div class="panel shop-petfood"><h3>🥫 寵物罐罐</h3>
       <div class="pf-row"><span class="pf-ico">🥫</span><div class="pf-what"><b>罐罐（1 點）</b><div class="muted small">餵班級寵物 +1 🍚。寵物每天會餓掉 1 🍚，0 🍚 就會跑出去自己覓食；這週餵越多次，牠越常跑去你的座位旁邊睡覺 💤</div></div>
         <button type="button" class="btn${canFood ? ' btn--primary' : ''}" data-s="petfood"${canFood ? '' : ' disabled'}>買來餵牠</button></div></div>`;
-    // 🚗 寵物的交通工具：永久保存
-    const RD = A.petRides || {}, ownR = new Set(S.rides || []), rp = S.ridePrice || 10;
-    h += `<div class="panel shop-rides"><h3>🚗 寵物的交通工具</h3><p class="muted small">每種 ${rp} 點，<b>永久保存、不會消耗</b>。買了以後到寵物卡的「🚗 交通工具」讓寵物坐上去，可以選要不要顯示、選路線和方向。</p><div class="ride-grid">${Object.keys(RD).map(k => {
-      const own = ownR.has(k), can = S.unlimited || S.coins >= rp;
-      return `<div class="ride-item${own ? ' own' : ''}"><span class="ride-art">${A.petRideArt(k)}</span><b>${RD[k].name}</b><span class="muted small">${RD[k].desc}</span>
-        ${own ? '<span class="tag good">✓ 已擁有</span>' : `<button type="button" class="btn${can ? ' btn--primary' : ''}" data-s="buyRide" data-kind="${k}"${can ? '' : ' disabled'}>💰 ${rp} 點</button>`}</div>`; }).join('')}</div></div>`;
     const othersN = Object.values(S.others || {}).flat().length;
     const md = S.myDraw || {};
     if (md.transfer || md.sure?.length) {
@@ -152,6 +146,12 @@
       ${sp('create', '創造卡', 'create', '🎨', '創造卡', '上傳自己畫的 PNG 變成新商品；別人買了，點數算給你', '免費建立', true)}
     </div></div>`;
     h += specialsHtml;
+    // 🚗 寵物的交通工具：永久保存
+    const RD = A.petRides || {}, ownR = new Set(S.rides || []), rp = S.ridePrice || 10;
+    h += `<div class="panel shop-rides"><h3>🚗 寵物的交通工具</h3><p class="muted small">每種 ${rp} 點，<b>永久保存、不會消耗</b>。買了以後到寵物卡的「🚗 交通工具」讓寵物坐上去，可以選要不要顯示、選路線和方向。</p><div class="ride-grid">${Object.keys(RD).map(k => {
+      const own = ownR.has(k), can = S.unlimited || S.coins >= rp;
+      return `<div class="ride-item${own ? ' own' : ''}"><span class="ride-art">${A.petRideArt(k)}</span><b>${RD[k].name}</b><span class="muted small">${RD[k].desc}</span>
+        ${own ? '<span class="tag good">✓ 已擁有</span>' : `<button type="button" class="btn${can ? ' btn--primary' : ''}" data-s="buyRide" data-kind="${k}"${can ? '' : ' disabled'}>💰 ${rp} 點</button>`}</div>`; }).join('')}</div></div>`;
     h += `<div class="panel penalty-note"><h3>⚠️ 扣分會減少點數</h3>
       <p class="small">每被扣 <b>${S.penaltyPer || 2} 分</b>，商店點數就減少 <b>1 點</b>，最少扣到 0 點（不會變成負的）。${S.penaltyFrom ? `${esc(S.penaltyFrom)} 以後的扣分才算。` : ''}</p>
       <p class="small muted">被扣分的同學，接下來的 3 次抽籤也比較容易被抽到（詳情看「抽籤」頁）。</p></div>`;
