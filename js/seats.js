@@ -362,16 +362,17 @@
 
   // ── 🖨 白底座位表 PDF：只留教室配置、大頭照、座號、姓名、講台、講桌（不含裝扮、寵物）；下方列出班級幹部（小老師除外）──
   const ROLE_ORDER = ['班長', '副班長', '風紀', '學藝', '總務', '衛生', '環保', '康樂', '體育', '資訊', '輔導', '節能', '服務', '事務'];
-  function cadreLines() {
-    const by = new Map();
-    A.students().forEach(k => (A.jobsOf(k).roles || []).forEach(r => {
-      r = String(r).trim();
-      if (!r || /小老師/.test(r)) return;
-      if (!by.has(r)) by.set(r, []);
-      if (!by.get(r).includes(k)) by.get(r).push(k);
-    }));
-    const rank = r => { const i = ROLE_ORDER.findIndex(x => r.startsWith(x)); return i < 0 ? 99 : i; };
-    return [...by].sort((a, b) => rank(a[0]) - rank(b[0])).map(([r, ks]) => ({ role: r, names: ks.map(k => { const p = parseKey(k); return `${p.code} ${p.name}`; }) }));
+  // 班級幹部（小老師除外）：直接用「幹部名單」；沒有的話用每位同學的職位、再沒有就用工作分配裡的幹部欄位
+  const DEPT_FULL = { 料: '資料科', 多: '多媒科' };
+  function cadreRows() {
+    const R = A.roster() || {}, pairs = [];
+    if (R.cadres) Object.entries(R.cadres).forEach(([k, roles]) => (roles || []).forEach(r => pairs.push([String(r).trim(), k])));
+    if (!pairs.length) A.students().forEach(k => (A.jobsOf(k).roles || []).forEach(r => pairs.push([String(r).trim(), k])));
+    if (!pairs.length) [...(D.inspectorSlots || []), ...(D.cadreSlots || [])].forEach(sl => { const k = R.inspectors?.[sl.id]; if (k) pairs.push([sl.short === '環保' ? '衛生股長' : sl.short || sl.label, k]); });
+    const seen = new Set(), rank = r => { const i = ROLE_ORDER.findIndex(x => r.startsWith(x)); return i < 0 ? 99 : i; };
+    return pairs.filter(([r, k]) => r && k && !/小老師/.test(r) && !seen.has(r + '|' + k) && seen.add(r + '|' + k))
+      .sort((x, y) => rank(x[0]) - rank(y[0]) || x[0].localeCompare(y[0]) || parseKey(x[1]).code.localeCompare(parseKey(y[1]).code))
+      .map(([role, k]) => { const p = parseKey(k), m = p.code.match(/^(\D*)(\d+)$/) || ['', p.code, '']; return { role, dept: DEPT_FULL[m[1]] || m[1], no: m[2], name: p.name }; });
   }
   let jspdfP = null;
   const loadJsPdf = () => jspdfP ||= new Promise((res, rej) => {
@@ -394,32 +395,29 @@
       const g = cv.getContext('2d');
       g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
       g.textBaseline = 'middle';
-      // 標題
+      // 不放標題；地圖只畫有座位的範圍（講台拿掉），下面空出來放班級幹部
       const cls = A.roster()?.jobs?.CLASS?.[0] || '';
-      const teacherView = $('#viewBtn')?.getAttribute('aria-pressed') === 'true';
-      g.fillStyle = '#111'; g.font = `700 68px ${FONT}`; g.textAlign = 'left';
-      g.fillText(`${cls} 座位表`, M, 150);
-      g.fillStyle = '#666'; g.font = `400 32px ${FONT}`; g.textAlign = 'right';
-      g.fillText(`${A.fmtDate(new Date())}　${teacherView ? '老師視角（從講台往下看）' : '學生視角（講台在前方）'}`, W - M, 158);
-      // 幹部名單先算好，決定地圖可以用多高
-      const cad = cadreLines(), COLS = 3, rowsN = Math.ceil(cad.length / COLS);
-      const cadH = cad.length ? 120 + rowsN * 64 : 0;
-      const mw = mapEl.offsetWidth, mh = mapEl.offsetHeight;
-      const top = 230, maxW = W - 2 * M, maxH = H - top - cadH - M - 40;
+      const cad = cadreRows(), TC = cad.length > 6 ? 2 : 1, perCol = Math.ceil(cad.length / TC), RH = 58;
+      const cadH = cad.length ? 90 + (perCol + 1) * RH : 0;
+      const kids = [...mapEl.children], pct = v => parseFloat(v) / 100;
+      const isStage = el => el.classList.contains('it') && el.querySelector('.lbl')?.textContent.trim() === '講台';
+      const keepEl = el => !isStage(el) && !el.classList.contains('d');   // 教室外框、黑板邊另外畫
+      const ys = kids.filter(keepEl).map(el => [pct(el.style.top), pct(el.style.top) + pct(el.style.height)]);
+      const cy0 = Math.max(0, Math.min(...ys.map(y => y[0])) - 0.012), cy1 = Math.min(1, Math.max(...ys.map(y => y[1])) + 0.012);
+      const mw = mapEl.offsetWidth, mh = mapEl.offsetHeight * (cy1 - cy0);
+      const top = M, maxW = W - 2 * M, maxH = H - top - cadH - M - 30;
       const sc = Math.min(maxW / mw, maxH / mh), bw = mw * sc, bh = mh * sc, bx = (W - bw) / 2, by = top;
-      const box = el => { const st = el.style, p = v => parseFloat(v) / 100; return { x: bx + p(st.left) * bw, y: by + p(st.top) * bh, w: p(st.width) * bw, h: p(st.height) * bh }; };
+      const fullH = mapEl.offsetHeight * sc;
+      const box = el => { const st = el.style; return { x: bx + pct(st.left) * bw, y: by + (pct(st.top) - cy0) * fullH, w: pct(st.width) * bw, h: pct(st.height) * fullH }; };
       const rrect = (r, rad) => { g.beginPath(); g.roundRect ? g.roundRect(r.x, r.y, r.w, r.h, rad) : g.rect(r.x, r.y, r.w, r.h); };
-      const kids = [...mapEl.children];
-      // 教室、黑板邊、講台、講桌、前後門
-      kids.filter(el => el.classList.contains('d')).forEach(el => {
-        const r = box(el);
-        if (el.classList.contains('d--room')) { g.fillStyle = '#fff'; g.strokeStyle = '#555'; g.lineWidth = 4; g.fillRect(r.x, r.y, r.w, r.h); g.strokeRect(r.x, r.y, r.w, r.h); }
-        else { g.fillStyle = '#d9d9d9'; g.fillRect(r.x, r.y, r.w, r.h); }
-      });
-      kids.filter(el => el.classList.contains('it')).forEach(el => {
+      // 教室外框（只畫裁切後的範圍）
+      const room = kids.find(el => el.classList.contains('d--room'));
+      if (room) { const r = box(room), y0 = Math.max(r.y, by), y1 = Math.min(r.y + r.h, by + bh); g.strokeStyle = '#555'; g.lineWidth = 4; g.strokeRect(r.x, y0, r.w, y1 - y0); }
+      // 講桌、前後門（講台不畫）
+      kids.filter(el => el.classList.contains('it') && !isStage(el)).forEach(el => {
         const r = box(el), lbl = el.querySelector('.lbl')?.textContent.trim() || '';
         const door = /door/.test(el.className), desk = el.classList.contains('desk');
-        g.fillStyle = door ? '#f2f2f2' : desk ? '#fff' : '#efefef'; g.strokeStyle = door ? '#999' : '#444'; g.lineWidth = desk ? 4 : 3;
+        g.fillStyle = door ? '#f2f2f2' : '#fff'; g.strokeStyle = door ? '#999' : '#444'; g.lineWidth = desk ? 4 : 3;
         rrect(r, 8); g.fill(); g.stroke();
         g.fillStyle = '#222'; g.textAlign = 'center';
         if (el.querySelector('.lbl.v') || r.h > r.w * 1.6) {   // 直排（前門、後門）
@@ -458,21 +456,28 @@
         g.fillStyle = '#111'; fit(code.replace(/(\d+)$/, ' $1'), r.w * 0.17, 700); g.fillText(code.replace(/(\d+)$/, ' $1'), r.x + r.w / 2, r.y + r.h - txtH * 0.68);
         g.fillStyle = '#333'; fit(name, r.w * 0.17, 500); g.fillText(name, r.x + r.w / 2, r.y + r.h - txtH * 0.25);
       });
-      // 班級幹部
+      // 班級幹部表：職稱｜組別｜座號｜姓名（人多就分左右兩欄）
       if (cad.length) {
-        let y = by + bh + 70;
-        g.strokeStyle = '#ccc'; g.lineWidth = 2; g.beginPath(); g.moveTo(M, y - 30); g.lineTo(W - M, y - 30); g.stroke();
-        g.textAlign = 'left'; g.fillStyle = '#111'; g.font = `700 40px ${FONT}`; g.fillText('班級幹部', M, y + 10);
-        y += 80;
-        const cw = (W - 2 * M) / COLS;
-        cad.forEach((c, i) => {
-          const x = M + (i % COLS) * cw, yy = y + Math.floor(i / COLS) * 64;
-          g.fillStyle = '#555'; g.font = `700 32px ${FONT}`; g.fillText(c.role, x, yy);
-          const rw = g.measureText(c.role + '　').width;
-          g.fillStyle = '#111'; let fs = 32; const t = c.names.join('、');
-          g.font = `500 ${fs}px ${FONT}`; while (fs > 18 && g.measureText(t).width > cw - rw - 20) { fs--; g.font = `500 ${fs}px ${FONT}`; }
-          g.fillText(t, x + rw, yy);
-        });
+        let y = by + bh + 60;
+        g.textAlign = 'left'; g.fillStyle = '#111'; g.font = `700 40px ${FONT}`; g.fillText('班級幹部', M, y);
+        y += 46;
+        const gap = 50, tw = (W - 2 * M - gap * (TC - 1)) / TC, cols = [['職稱', 0.34], ['組別', 0.24], ['座號', 0.16], ['姓名', 0.26]];
+        for (let c = 0; c < TC; c++) {
+          const x0 = M + c * (tw + gap), list = cad.slice(c * perCol, (c + 1) * perCol);
+          const row = (vals, yy, head) => {
+            if (head) { g.fillStyle = '#f1f3f5'; g.fillRect(x0, yy, tw, RH); }
+            let x = x0;
+            vals.forEach((v, i) => {
+              const w = cols[i][1] * tw; g.fillStyle = head ? '#555' : '#111'; g.textAlign = 'left';
+              let fs = head ? 28 : 32; g.font = `${head || i === 0 ? 700 : 500} ${fs}px ${FONT}`;
+              while (fs > 16 && g.measureText(v).width > w - 24) { fs--; g.font = `${head || i === 0 ? 700 : 500} ${fs}px ${FONT}`; }
+              g.fillText(v, x + 12, yy + RH / 2); x += w;
+            });
+            g.strokeStyle = '#ccc'; g.lineWidth = 2; g.beginPath(); g.moveTo(x0, yy + RH); g.lineTo(x0 + tw, yy + RH); g.stroke();
+          };
+          row(cols.map(x => x[0]), y, true);
+          list.forEach((r, i) => row([r.role, r.dept, r.no, r.name], y + (i + 1) * RH));
+        }
       }
       const { jsPDF } = await loadJsPdf();
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
