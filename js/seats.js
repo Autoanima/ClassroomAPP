@@ -82,7 +82,20 @@
   catalogP.then(() => { if (Object.keys(decos).length) A.emit('faces'); });
   A.on('faces', () => renderAll());
   // 雲端硬碟配件圖片（有更新才下載）
-  A.loadAccImages = async () => {
+  // want：只下載這幾張（每次 4 張，下載好一批就先顯示，失敗的再試一次）
+  A.loadAccImages = async (want, onBatch) => {
+    if (want?.length) {
+      let changed = false;
+      for (let i = 0; i < want.length; i += 4) {
+        const part = want.slice(i, i + 4), have = Object.fromEntries(Object.entries(accImg).map(([id, x]) => [id, x.t]));
+        let r = null;
+        for (let k = 0; k < 2 && !r; k++) { try { r = await A.api('accImages', { have, want: part }); } catch { /* 再試一次 */ } }
+        if (!r) continue;
+        Object.entries(r.images || {}).forEach(([id, x]) => { accImg[id] = x; changed = true; });
+        if (changed) { store.set(K.acc, accImg); onBatch?.(); }
+      }
+      return changed;
+    }
     const have = Object.fromEntries(Object.entries(accImg).map(([id, x]) => [id, x.t]));
     const r = await A.api('accImages', { have });
     let changed = false;

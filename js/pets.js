@@ -34,8 +34,8 @@
         <path d="M5 25h55" stroke="#b02424" stroke-width="1.4"/><circle cx="61" cy="23" r="2.4" fill="#ffe066"/><rect x="2" y="21" width="3" height="4" rx="1" fill="#ff8787"/>
         <circle cx="17" cy="31" r="6.5" fill="#2b2b2b"/><circle cx="17" cy="31" r="2.6" fill="#ced4da"/><circle cx="50" cy="31" r="6.5" fill="#2b2b2b"/><circle cx="50" cy="31" r="2.6" fill="#ced4da"/>` },
     ring: { name: '游泳圈', ico: '🛟', w: 62, h: 30, left: -14, bottom: -10, lift: 2,
-      desc: '慢慢漂著繞教室，一邊上下晃、一邊轉圈圈',
-      routes: [['cw', '順時針漂流'], ['ccw', '逆時針漂流']],
+      desc: '慢慢漂著，一邊沿著教室邊邊前進、一邊轉小圈圈（像漩渦一樣）',
+      routes: [['cw', '順時針轉圈漂流'], ['ccw', '逆時針轉圈漂流']],
       back: `<ellipse cx="31" cy="23" rx="30" ry="6" fill="#a5d8ff" opacity=".7"/><ellipse cx="31" cy="16" rx="27" ry="11" fill="#ff6b6b"/>
         <path d="M10 10l7 5M45 6l-4 7" stroke="#fff" stroke-width="5"/><ellipse cx="31" cy="15" rx="13" ry="4.5" fill="#1c7ed6" opacity=".55"/>`,
       front: `<path d="M4 16q1 11 27 11t27-11q-4 5-27 5T4 16z" fill="#ff6b6b"/><path d="M4 16q1 11 27 11t27-11" fill="none" stroke="#c92a2a" stroke-width="1"/>
@@ -53,6 +53,15 @@
       front: `<path d="M20 27q0-21 18-21t18 21z" fill="#a5d8ff" opacity=".38" stroke="#74c0fc" stroke-width="1.4"/><path d="M27 12q4-4 9-4" stroke="#fff" stroke-width="2" fill="none" opacity=".8"/>
         <ellipse cx="38" cy="30" rx="37" ry="9" fill="#868e96"/><ellipse cx="38" cy="27" rx="37" ry="7" fill="#ced4da"/><ellipse cx="38" cy="36" rx="14" ry="3.5" fill="#495057"/>
         <circle class="ufo-l" cx="12" cy="29" r="2.4" fill="#ffd43b"/><circle class="ufo-l" cx="25" cy="31" r="2.4" fill="#ff6b6b"/><circle class="ufo-l" cx="38" cy="32" r="2.4" fill="#69db7c"/><circle class="ufo-l" cx="51" cy="31" r="2.4" fill="#ff6b6b"/><circle class="ufo-l" cx="64" cy="29" r="2.4" fill="#ffd43b"/>` },
+    worm: { name: '巨大毛毛蟲', ico: '🐛', w: 100, h: 38, left: -44, bottom: -9, lift: 10,
+      desc: '一伸一縮慢慢爬，在座位之間的走道上下穿梭，一排一排蛇行過去（只有毛毛蟲會走走道）',
+      routes: [['lr', '從左邊的走道開始，往右一路蛇行'], ['rl', '從右邊的走道開始，往左一路蛇行']],
+      back: `<g class="wm-body"><circle class="wm-s" cx="11" cy="25" r="8.5" fill="#94d82d"/><circle class="wm-s" cx="25" cy="24" r="9.5" fill="#82c91e"/><circle class="wm-s" cx="40" cy="23" r="10" fill="#94d82d"/>
+        <circle class="wm-s" cx="55" cy="23" r="10" fill="#82c91e"/><circle class="wm-s" cx="70" cy="23" r="10" fill="#94d82d"/></g>
+        <g fill="#5c940d"><circle cx="11" cy="33" r="2"/><circle cx="25" cy="33" r="2"/><circle cx="40" cy="33" r="2"/><circle cx="55" cy="33" r="2"/><circle cx="70" cy="33" r="2"/></g>
+        <circle cx="86" cy="20" r="11.5" fill="#a9e34b"/><path d="M82 9q-2-6-6-7M90 9q2-6 6-7" stroke="#5c940d" stroke-width="1.8" fill="none"/><circle cx="76" cy="2" r="2.2" fill="#f03e3e"/><circle cx="96" cy="2" r="2.2" fill="#f03e3e"/>
+        <circle cx="88" cy="18" r="2.6" fill="#2b2b2b"/><circle cx="88.8" cy="17.2" r=".9" fill="#fff"/><path d="M86 25q4 3 8 0" stroke="#2b2b2b" stroke-width="1.4" fill="none"/><ellipse cx="93" cy="23" rx="2.2" ry="1.4" fill="#ffa8a8"/>`,
+      front: '' },
     rocket: { name: '火箭', ico: '🚀', w: 80, h: 36, left: -22, bottom: -10, lift: 7,
       desc: '咻～飛越教室，車頭會朝著飛的方向轉',
       routes: [['x', '斜斜飛越教室（弧線）'], ['v', '直直往前、往後飛（直線）']],
@@ -64,7 +73,8 @@
   const rideSvg = (k, part) => `<svg viewBox="0 0 ${RIDES[k].w} ${RIDES[k].h}" aria-hidden="true">${RIDES[k][part]}</svg>`;
   A.petRides = RIDES;
   A.petRideArt = k => (RIDES[k] ? `<svg viewBox="0 0 ${RIDES[k].w} ${RIDES[k].h}" aria-hidden="true">${RIDES[k].back}${RIDES[k].front}</svg>` : '');
-  const rideOf = id => { const r = P?.rides?.[id]; return r && RIDES[r.v] ? r : null; };
+  // 每種交通工具只能走自己的路線（舊的「照平常走路」等不屬於牠的，換成牠的第一條路線）
+  const rideOf = id => { const r = P?.rides?.[id]; if (!r || !RIDES[r.v]) return null; return RIDES[r.v].routes.some(x => x[0] === r.route) ? r : { ...r, route: RIDES[r.v].routes[0][0] }; };
   // 主人上傳的外觀：整張圖放在寵物後面（同樣的大小），寵物坐在圖的上半部
   const rideImgs = store.get('indoor.rideimg', {});   // 雲端檔案 id → data URL
   const customOf = (owner, v) => { const id = P?.rideImgs?.[owner + '|' + v]; return id && rideImgs[id] ? rideImgs[id] : ''; };
@@ -124,7 +134,10 @@
     const L = Math.max(wr.left + 14, Math.min(...seats.map(r => r.left)) - pad) - hr.left, R = Math.min(wr.right - 14, Math.max(...seats.map(r => r.right)) + pad) - hr.left;
     const T = Math.max(wr.top + 14, Math.min(...seats.map(r => r.top)) - pad) - hr.top, B = Math.min(wr.bottom - 14, Math.max(...seats.map(r => r.bottom)) + pad) - hr.top;
     const board = (h.wrap.querySelector('[data-tch]') || h.wrap.querySelector('[data-id="board"]'))?.getBoundingClientRect();
-    return { L, R, T, B, w: R - L, h: B - T, per: 2 * (R - L + B - T), board: board && board.width ? { x: board.left + board.width / 2 - hr.left, y: board.top + board.height * 0.62 - hr.top } : { x: (L + R) / 2, y: T - 30 }, hr,
+    // 走道：兩排座位中間（毛毛蟲用）
+    const cols = [...new Map(seats.map(r => [Math.round(r.left), r])).values()].sort((a, b) => a.left - b.left);
+    const lanes = [L].concat(cols.slice(1).map((c, i) => (cols[i].right + c.left) / 2 - hr.left).filter((x, i, a) => !i || x - a[i - 1] > 8), [R]);
+    return { lanes, L, R, T, B, w: R - L, h: B - T, per: 2 * (R - L + B - T), board: board && board.width ? { x: board.left + board.width / 2 - hr.left, y: board.top + board.height * 0.62 - hr.top } : { x: (L + R) / 2, y: T - 30 }, hr,
       stage: board && board.width ? { left: board.left - hr.left, top: board.top - hr.top, w: board.width, h: board.height } : { left: (L + R) / 2 - 90, top: T - 70, w: 180, h: 56 } };
   }
   // 周長上的位置 s（0～1）→ 座標
@@ -304,7 +317,9 @@
         p.x = b.x; p.y = b.y;
         el.style.transform = `translate(${b.x - 17}px, ${b.y - 30}px)`;
         el.classList.toggle('walk', inParty ? moving : p.mode === 'go' || p.mode === 'go2ride' || p.mode === 'back' || p.mode === 'ride' || (p.mode === 'path' && p.walk));
-        el.style.setProperty('--ang', ((!inParty && p.mode === 'ride' && p.ang) || 0).toFixed(1) + 'deg');
+        const ang = (!inParty && p.mode === 'ride' && p.ang) || 0;
+        el.style.setProperty('--ang', ang.toFixed(1) + 'deg');
+        el.classList.toggle('tilt', Math.abs(ang) > 30);   // 直立的時候不畫影子
         el.classList.toggle('warp-out', p.mode === 'ride' && p.warp === 'out');
         el.classList.toggle('warp-in', p.mode === 'ride' && p.warp === 'in');
         el.classList.toggle('sleep', p.mode === 'sleep');
@@ -319,6 +334,20 @@
   // ── 🚗 搭交通工具的走法（每種都不一樣）──
   function rideStep(p, dt) {
     const r = p.ride, g = geo, now = Date.now();
+    if (r.v === 'worm') {   // 走道蛇行：一伸一縮（速度忽快忽慢），轉彎時身體慢慢轉過去
+      const W = wormPath(r.route), t = now / 1000;
+      if (!W) return { x: p.x, y: p.y };
+      p.wd ??= 0;
+      const prev = wormAt(W, p.wd);
+      p.wd = (p.wd + 26 * Math.pow(Math.max(0, Math.sin(t * 3.2)), 2) * 2 * dt) % W.len;
+      const q = wormAt(W, p.wd), vx = q.x - prev.x, vy = q.y - prev.y;
+      if (Math.abs(vx) > 0.05 && Math.abs(vx) > Math.abs(vy)) p.face = vx > 0 ? 1 : -1;
+      if (Math.hypot(vx, vy) > 0.01) {
+        const target = Math.abs(vx) >= Math.abs(vy) ? 0 : (vy > 0 ? 90 : -90) * p.face;   // 往下爬：頭朝下；往上爬：頭朝上
+        p.ang = (p.ang || 0) + (target - (p.ang || 0)) * Math.min(1, dt * 5);
+      }
+      return q;
+    }
     if (r.v === 'ufo') {
       p.ang = 0;
       if (r.route === 'warp') {   // 盤旋 → 咻地消失 → 在教室邊邊另一個地方出現
@@ -342,11 +371,11 @@
     }
     if (r.v === 'car' || r.v === 'ring') {
       const a = along(g, p.s);
-      p.s += (r.route === 'ccw' ? -1 : 1) * (r.v === 'car' ? 72 : 20) * dt / g.per;
+      p.s += (r.route === 'ccw' ? -1 : 1) * (r.v === 'car' ? 72 : 12) * dt / g.per;
       const q = along(g, p.s);
       if (Math.abs(q.x - a.x) > 0.01) p.face = q.x > a.x ? 1 : -1;
       p.ang = 0;
-      if (r.v === 'ring') { const t = now / 1000; return { x: q.x + Math.sin(t * 1.3) * 5, y: q.y + Math.cos(t * 0.9) * 3 }; }
+      if (r.v === 'ring') { const t = now / 1000, sp = r.route === 'ccw' ? -1 : 1; return { x: q.x + Math.cos(t * 1.4 * sp) * 16, y: q.y + Math.sin(t * 1.4 * sp) * 11 }; }   // 轉小圈圈
       return q;
     }
     if (r.v === 'boat') {   // 一條直線來回；到岸停一下、掉頭
@@ -421,17 +450,47 @@
     pk.style.transform = `translate(${p.park.x - 17}px, ${p.park.y - 30}px)`;
     pk.style.setProperty('--face', p.park.face || 1);
   }
+  // 毛毛蟲的路線：教室左邊 → 每一條走道（兩排座位中間）上下蛇行 → 右邊，再沿著上面爬回起點（rl 反過來）
+  let wormCache = null;
+  function wormPath(route) {
+    if (!geo?.lanes) return null;
+    const key = route + '|' + geoAt;
+    if (wormCache?.key === key) return wormCache;
+    const lanes = route === 'rl' ? geo.lanes.slice().reverse() : geo.lanes.slice();
+    const pts = [{ x: lanes[0], y: geo.T }];
+    lanes.forEach((x, i) => {
+      const down = i % 2 === 0, end = down ? geo.B : geo.T;
+      if (i) pts.push({ x, y: pts[pts.length - 1].y });
+      pts.push({ x, y: end });
+    });
+    if (pts[pts.length - 1].y !== geo.T) pts.push({ x: lanes[lanes.length - 1], y: geo.T });
+    pts.push({ x: lanes[0], y: geo.T });
+    const seg = []; let len = 0;
+    for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); seg.push([len, d, pts[i - 1], pts[i]]); len += d; }
+    return wormCache = { key, seg, len, pts };
+  }
+  function wormAt(W, d) {
+    d = ((d % W.len) + W.len) % W.len;
+    const s = W.seg.find(x => d <= x[0] + x[1]) || W.seg[W.seg.length - 1], k = s[1] ? (d - s[0]) / s[1] : 0;
+    return { x: s[2].x + (s[3].x - s[2].x) * k, y: s[2].y + (s[3].y - s[2].y) * k };
+  }
+  function wormNearest(W, pt) {
+    let best = 0, bd = Infinity;
+    for (let d = 0; d < W.len; d += 6) { const q = wormAt(W, d), e = Math.hypot(q.x - pt.x, q.y - pt.y); if (e < bd) { bd = e; best = d; } }
+    return best;
+  }
   const boatAt = (H, t, e) => (H ? { x: geo.L + t * geo.w, y: e ? geo.B : geo.T } : { x: e ? geo.R : geo.L, y: geo.T + t * geo.h });
   // 寵物設定改了：開始搭／換一種走法／下車走回邊邊
   function syncRide(p, id) {
-    const r = rideOf(id), want = r && r.route !== 'walk' ? r.v + ':' + r.route : '';
+    const r = rideOf(id), want = r ? r.v + ':' + r.route : '';
     p.hasV = !!r; p.vk = r?.v || '';
     if (p.park && (!r || p.park.v !== r.v)) delete p.park;   // 換了交通工具：停著的那台收起來
     if ((p.ride ? p.ride.v + ':' + p.ride.route : '') === want) return;
     if (p.party || p.park || p.mode === 'go' || p.mode === 'sleep') { p.ride = want ? { v: r.v, route: r.route } : null; p.resync = true; return; }   // 正在玩／睡覺：回來再換
     p.ride = want ? { v: r.v, route: r.route } : null;
     if (p.x == null || isNaN(p.x)) { const q = along(geo, p.s); p.x = q.x; p.y = q.y; }   // 剛出現：先放在邊邊上的位置
-    delete p.fly; delete p.bt; delete p.bd; delete p.wait; delete p.edge; delete p.wz; p.warp = ''; p.ang = 0;
+    delete p.fly; delete p.bt; delete p.bd; delete p.wait; delete p.edge; delete p.wz; delete p.wd; p.warp = ''; p.ang = 0;
+    if (p.ride?.v === 'worm') { const W = wormPath(p.ride.route); if (W) { p.wd = wormNearest(W, { x: p.x, y: p.y }); p.mode = 'go2ride'; p.to = wormAt(W, p.wd); return; } }   // 先走到最近的走道
     if (p.ride && (p.ride.v === 'boat' || p.ride.v === 'rocket')) {   // 先走到出發的地方
       if (p.ride.v === 'boat') {
         const H = p.ride.route !== 'v', x = p.x ?? geo.L, y = p.y ?? geo.B;
@@ -717,7 +776,7 @@
     let h = `<div class="ride-pick">${[['', '🚶', '不搭']].concat(owned.filter(k => RIDES[k]).map(k => [k, RIDES[k].ico, RIDES[k].name])).map(([k, ico, n]) =>
       `<button type="button" data-act="rideV" data-v="${k}" aria-pressed="${v === k}">${k ? `<span class="ride-ico">${A.petRideArt(k)}</span>` : `<span class="ride-ico">${ico}</span>`}${n}</button>`).join('')}</div>`;
     if (D) {
-      h += `<p class="muted small">${esc(D.desc)}</p><div class="ride-routes">${D.routes.concat([['walk', '照平常走路的方式（只是坐在上面）']]).map(([k, t]) =>
+      h += `<p class="muted small">${esc(D.desc)}</p><p class="small ride-only">🛣 ${D.name}專屬的路線（只能選方向，路線不會變成別的交通工具的）</p><div class="ride-routes">${D.routes.map(([k, t]) =>
         `<button type="button" data-act="rideR" data-r="${k}" aria-pressed="${(cur.route || D.routes[0][0]) === k}">${esc(t)}</button>`).join('')}</div>
         <label class="ride-show"><input type="checkbox" class="ride-showcb"${cur.show === false ? '' : ' checked'}> 在座位表上顯示${D.name}的樣子</label>`;
       const own = (P.owned?.[x.owner] || []).includes(v), img = customOf(x.owner, v);
@@ -873,7 +932,7 @@
       <li>寵物孵化後<b>每天會餓掉 1 🍚</b>。在商店或寵物卡買<b>罐罐（${P.food} 點）</b>餵牠，<b>+1 🍚</b>（最多補到牠自己的上限）。</li>
       <li>有兩隻以上的寵物時，牠們偶爾會聚在一起玩：<b>2 隻碰碰鼻子、3 隻跳舞、4 隻開火車、5 隻拍團體照、6 隻疊羅漢</b> 🎉</li>
       <li>寵物會記得這一週誰餵牠：<b>餵越多次，牠越常跑去你的座位旁邊睡覺</b> 💤。</li>
-      <li>🚗 在商店買<b>寵物的交通工具</b>（汽車、游泳圈、火箭、船、飛碟，每種 ${P.ridePrice || 10} 點，<b>永久保存</b>）。主人可以讓寵物坐上去、選要不要顯示、選怎麼走（每種的路線和方向都不一樣）。</li>
+      <li>🚗 在商店買<b>寵物的交通工具</b>（汽車、游泳圈、火箭、船、飛碟、巨大毛毛蟲，每種 ${P.ridePrice || 10} 點，<b>永久保存</b>）。主人可以讓寵物坐上去、選要不要顯示、選方向；<b>每種交通工具都有自己專屬的路線</b>，上傳自己畫的外觀也不會改變路線。</li>
       <li>飽足度變成 <b>0 🍚</b>，寵物就會肚子餓、<b>跑出去自己覓食</b>，不回來了。大家一起照顧牠吧！</li></ol></details>`;
     const sec = (title, list) => (list.length ? `<div class="panel"><h3>${title}</h3><div class="pet-list">${list.map(x => `<div class="pet-row" data-petcard="${esc(x.id)}" role="button" tabindex="0">${cardHtml(x)}</div>`).join('')}</div></div>` : '');
     const meK = A.isTeacher() ? '' : A.me();

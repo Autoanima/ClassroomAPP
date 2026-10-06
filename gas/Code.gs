@@ -227,7 +227,7 @@ function doPost(e) {
       case 'pointsBoard': return json(pointsBoard(who));
       case 'delPoints': return json(delPoints(req.id, who));
       case 'shopState': return json(shopState(who));
-      case 'accImages': return json(accImages(req.have || {}));
+      case 'accImages': return json(accImages(req.have || {}, req.want));
       case 'buyAcc': return json(buyAcc(who, String(req.acc || '')));
       case 'giftAcc': return json(giftAcc(who, String(req.inv || ''), String(req.to || '')));
       case 'saveDeco': return json(saveDeco(who, req.layers || []));
@@ -884,11 +884,12 @@ function catalog() {
   return list;
 }
 /** 雲端硬碟配件的圖片（透明 PNG 原檔，太大的略過）；have＝手機上已有的版本 */
-function accImages(have) {
-  const out = {}, ids = [];
+/** 同學創造的商品圖片：want＝只要這幾張（一次幾張，回應小、比較不會失敗）；沒給就是全部還沒有的 */
+function accImages(have, want) {
+  const out = {}, ids = [], only = Array.isArray(want) ? want.map(String).slice(0, 8) : null;
   catalog().filter(a => a.id.indexOf('d:') === 0).forEach(a => {
     ids.push(a.id);
-    if (have[a.id] === a.t) return;
+    if (only ? only.indexOf(a.id) < 0 : have[a.id] === a.t) return;
     try {
       const b = DriveApp.getFileById(a.id.slice(2)).getBlob();
       if (b.getBytes().length > 400000) return;
@@ -1949,9 +1950,10 @@ function feedPet(who, id) {
 }
 // ── 🚗 寵物的交通工具：商店買（每種 10 點，永久保存，不會消耗），主人設定哪一隻寵物搭哪一種、要不要顯示、怎麼走 ──
 //    擁有：「點數使用」工作表（用途：寵物交通工具、對象：car／ring／rocket／boat）；每隻寵物的設定：Script Properties PET_RIDE
-const PET_RIDES = { car: '汽車', ring: '游泳圈', rocket: '火箭', boat: '船', ufo: '飛碟' };
+const PET_RIDES = { car: '汽車', ring: '游泳圈', rocket: '火箭', boat: '船', ufo: '飛碟', worm: '巨大毛毛蟲' };
 const RIDE_PRICE = 10;
-const RIDE_ROUTES = { car: ['cw', 'ccw', 'walk'], ring: ['cw', 'ccw', 'walk'], boat: ['h', 'v', 'walk'], rocket: ['x', 'v', 'walk'], ufo: ['cw', 'ccw', 'warp', 'walk'] };
+// 每種交通工具只能走自己的路線（只能選方向）
+const RIDE_ROUTES = { car: ['cw', 'ccw'], ring: ['cw', 'ccw'], boat: ['h', 'v'], rocket: ['x', 'v'], ufo: ['cw', 'ccw', 'warp'], worm: ['lr', 'rl'] };
 function ridesOf(rows, key) {   // 導師移除過的：移除之後再買的才算
   const rv = rideRevoked();
   return rows.filter(x => x.who === key && x.use === '寵物交通工具' && PET_RIDES[x.target] && x.t > (rv[key + '|' + x.target] || 0)).map(x => x.target).filter((k, i, a) => a.indexOf(k) === i);

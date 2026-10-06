@@ -34,7 +34,9 @@
       try {
         const [r] = await Promise.all([A.api('shopState'), A.builtinCatalog()]);
         S = r;
-        if (S.catalog.some(a => a.id.startsWith('d:') && !A.accUrl(a.id))) await A.loadAccImages().catch(() => {});
+        // 同學創造的商品圖片：先顯示商店，再一批一批下載（下載好就補上），不會因為一次太多而全部空白
+        const miss = S.catalog.filter(a => a.id.startsWith('d:') && !A.accUrl(a.id)).map(a => a.id);
+        if (miss.length) setTimeout(() => A.loadAccImages(miss, () => { if (A.currentTab() === 'shop') render(); }).catch(() => {}), 0);
         loadedAt = Date.now();
         store.set(CACHE, { who: who(), t: loadedAt, S });
         loadErr = '';
