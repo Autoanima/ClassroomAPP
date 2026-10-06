@@ -58,15 +58,19 @@
     h += `<div class="panel"><h3>收支明細</h3>`;
     if (!F.rows.length) h += `<p class="muted small">還沒有紀錄。</p>`;
     else {
-      h += `<div class="admin-wrap"><table class="admin fund-table"><thead><tr><th>日期</th><th>品項</th><th>收入</th><th>支出</th><th>結餘</th><th>說明</th>${canFund() ? '<th></th>' : ''}</tr></thead><tbody>`;
+      // 手機也看得清楚：每一筆兩行。第一行：日期、品項、金額（收入綠 +、支出紅 −）；第二行：說明、登記人、收據｜結餘
+      h += `<div class="fd-list"><div class="fd-row fd-head"><span>日期</span><span>品項</span><span class="fd-amt">金額</span><span class="fd-bal">結餘</span></div>`;
       F.rows.forEach(r => {
-        const out = r.type === '支出';
-        h += `<tr><td>${esc(r.date.slice(5))}</td><td>${esc(r.item)}</td><td class="plus">${out ? '' : money(r.amount)}</td><td class="minus">${out ? money(r.amount) : ''}</td><td><b>${money(r.balance)}</b></td>
-          <td class="small">${esc(r.note)}${r.by ? `<div class="muted">${esc(r.by)}</div>` : ''}
-            ${(r.receipts || []).length ? `<button type="button" class="rcpt-btn" data-f="rcpt" data-id="${esc(r.id)}">🧾 收據 ${r.receipts.length}</button>` : ''}
-            ${canFund() && (r.receipts || []).length < 5 ? `<button type="button" class="rcpt-btn add" data-f="rcptAdd" data-id="${esc(r.id)}">＋🧾</button>` : ''}</td>${canFund() ? `<td><button type="button" class="pt-del" data-f="del" data-id="${esc(r.id)}" aria-label="刪除">✕</button></td>` : ''}</tr>`;
+        const out = r.type === '支出', rc = (r.receipts || []).length;
+        const more = `${r.note ? `<span>${esc(r.note)}</span>` : ''}${r.by ? `<span class="muted">${esc(r.by)}</span>` : ''}
+          ${rc ? `<button type="button" class="rcpt-btn" data-f="rcpt" data-id="${esc(r.id)}">🧾 收據 ${rc}</button>` : ''}
+          ${canFund() && rc < 5 ? `<button type="button" class="rcpt-btn add" data-f="rcptAdd" data-id="${esc(r.id)}">＋🧾</button>` : ''}
+          ${canFund() ? `<button type="button" class="pt-del" data-f="del" data-id="${esc(r.id)}" aria-label="刪除">✕</button>` : ''}`;
+        h += `<div class="fd-row"><span class="fd-date">${esc(r.date.slice(5))}</span><span class="fd-item">${esc(r.item)}</span>
+          <span class="fd-amt ${out ? 'minus' : 'plus'}">${out ? '−' : '+'}${money(r.amount)}</span>
+          <div class="fd-more">${more}</div><span class="fd-bal"><small>結餘</small> <b>${money(r.balance)}</b></span></div>`;
       });
-      h += `</tbody></table></div>`;
+      h += `</div>`;
     }
     root.innerHTML = h + `</div>`;
   }
