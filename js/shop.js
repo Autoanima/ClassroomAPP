@@ -102,6 +102,12 @@
     h += `<div class="panel shop-petfood"><h3>🥫 寵物罐罐</h3>
       <div class="pf-row"><span class="pf-ico">🥫</span><div class="pf-what"><b>罐罐（1 點）</b><div class="muted small">餵班級寵物 +1 🍚。寵物每天會餓掉 1 🍚，0 🍚 就會跑出去自己覓食；這週餵越多次，牠越常跑去你的座位旁邊睡覺 💤</div></div>
         <button type="button" class="btn${canFood ? ' btn--primary' : ''}" data-s="petfood"${canFood ? '' : ' disabled'}>買來餵牠</button></div></div>`;
+    // 🚗 寵物的交通工具：永久保存
+    const RD = A.petRides || {}, ownR = new Set(S.rides || []), rp = S.ridePrice || 10;
+    h += `<div class="panel shop-rides"><h3>🚗 寵物的交通工具</h3><p class="muted small">每種 ${rp} 點，<b>永久保存、不會消耗</b>。買了以後到寵物卡的「🚗 交通工具」讓寵物坐上去，可以選要不要顯示、選路線和方向。</p><div class="ride-grid">${Object.keys(RD).map(k => {
+      const own = ownR.has(k), can = S.unlimited || S.coins >= rp;
+      return `<div class="ride-item${own ? ' own' : ''}"><span class="ride-art">${A.petRideArt(k)}</span><b>${RD[k].name}</b><span class="muted small">${RD[k].desc}</span>
+        ${own ? '<span class="tag good">✓ 已擁有</span>' : `<button type="button" class="btn${can ? ' btn--primary' : ''}" data-s="buyRide" data-kind="${k}"${can ? '' : ' disabled'}>💰 ${rp} 點</button>`}</div>`; }).join('')}</div></div>`;
     const othersN = Object.values(S.others || {}).flat().length;
     const md = S.myDraw || {};
     if (md.transfer || md.sure?.length) {
@@ -199,6 +205,11 @@
       openEditor();
     } else if (act === 'steal') {
       openSteal();
+    } else if (act === 'buyRide') {
+      const RD = A.petRides?.[b.dataset.kind];
+      if (!RD || !await A.ask(`花 ${S.ridePrice || 10} 點買「${RD.name}」給你的寵物？\n永久保存，不會消耗。`, '購買')) return;
+      b.disabled = true;
+      try { S = await doing('buyRide', { kind: b.dataset.kind }); toast(`✓ 買到${RD.name}了！到寵物卡的「🚗 交通工具」讓牠坐上去`); render(); A.emit?.('petsReload'); } catch (err) { toast(err.message); b.disabled = false; }
     } else if (act === 'petfood') {
       A.openPetFeeder?.();
     } else if (act === 'firework') {
@@ -819,6 +830,7 @@
       classmates: A.DEMO_STUDENTS.filter(k => k !== me),
       inv: inv2.filter(x => x.owner === me).map(x => ({ ...x, expired: x.exp < today })),
       deco: store.get(K.deco, {})[me] || [],
+      rides: [...new Set(spend.filter(x => x.who === me && x.use === '寵物交通工具').map(x => x.target))], ridePrice: 10,
     };
   }
   A.testSeatApi = async (action, p = {}) => {

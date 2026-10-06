@@ -1844,6 +1844,39 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .pet .pet-body { display: block; width: 100%; height: 100%; transform: scaleX(var(--face, 1)); transform-origin: 50% 100%; filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
 .pet .pet-body svg, .pet .pet-body img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .pet .pet-shadow { position: absolute; left: 20%; right: 20%; bottom: -3px; height: 5px; border-radius: 50%; background: rgba(0,0,0,.25); }
+/* 🚗 寵物的交通工具：寵物不縮小，坐在比牠大的交通工具上 */
+.pet .pet-rig { position: absolute; inset: 0; display: block; transform: rotate(var(--ang, 0deg)); transform-origin: 50% 85%; }
+.pet .pet-rig > .pet-body { position: absolute; inset: 0; }
+.pet.riding .pet-rig > .pet-body { translate: 0 calc(-1 * var(--lift, 0px)); }
+.pet .rv { position: absolute; display: block; pointer-events: none; transform: scaleX(var(--face, 1)); transform-origin: 50% 100%; }
+.pet .rv svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.pet .rv-back { z-index: 0; } .pet .pet-rig > .pet-body { z-index: 1; } .pet .rv-front { z-index: 2; }
+.pet.riding .pet-shadow { left: -10%; right: -10%; bottom: -12px; }
+.pet.riding.walk .pet-body { animation: none; }
+.pet.ride-car.walk .pet-rig { animation: rideCar .25s linear infinite; }
+@keyframes rideCar { 0%, 100% { translate: 0 0; } 50% { translate: 0 -1px; } }
+.pet.ride-ring .pet-rig { animation: rideBob 2.2s ease-in-out infinite; }
+.pet.ride-ring .rv-back svg { animation: rideSpin 6s linear infinite; }
+@keyframes rideBob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
+@keyframes rideSpin { 0%, 100% { rotate: -7deg; } 50% { rotate: 7deg; } }
+.pet.ride-boat .pet-rig { animation: rideRock 2.6s ease-in-out infinite; }
+@keyframes rideRock { 0%, 100% { rotate: -4deg; } 50% { rotate: 4deg; } }
+.pet.ride-rocket .rk-flame { transform-origin: 12px 22px; animation: rideFlame .18s ease-in-out infinite alternate; }
+.pet.ride-rocket:not(.walk) .rk-flame { opacity: .35; }
+@keyframes rideFlame { from { transform: scaleX(.75); } to { transform: scaleX(1.25); } }
+.shop-rides .ride-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.ride-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px; border: 1px solid var(--line); border-radius: 14px; text-align: center; }
+.ride-item.own { border-color: var(--accent); background: var(--accent-soft); }
+.ride-art { width: 96px; height: 56px; display: grid; place-items: center; }
+.ride-art svg { max-width: 100%; max-height: 100%; }
+.ride-pick, .ride-routes { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.ride-pick button, .ride-routes button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 12px; background: transparent; color: inherit; font: inherit; font-size: 14px; cursor: pointer; }
+.ride-pick button[aria-pressed="true"], .ride-routes button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.ride-ico { width: 34px; height: 22px; display: inline-grid; place-items: center; font-size: 18px; }
+.ride-ico svg { width: 100%; height: 100%; }
+.ride-show { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 4px 0; }
+.ride-show input { width: 18px; height: 18px; accent-color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .pet .pet-rig, .pet .rv-back svg, .pet .rk-flame { animation: none !important; } }
 .pet.walk .pet-body { animation: petHop .42s ease-in-out infinite; }
 @keyframes petHop { 0%, 100% { translate: 0 0; rotate: -5deg; } 50% { translate: 0 -5px; rotate: 5deg; } }
 .pet:not(.walk):not(.sleep) .pet-body { animation: petLook 2.4s ease-in-out infinite; }

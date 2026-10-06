@@ -23,6 +23,47 @@
     <path d="M30.5 33.5h3l-1.5 2Z" fill="#e5737a"/><path d="M32 35.5q-1.5 3-4 1.2M32 35.5q1.5 3 4 1.2" stroke="#7a4a2a" stroke-width="1.2" fill="none"/>
     <path d="M14 31h7M14 34.5l7-1M50 31h-7M50 34.5l-7-1" stroke="#7a4a2a" stroke-width=".9"/></g></svg>`;
   const EGG = `<svg viewBox="0 0 40 48" aria-hidden="true"><path d="M20 2C10 2 3 18 3 29a17 17 0 0 0 34 0C37 18 30 2 20 2Z" fill="#fff8e7" stroke="#e8c37a" stroke-width="2"/><circle cx="13" cy="24" r="3" fill="#f6c453"/><circle cx="26" cy="15" r="2.4" fill="#8fd3f4"/><circle cx="27" cy="33" r="3.4" fill="#f7a8b8"/><circle cx="14" cy="37" r="2" fill="#8fd3f4"/></svg>`;
+  // ── 🚗 寵物的交通工具（比寵物大，寵物坐上去，不縮小）：back＝在寵物後面、front＝擋住寵物下半身 ──
+  //    box：交通工具的大小與位置（相對於 34×34 的寵物，left／bottom 是 px）；lift：寵物往上抬多少才坐得上去
+  const RIDES = {
+    car: { name: '汽車', ico: '🚗', w: 66, h: 38, left: -16, bottom: -11, lift: 9,
+      desc: '繞著教室開車兜風，開得比走路快，不會停下來',
+      routes: [['cw', '順時針繞教室'], ['ccw', '逆時針繞教室']],
+      back: '<path d="M14 18q0-11 9-11h4v13z" fill="#a61e2e"/>',
+      front: `<path d="M3 30q-1-9 7-11l9-3h20l9 4h7q8 0 8 9v3z" fill="#e03131"/><path d="M40 16l5-7h3l-4 8z" fill="#bfe3f5" stroke="#555" stroke-width="1"/>
+        <path d="M5 25h55" stroke="#b02424" stroke-width="1.4"/><circle cx="61" cy="23" r="2.4" fill="#ffe066"/><rect x="2" y="21" width="3" height="4" rx="1" fill="#ff8787"/>
+        <circle cx="17" cy="31" r="6.5" fill="#2b2b2b"/><circle cx="17" cy="31" r="2.6" fill="#ced4da"/><circle cx="50" cy="31" r="6.5" fill="#2b2b2b"/><circle cx="50" cy="31" r="2.6" fill="#ced4da"/>` },
+    ring: { name: '游泳圈', ico: '🛟', w: 62, h: 30, left: -14, bottom: -10, lift: 2,
+      desc: '慢慢漂著繞教室，一邊上下晃、一邊轉圈圈',
+      routes: [['cw', '順時針漂流'], ['ccw', '逆時針漂流']],
+      back: `<ellipse cx="31" cy="23" rx="30" ry="6" fill="#a5d8ff" opacity=".7"/><ellipse cx="31" cy="16" rx="27" ry="11" fill="#ff6b6b"/>
+        <path d="M10 10l7 5M45 6l-4 7" stroke="#fff" stroke-width="5"/><ellipse cx="31" cy="15" rx="13" ry="4.5" fill="#1c7ed6" opacity=".55"/>`,
+      front: `<path d="M4 16q1 11 27 11t27-11q-4 5-27 5T4 16z" fill="#ff6b6b"/><path d="M4 16q1 11 27 11t27-11" fill="none" stroke="#c92a2a" stroke-width="1"/>
+        <path d="M14 21l-2 5M48 21l2 5M31 22v5" stroke="#fff" stroke-width="5"/>` },
+    boat: { name: '船', ico: '⛵', w: 72, h: 54, left: -19, bottom: -12, lift: 8,
+      desc: '在教室前面、後面（或左右兩側）來回航行，到岸會掉頭',
+      routes: [['h', '左右來回航行（教室前面、後面）'], ['v', '前後來回航行（教室兩側）']],
+      back: `<path d="M57 2v34" stroke="#6b4423" stroke-width="2.4"/><path d="M58 5q15 13 1 28h-1z" fill="#fff" stroke="#adb5bd" stroke-width="1"/><path d="M57 2l9 3-9 3z" fill="#f03e3e"/>`,
+      front: `<path d="M2 34h68l-9 13H12z" fill="#8d5a2b"/><path d="M4 36h64" stroke="#5e3a17" stroke-width="2"/><circle cx="22" cy="40" r="2" fill="#ffd43b"/><circle cx="36" cy="40" r="2" fill="#ffd43b"/><circle cx="50" cy="40" r="2" fill="#ffd43b"/>
+        <path d="M0 50q6-4 12 0t12 0 12 0 12 0 12 0 12 0" fill="none" stroke="#4dabf7" stroke-width="2.4"/>` },
+    rocket: { name: '火箭', ico: '🚀', w: 80, h: 36, left: -22, bottom: -10, lift: 7,
+      desc: '咻～飛越教室，車頭會朝著飛的方向轉',
+      routes: [['x', '斜斜飛越教室（弧線）'], ['v', '直直往前、往後飛（直線）']],
+      back: `<g class="rk-flame"><path d="M12 22q-12-6-14 0 2 6 14 0z" fill="#ff922b"/><path d="M12 22q-7-3-9 0 2 3 9 0z" fill="#ffe066"/></g>
+        <path d="M14 13h46q14 0 19 9-5 9-19 9H14z" fill="#e9ecef" stroke="#868e96" stroke-width="1.2"/><path d="M66 13.5q10 2 13 8.5-3 6.5-13 8.5z" fill="#f03e3e"/>
+        <path d="M18 13l-6-11h9l9 11z" fill="#f03e3e"/><path d="M18 31l-6 5h9l9-5z" fill="#c92a2a"/><circle cx="52" cy="22" r="4.2" fill="#74c0fc" stroke="#495057" stroke-width="1.4"/>`,
+      front: '' },
+  };
+  const rideSvg = (k, part) => `<svg viewBox="0 0 ${RIDES[k].w} ${RIDES[k].h}" aria-hidden="true">${RIDES[k][part]}</svg>`;
+  A.petRides = RIDES;
+  A.petRideArt = k => (RIDES[k] ? `<svg viewBox="0 0 ${RIDES[k].w} ${RIDES[k].h}" aria-hidden="true">${RIDES[k].back}${RIDES[k].front}</svg>` : '');
+  const rideOf = id => { const r = P?.rides?.[id]; return r && RIDES[r.v] ? r : null; };
+  const rideWrap = (x, inner) => {
+    const r = rideOf(x.id);
+    if (!r || r.show === false) return inner;
+    const D = RIDES[r.v], st = `width:${D.w}px;height:${D.h}px;left:${D.left}px;bottom:${D.bottom}px`;
+    return `<span class="rv rv-back" style="${st}">${rideSvg(r.v, 'back')}</span>${inner}${D.front ? `<span class="rv rv-front" style="${st}">${rideSvg(r.v, 'front')}</span>` : ''}`;
+  };
   const imgs = store.get('indoor.petimg', {});   // 圖片 id → data URL（存在這台裝置，有換才重新下載）
   const look = x => (x.imgId && imgs[x.imgId] ? `<img src="${imgs[x.imgId]}" alt="">` : CAT);
   async function loadImgs() {
@@ -88,9 +129,11 @@
     const keep = {};
     alive.forEach(x => { keep[x.id] = Object.assign(pets[x.id] || { s: Math.random(), dir: Math.random() < 0.5 ? 1 : -1, walk: true, until: 0, face: 1, mode: 'path' }, { feeders: x.feeders || [] }); });
     pets = keep;
-    if (force || ly.dataset.sig !== alive.map(x => x.id + (x.imgId || '')).join() + '|' + eggs.length) {
-      ly.dataset.sig = alive.map(x => x.id + (x.imgId || '')).join() + '|' + eggs.length;
-      ly.innerHTML = eh + alive.map(x => `<button type="button" class="pet" data-pet="${esc(x.id)}" title="${esc(petName(x))}"><span class="pet-body">${look(x)}</span><i class="pet-shadow"></i><span class="pet-zz" aria-hidden="true">💤</span></button>`).join('');
+    geo = geometry(); geoAt = Date.now();
+    if (geo) Object.entries(pets).forEach(([id, p]) => syncRide(p, id));
+    if (force || ly.dataset.sig !== alive.map(x => x.id + (x.imgId || '') + JSON.stringify(rideOf(x.id) || '')).join() + '|' + eggs.length) {
+      ly.dataset.sig = alive.map(x => x.id + (x.imgId || '') + JSON.stringify(rideOf(x.id) || '')).join() + '|' + eggs.length;
+      ly.innerHTML = eh + alive.map(x => { const r = rideOf(x.id); return `<button type="button" class="pet${r && r.show !== false ? ' riding ride-' + r.v : ''}" data-pet="${esc(x.id)}" title="${esc(petName(x))}${r ? `（搭${RIDES[r.v].name}）` : ''}"${r && r.show !== false ? ` style="--lift:${RIDES[r.v].lift}px"` : ''}><span class="pet-rig">${rideWrap(x, `<span class="pet-body">${look(x)}</span>`)}</span><i class="pet-shadow"></i><span class="pet-zz" aria-hidden="true">💤</span></button>`; }).join('');
     }
     geo = geometry(); geoAt = Date.now();
     placeEggs();
@@ -203,10 +246,13 @@
             if (party.ids.length === 4 && Math.abs(to.x - p.x) > 0.01) p.face = to.x > p.x ? 1 : -1;   // 火車：面向前進的方向
             b = to; moving = party.ids.length === 4;
           }
+        } else if (p.mode === 'ride') {
+          b = rideStep(p, dt);
+          moving = true;
         } else if (p.mode === 'path') {
           // 走一段、停一下；偶爾去餵過牠的同學旁邊睡覺（這週餵越多次，越常去）
           if (Date.now() > p.until) {
-            const spot = maybeSleep(p);
+            const spot = p.ride ? null : maybeSleep(p);
             if (spot) { p.mode = 'go'; p.to = spot.pos; p.seat = spot.seat; p.walk = true; }
             else { p.walk = Math.random() < 0.72; p.until = Date.now() + (p.walk ? 3000 + Math.random() * 5000 : 1200 + Math.random() * 2200); if (p.walk && Math.random() < 0.25) p.dir *= -1; }
           }
@@ -217,7 +263,7 @@
             if (Math.abs(b.x - a.x) > 0.01) p.face = b.x > a.x ? 1 : -1;
           }
         }
-        if (!inParty && p.mode !== 'path') {
+        if (!inParty && p.mode !== 'path' && p.mode !== 'ride') {
           if (p.mode === 'sleep') {
             const s2 = seatSpot(p.seat);   // 座位表重畫、縮放時跟著座位
             if (s2) p.to = s2;
@@ -226,13 +272,14 @@
           } else {
             const step = 34 * dt, dx = p.to.x - p.x, dy = p.to.y - p.y, d = Math.hypot(dx, dy);
             if (Math.abs(dx) > 0.5) p.face = dx > 0 ? 1 : -1;
-            if (d <= step) { b = { ...p.to }; if (p.mode === 'go') { p.mode = 'sleep'; p.until = Date.now() + 9000 + Math.random() * 9000; } else { p.mode = 'path'; p.until = 0; } }
+            if (d <= step) { b = { ...p.to }; if (p.mode === 'go2ride') { p.mode = 'ride'; } else if (p.mode === 'go') { p.mode = 'sleep'; p.until = Date.now() + 9000 + Math.random() * 9000; } else { p.mode = 'path'; p.until = 0; if (p.ride) { p.x = b.x; p.y = b.y; p.ride = null; syncRide(p, id); } } }
             else b = { x: p.x + dx / d * step, y: p.y + dy / d * step };
           }
         }
         p.x = b.x; p.y = b.y;
         el.style.transform = `translate(${b.x - 17}px, ${b.y - 30}px)`;
-        el.classList.toggle('walk', inParty ? moving : p.mode === 'go' || p.mode === 'back' || (p.mode === 'path' && p.walk));
+        el.classList.toggle('walk', inParty ? moving : p.mode === 'go' || p.mode === 'go2ride' || p.mode === 'back' || p.mode === 'ride' || (p.mode === 'path' && p.walk));
+        el.style.setProperty('--ang', ((!inParty && p.mode === 'ride' && p.ang) || 0).toFixed(1) + 'deg');
         el.classList.toggle('sleep', p.mode === 'sleep');
         el.style.setProperty('--face', p.face);
       });
@@ -240,6 +287,73 @@
     raf = requestAnimationFrame(tick);
   }
   function stop() { if (raf) cancelAnimationFrame(raf); raf = 0; last = 0; }
+  // ── 🚗 搭交通工具的走法（每種都不一樣）──
+  function rideStep(p, dt) {
+    const r = p.ride, g = geo, now = Date.now();
+    if (r.v === 'car' || r.v === 'ring') {
+      const a = along(g, p.s);
+      p.s += (r.route === 'ccw' ? -1 : 1) * (r.v === 'car' ? 72 : 20) * dt / g.per;
+      const q = along(g, p.s);
+      if (Math.abs(q.x - a.x) > 0.01) p.face = q.x > a.x ? 1 : -1;
+      p.ang = 0;
+      if (r.v === 'ring') { const t = now / 1000; return { x: q.x + Math.sin(t * 1.3) * 5, y: q.y + Math.cos(t * 0.9) * 3 }; }
+      return q;
+    }
+    if (r.v === 'boat') {   // 一條直線來回；到岸停一下、掉頭
+      const H = r.route !== 'v', len = H ? g.w : g.h;
+      p.bt ??= Math.random(); p.bd ??= 1; p.edge ??= 0;
+      if (now < (p.wait || 0)) return boatAt(H, p.bt, p.edge);
+      p.bt += p.bd * 30 * dt / len;
+      if (p.bt >= 1 || p.bt <= 0) { p.bt = Math.max(0, Math.min(1, p.bt)); p.bd *= -1; p.wait = now + 1200 + Math.random() * 1500; }
+      if (H) p.face = p.bd; p.ang = 0;
+      return boatAt(H, p.bt, p.edge);
+    }
+    // 火箭：從教室一邊飛到另一邊（弧線或直線），落地休息一下再飛
+    if (!p.fly || p.fly.k >= 1) {
+      if (p.fly && !p.fly.rest) { p.fly.rest = now + 900 + Math.random() * 1600; }
+      if (p.fly && now < p.fly.rest) return { x: p.x, y: p.y };
+      const from = { x: p.x, y: p.y };
+      let to;
+      if (r.route === 'v') {   // 前後直飛：上邊 ↔ 下邊，x 隨機
+        const top = Math.abs(p.y - g.T) < Math.abs(p.y - g.B);
+        to = { x: g.L + Math.random() * g.w, y: top ? g.B : g.T };
+      } else {                 // 斜斜飛到對面的邊
+        const s0 = nearestS(from), s1 = s0 + 0.35 + Math.random() * 0.3;
+        to = along(g, s1);
+      }
+      const d = Math.hypot(to.x - from.x, to.y - from.y) || 1, bend = r.route === 'v' ? 0 : (Math.random() < 0.5 ? -1 : 1) * Math.min(160, d * 0.45);
+      p.fly = { from, to, c: { x: (from.x + to.x) / 2 + (-(to.y - from.y) / d) * bend, y: (from.y + to.y) / 2 + ((to.x - from.x) / d) * bend }, k: 0, len: d * (bend ? 1.15 : 1) };
+    }
+    const F = p.fly, k0 = F.k;
+    F.k = Math.min(1, F.k + 130 * dt / F.len);
+    const bz = k => ({ x: (1 - k) * (1 - k) * F.from.x + 2 * (1 - k) * k * F.c.x + k * k * F.to.x, y: (1 - k) * (1 - k) * F.from.y + 2 * (1 - k) * k * F.c.y + k * k * F.to.y });
+    const q = bz(F.k), q0 = bz(k0), vx = q.x - q0.x, vy = q.y - q0.y;
+    if (Math.hypot(vx, vy) > 0.01) {
+      p.face = vx >= 0 ? 1 : -1;
+      p.ang = Math.max(-80, Math.min(80, (p.face > 0 ? Math.atan2(vy, vx) : -Math.atan2(vy, -vx)) * 180 / Math.PI));
+    }
+    if (F.k >= 1) { p.ang = 0; if (r.route !== 'v') p.s = nearestS(F.to); }
+    return q;
+  }
+  // 船的航線：左右來回＝走離牠最近的上邊或下邊；前後來回＝最近的左邊或右邊（edge：0 上／左、1 下／右）
+  const boatAt = (H, t, e) => (H ? { x: geo.L + t * geo.w, y: e ? geo.B : geo.T } : { x: e ? geo.R : geo.L, y: geo.T + t * geo.h });
+  // 寵物設定改了：開始搭／換一種走法／下車走回邊邊
+  function syncRide(p, id) {
+    const r = rideOf(id), want = r && r.route !== 'walk' ? r.v + ':' + r.route : '';
+    if ((p.ride ? p.ride.v + ':' + p.ride.route : '') === want) return;
+    p.ride = want ? { v: r.v, route: r.route } : null;
+    delete p.fly; delete p.bt; delete p.bd; delete p.wait; delete p.edge; p.ang = 0;
+    if (p.ride && (p.ride.v === 'boat' || p.ride.v === 'rocket')) {   // 先走到出發的地方
+      if (p.ride.v === 'boat') {
+        const H = p.ride.route !== 'v', x = p.x ?? geo.L, y = p.y ?? geo.B;
+        p.edge = H ? (Math.abs(y - geo.B) < Math.abs(y - geo.T) ? 1 : 0) : (Math.abs(x - geo.R) < Math.abs(x - geo.L) ? 1 : 0);
+        p.bt = Math.max(0, Math.min(1, H ? (x - geo.L) / geo.w : (y - geo.T) / geo.h)); p.bd = Math.random() < 0.5 ? 1 : -1;
+        p.mode = 'go2ride'; p.to = boatAt(H, p.bt, p.edge);
+      }
+      else p.mode = 'ride';
+    } else if (p.ride) { p.mode = 'ride'; if (p.x != null) p.s = nearestS({ x: p.x, y: p.y }); }
+    else if (p.mode === 'ride' || p.mode === 'go2ride') { p.mode = 'back'; p.s = nearestS({ x: p.x ?? 0, y: p.y ?? 0 }); p.to = along(geo, p.s); }
+  }
   // 睡覺的位置：餵過牠的同學座位的右下角（大部分在名字那條上，不太遮到大頭照）
   function seatSpot(k) {
     const h = host(), id = A.seatOf?.(k), el = id && h?.wrap.querySelector(`[data-seat="${CSS.escape(id)}"]`);
@@ -499,11 +613,48 @@
     if (x.status === '寵物' && !A.isGuest()) h += `<div class="actions"><button type="button" class="btn btn--primary wide" data-act="petFeed" data-id="${esc(x.id)}"${full(x) ? ' disabled' : ''}>🥫 餵罐罐（${P.food} 點，+1 🍚）${full(x) ? '・吃飽了' : ''}</button></div>`;
     if (x.status === '待孵' && (x.owner === A.me() || A.isTeacher())) h += `<div class="actions"><button type="button" class="btn btn--primary wide" data-act="petIncubate" data-id="${esc(x.id)}">🐣 孵化（放到講台上）</button></div>`;
     if (A.isTeacher() && x.status !== '覓食') h += `<div class="actions"><button type="button" class="btn btn--danger wide" data-act="petDel" data-id="${esc(x.id)}">🗑 移除這${isEgg ? '顆蛋' : '隻寵物'}（導師）</button></div>`;
+    h += rideBox(x);
     if (mine && x.status !== '覓食') h += `<details class="pet-edit"${x.status === '寵物' && !x.imgId && x.owner === A.me() ? ' open' : ''}><summary>✏️ 主人專屬：取名字、上傳外觀</summary>
       <label class="lv-f"><span>名字</span><input type="text" id="petNm" maxlength="12" value="${esc(x.name || '')}" placeholder="幫牠取個名字"></label>
       <label class="lv-f"><span>外觀圖片（建議 PNG 去背；沒上傳就是貓咪）</span><input type="file" id="petImg" accept="image/png,image/webp,image/gif,image/jpeg"></label>
       <div class="actions"><button type="button" class="btn wide" data-act="petSave" data-id="${esc(x.id)}">儲存</button></div></details>`;
     return h;
+  }
+  // ── 🚗 主人設定：搭哪一種、要不要顯示、怎麼走 ──
+  function rideFormHtml(x, cur) {
+    const owned = A.isTeacher() ? Object.keys(RIDES) : (P.owned?.[x.owner] || []);
+    if (!owned.length) return `<p class="muted small">還沒有交通工具。到 🛒 商店的「🚗 寵物的交通工具」購買（每種 ${P.ridePrice || 10} 點，永久保存）。</p>`;
+    const v = cur.v || '', D = RIDES[v];
+    let h = `<div class="ride-pick">${[['', '🚶', '不搭']].concat(owned.filter(k => RIDES[k]).map(k => [k, RIDES[k].ico, RIDES[k].name])).map(([k, ico, n]) =>
+      `<button type="button" data-act="rideV" data-v="${k}" aria-pressed="${v === k}">${k ? `<span class="ride-ico">${A.petRideArt(k)}</span>` : `<span class="ride-ico">${ico}</span>`}${n}</button>`).join('')}</div>`;
+    if (D) {
+      h += `<p class="muted small">${esc(D.desc)}</p><div class="ride-routes">${D.routes.concat([['walk', '照平常走路的方式（只是坐在上面）']]).map(([k, t]) =>
+        `<button type="button" data-act="rideR" data-r="${k}" aria-pressed="${(cur.route || D.routes[0][0]) === k}">${esc(t)}</button>`).join('')}</div>
+        <label class="ride-show"><input type="checkbox" class="ride-showcb"${cur.show === false ? '' : ' checked'}> 在座位表上顯示${D.name}的樣子</label>`;
+    }
+    return h;
+  }
+  function rideBox(x) {
+    if (x.status !== '寵物' || !(x.owner === A.me() || A.isTeacher())) return '';
+    const cur = rideOf(x.id) || { v: '', show: true, route: '' };
+    return `<details class="pet-edit pet-ride" data-id="${esc(x.id)}" data-cfg="${esc(JSON.stringify(cur))}"><summary>🚗 交通工具${cur.v ? `：${RIDES[cur.v].name}` : ''}</summary>
+      <div class="ride-form">${rideFormHtml(x, cur)}</div>
+      <div class="actions"><button type="button" class="btn wide" data-act="petRide" data-id="${esc(x.id)}">儲存交通工具設定</button></div></details>`;
+  }
+  async function rideAct(act, b) {
+    const box = b.closest('.pet-ride');
+    if (!box) return;
+    const x = P.pets.find(y => y.id === box.dataset.id), cur = JSON.parse(box.dataset.cfg || '{}');
+    const sh = box.querySelector('.ride-showcb'); if (sh) cur.show = sh.checked;
+    if (act === 'rideV') { cur.v = b.dataset.v; cur.route = ''; }
+    if (act === 'rideR') cur.route = b.dataset.r;
+    if (act !== 'petRide') { box.dataset.cfg = JSON.stringify(cur); box.querySelector('.ride-form').innerHTML = rideFormHtml(x, cur); return; }
+    b.disabled = true; b.textContent = '儲存中…';
+    try {
+      P = await A.api('petRide', { id: x.id, ride: { v: cur.v || '', show: cur.show !== false, route: cur.route || (cur.v ? RIDES[cur.v].routes[0][0] : '') } });
+      toast(cur.v ? `✓ ${petName(x)} 坐上${RIDES[cur.v].name}了` : '✓ 已經下車');
+      paintMap(true); if (A.sheetMode()?.kind === 'pet') openCard(x.id); if (A.currentTab() === 'pet') render();
+    } catch (err) { toast(err.message); b.disabled = false; b.textContent = '儲存交通工具設定'; }
   }
   function openCard(id) {
     const x = P.pets.find(y => y.id === id);
@@ -545,6 +696,7 @@
     } catch (err) { toast(err.message); if (b) b.disabled = false; }
   }
   A.sheetHandlers.pet = async (act, b) => {
+    if (act === 'rideV' || act === 'rideR' || act === 'petRide') return rideAct(act, b);
     if (act === 'petFeed') return feed(b.dataset.id, b);
     if (act === 'petIncubate') return incubate([b.dataset.id], b);
     if (act === 'petDel') {
@@ -607,6 +759,7 @@
       <li>寵物孵化後<b>每天會餓掉 1 🍚</b>。在商店或寵物卡買<b>罐罐（${P.food} 點）</b>餵牠，<b>+1 🍚</b>（最多補到牠自己的上限）。</li>
       <li>有兩隻以上的寵物時，牠們偶爾會聚在一起玩：<b>2 隻碰碰鼻子、3 隻跳舞、4 隻開火車、5 隻拍團體照、6 隻疊羅漢</b> 🎉</li>
       <li>寵物會記得這一週誰餵牠：<b>餵越多次，牠越常跑去你的座位旁邊睡覺</b> 💤。</li>
+      <li>🚗 在商店買<b>寵物的交通工具</b>（汽車、游泳圈、火箭、船，每種 ${P.ridePrice || 10} 點，<b>永久保存</b>）。主人可以讓寵物坐上去、選要不要顯示、選怎麼走（每種的路線和方向都不一樣）。</li>
       <li>飽足度變成 <b>0 🍚</b>，寵物就會肚子餓、<b>跑出去自己覓食</b>，不回來了。大家一起照顧牠吧！</li></ol></details>`;
     const sec = (title, list) => (list.length ? `<div class="panel"><h3>${title}</h3><div class="pet-list">${list.map(x => `<div class="pet-row" data-petcard="${esc(x.id)}" role="button" tabindex="0">${cardHtml(x)}</div>`).join('')}</div></div>` : '');
     const meK = A.isTeacher() ? '' : A.me();
@@ -640,6 +793,7 @@
     const b = e.target.closest('[data-act]');
     if (b?.dataset.act === 'petFeed') { e.stopPropagation(); return feed(b.dataset.id, b); }
     if (b?.dataset.act === 'petIncubate') { e.stopPropagation(); return incubate(b.dataset.ids ? b.dataset.ids.split(',') : [b.dataset.id], b); }
+    if (['rideV', 'rideR', 'petRide'].includes(b?.dataset.act)) { e.stopPropagation(); return rideAct(b.dataset.act, b); }
     if (b?.dataset.act === 'petSave' || b?.dataset.act === 'petDel') { e.stopPropagation(); return A.sheetHandlers.pet(b.dataset.act, b); }   // 🐾 分頁裡的卡片：儲存外觀、導師移除
     if (e.target.closest('details, input, button')) return;
     const r = e.target.closest('[data-petcard]');
@@ -660,6 +814,7 @@
 
   // 有人被加分：寵物馬上重新讀取（新的蛋直接從座位蹦出來）
   A.on('pointsAdded', () => { pAt = 0; setTimeout(load, 600); });
+  A.on('petsReload', () => { pAt = 0; load(); });
 
   // ── 測試模式：存在這台裝置（規則和正式版一樣）──
   const tSpread = (list, n, order) => { const k = list.length, base = Math.floor(n / k), ord = (order || list.map((_, i) => i).sort(() => Math.random() - 0.5)).slice(0, n % k); return list.map((_, i) => base + (ord.includes(i) ? 1 : 0)); };
@@ -686,7 +841,16 @@
   };
   const prevTest = A.testSeatApi;
   A.testSeatApi = async (action, p = {}) => {
-    if (!['getPets', 'feedPet', 'petLook', 'petImage', 'petAllot', 'petDelete', 'petIncubate'].includes(action)) return prevTest ? prevTest(action, p) : null;
+    if (action === 'buyRide') {
+      const SK = 'indoor.shopspend.v1.test', sp = store.get(SK, []), who = A.isTeacher() ? (A.D.teacherLabel || '導師') : A.me();
+      if (!RIDES[p.kind]) throw new Error('沒有這種交通工具');
+      if (sp.some(x => x.who === who && x.use === '寵物交通工具' && x.target === p.kind)) throw new Error(`你已經有${RIDES[p.kind].name}了（永久保存，不用再買）`);
+      const st = await prevTest('shopState');
+      if (!st.unlimited && st.coins < 10) throw new Error(`點數不夠（${RIDES[p.kind].name}要 10 點，你有 ${st.coins} 點）`);
+      store.set(SK, [...sp, { id: Math.random().toString(36).slice(2, 10), who, points: A.isTeacher() ? 0 : 10, use: '寵物交通工具', target: p.kind, note: '', time: '', t: Date.now() }]);
+      return prevTest('shopState');
+    }
+    if (!['getPets', 'feedPet', 'petLook', 'petImage', 'petAllot', 'petDelete', 'petIncubate', 'petRide'].includes(action)) return prevTest ? prevTest(action, p) : null;
     const KEY = 'indoor.pets.v1.test', all = store.get(KEY, null) || [], me = A.isTeacher() ? (A.D.teacherLabel || '導師') : A.me(), now = Date.now();
     if (!store.get(KEY, null)) {   // 第一次：補一顆蛋（最近被加分的同學）
       const k = A.students()[4] || A.students()[0];
@@ -728,9 +892,18 @@
         if (rest.length && x.status !== '覓食') { const o = rest.map((_, i) => i).sort(() => Math.random() - 0.5), ac = tSpread(rest, x.cap, o), ah = tSpread(rest, x.hp, o); rest.forEach((y, j) => { y.cap += ac[j]; y.hp = Math.min(y.cap, y.hp + ah[j]); }); }
       }
     }
+    const RK = 'indoor.petride.v1.test', rm = store.get(RK, {});
+    if (action === 'petRide') {
+      const x = all.find(y => y.id === p.id), v = p.ride?.v || '';
+      if (!x || x.status !== '寵物') throw new Error('孵化成寵物以後才能搭交通工具');
+      if (!v) delete rm[x.id]; else rm[x.id] = { v, show: p.ride.show !== false, route: p.ride.route || RIDES[v].routes[0][0] };
+      store.set(RK, rm);
+    }
     if (action === 'petImage') { const x = all.find(y => y.id === p.id); return { ok: true, img: store.get('indoor.petimgdata.test', {})[x?.imgId] || '' }; }
     store.set(KEY, all);
     const feeders = x => { const m = {}; (x.feedLog || []).filter(f => f.t > now - 7 * 864e5).forEach(f => { m[f.who] = (m[f.who] || 0) + 1; }); return Object.entries(m).map(([key, n]) => ({ key, n })).sort((a, b) => b.n - a.n); };
-    return { ok: true, pets: all.map(x => ({ ...x, img: x.imgId ? 1 : 0, feeders: feeders(x) })), gone: goneAll.filter(x => now - x.hatch < 7 * 864e5), me, now, food: 1, max: 10 };
+    const spAll = store.get('indoor.shopspend.v1.test', []), ownedOf = k => [...new Set(spAll.filter(y => y.who === k && y.use === '寵物交通工具').map(y => y.target))];
+    const owned = {}; all.forEach(x => { owned[x.owner] ||= ownedOf(x.owner); }); owned[me] ||= ownedOf(me);
+    return { ok: true, rides: rm, owned, ridePrice: 10, pets: all.map(x => ({ ...x, img: x.imgId ? 1 : 0, feeders: feeders(x) })), gone: goneAll.filter(x => now - x.hatch < 7 * 864e5), me, now, food: 1, max: 10 };
   };
 })();

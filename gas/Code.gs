@@ -114,9 +114,9 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ petRide: 1, buyRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, lunchChange: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ petRide: 1, buyRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, lunchChange: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
 const GUEST_OK = { getTimetable: 1, getPets: 1, petImage: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { cleanLeaves: 1, notifyCheck: 1, saveRecords: 1, uploadPhoto: 1, getCheckLive: 1, setCheckLive: 1 };
@@ -214,6 +214,8 @@ function doPost(e) {
       case 'postCourse': return json(postCourse(who, req.course, req.text));
       case 'delCoursePost': return json(delCoursePost(who, req.id));
       case 'feedPet': return json(feedPet(who, req.id));
+      case 'petRide': return json(petRide(who, req.id, req.ride));
+      case 'buyRide': return json(buyRide(who, String(req.kind || '')));
       case 'petLook': return json(petLook(who, req.id, req.name, req.data));
       case 'petImage': return json(petImage(req.id));
       case 'petAllot': return json(petAllot(who, req.owner, req.plan || {}));
@@ -1012,7 +1014,7 @@ function shopState(who) {
     inv: inv.filter(x => x.owner === key).map(x => ({ id: x.id, acc: x.acc, name: x.name, exp: x.exp, expired: x.exp < today, note: x.note })),
     deco: (decoRows()[key] || { layers: [] }).layers,
     minus: minusOf(key), swapBan: CONFIG.SWAP_BAN_MINUS, freeSwap: freeSwapCards(key), rankCards: cardRows().filter(x => x.who === key).slice(-5).reverse(),
-    held: heldCards(key), giftable: Object.keys(GIFT_CARDS()),
+    held: heldCards(key), giftable: Object.keys(GIFT_CARDS()), rides: ridesOf(spendRows(), key), ridePrice: RIDE_PRICE,
     penalty: c.penalty || 0, penaltyPer: CONFIG.PENALTY_PER, penaltyFrom: CONFIG.PENALTY_FROM,
     unlimited: !!who.teacher, income: c.income, sales: who.teacher ? null : salesOf(key, inv), createPrice: CONFIG.CREATE_PRICE,
     // 導師：全班點數一覽
@@ -1911,11 +1913,15 @@ function getPets(who) {
   });
   const week = Date.now() - 7 * 864e5;   // 死掉超過一週的不顯示
   // 最近一週誰餵了罐罐（次數多的，寵物比較常去他的座位旁邊睡覺）
-  const fed = {};
-  spendRows().forEach(r => { if (r.use !== '罐罐' || r.t < week) return; const m = fed[r.target] || (fed[r.target] = {}); m[r.who] = (m[r.who] || 0) + 1; });
+  const fed = {}, sp = spendRows();
+  sp.forEach(r => { if (r.use !== '罐罐' || r.t < week) return; const m = fed[r.target] || (fed[r.target] = {}); m[r.who] = (m[r.who] || 0) + 1; });
   const feeders = id => Object.entries(fed[id] || {}).map(([k, n]) => ({ key: k, n: n })).sort((a, b) => b.n - a.n);
   const rows = petRows();
-  return { ok: true, pets: rows.filter(x => petLive(x) || (x.status === '覓食' && x.died > week)).map(x => Object.assign(petPub(x), { feeders: feeders(x.id) })),
+  // 🚗 交通工具：每隻寵物的設定＋每位主人擁有的種類
+  const rm = rideMap(), rides = {}, owned = {}, meK = who.teacher ? CONFIG.TEACHER_NAME : who.key;
+  rows.filter(x => x.status === '寵物').forEach(x => { if (rm[x.id]) rides[x.id] = rm[x.id]; if (!owned[x.owner]) owned[x.owner] = ridesOf(sp, x.owner); });
+  if (!owned[meK]) owned[meK] = ridesOf(sp, meK);
+  return { ok: true, rides: rides, owned: owned, ridePrice: RIDE_PRICE, pets: rows.filter(x => petLive(x) || (x.status === '覓食' && x.died > week)).map(x => Object.assign(petPub(x), { feeders: feeders(x.id) })),
     gone: rows.filter(x => x.status === '飛走' && x.hatch > week).map(petPub), hatchOk: PET.HATCH_OK, me: who.teacher ? CONFIG.TEACHER_NAME : who.key, now: Date.now(), food: PET.FOOD, max: PET.MAX_HP };
 }
 /** 餵罐罐：花 1 點，+1 HP（最多補到這隻自己的上限） */
@@ -1933,6 +1939,42 @@ function feedPet(who, id) {
     addSpend(me, who.teacher ? 0 : PET.FOOD, '罐罐', x.id, '餵 ' + (x.name || x.owner + ' 的寵物'));
     petSheet().getRange(x.row, 8).setValue(x.hp + 1);
     petSheet().getRange(x.row, 12).setValue(me + ' ' + Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'MM/dd HH:mm'));
+  });
+  return getPets(who);
+}
+// ── 🚗 寵物的交通工具：商店買（每種 10 點，永久保存，不會消耗），主人設定哪一隻寵物搭哪一種、要不要顯示、怎麼走 ──
+//    擁有：「點數使用」工作表（用途：寵物交通工具、對象：car／ring／rocket／boat）；每隻寵物的設定：Script Properties PET_RIDE
+const PET_RIDES = { car: '汽車', ring: '游泳圈', rocket: '火箭', boat: '船' };
+const RIDE_PRICE = 10;
+const RIDE_ROUTES = { car: ['cw', 'ccw', 'walk'], ring: ['cw', 'ccw', 'walk'], boat: ['h', 'v', 'walk'], rocket: ['x', 'v', 'walk'] };
+function ridesOf(rows, key) { return rows.filter(x => x.who === key && x.use === '寵物交通工具' && PET_RIDES[x.target]).map(x => x.target).filter((k, i, a) => a.indexOf(k) === i); }
+const rideMap = () => arenaJson(PropertiesService.getScriptProperties().getProperty('PET_RIDE')) || {};
+function buyRide(who, kind) {
+  if (!PET_RIDES[kind]) throw new Error('沒有這種交通工具');
+  withLock(() => {
+    if (ridesOf(spendRows(), who.key).indexOf(kind) >= 0) throw new Error('你已經有' + PET_RIDES[kind] + '了（永久保存，不用再買）');
+    if (!who.teacher) {
+      const c = coinsOf(who.key);
+      if (c.coins < RIDE_PRICE) throw new Error('點數不夠（' + PET_RIDES[kind] + '要 ' + RIDE_PRICE + ' 點，你有 ' + c.coins + ' 點）');
+    }
+    addSpend(who.key, who.teacher ? 0 : RIDE_PRICE, '寵物交通工具', kind, '買了寵物的' + PET_RIDES[kind]);
+  });
+  return shopState(who);
+}
+function petRide(who, id, r) {
+  r = r || {};
+  const x = petRows().find(y => y.id === String(id));
+  if (!x) throw new Error('找不到這隻寵物');
+  if (!who.teacher && x.owner !== who.key) throw new Error('只有寵物的主人可以設定交通工具');
+  if (x.status !== '寵物') throw new Error('孵化成寵物以後才能搭交通工具');
+  const v = String(r.v || '');
+  if (v && !PET_RIDES[v]) throw new Error('沒有這種交通工具');
+  if (v && !who.teacher && ridesOf(spendRows(), x.owner).indexOf(v) < 0) throw new Error('你還沒有' + PET_RIDES[v] + '，請先到商店購買');
+  withLock(() => {
+    const m = rideMap();
+    if (!v) delete m[x.id];
+    else m[x.id] = { v: v, show: r.show !== false, route: RIDE_ROUTES[v].indexOf(String(r.route)) >= 0 ? String(r.route) : RIDE_ROUTES[v][0] };
+    PropertiesService.getScriptProperties().setProperty('PET_RIDE', JSON.stringify(m));
   });
   return getPets(who);
 }
