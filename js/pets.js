@@ -695,7 +695,7 @@
       <b class="pet-nm">${isEgg ? '寵物蛋' : esc(petName(x))}${x.status === '覓食' ? ' 🍚' : ''}</b>
       <span class="muted small">主人：${esc(nm(x.owner))}${x.reason ? `・因為「${esc(x.reason)}」被加分` : ''}</span>
       ${x.status === '待孵' ? `<span class="small">🥚 還沒開始孵化：主人按「🐣 孵化」，蛋才會放到講台上，一天後孵化</span>${hpBar(x)}`
-        : x.status === '蛋' ? `<span class="small">🥚 在講台上孵化中，還有 ${left(x.hatch - Date.now())}・上限 ${capOf(x)} 🍚</span>${hpBar(x)}`
+        : x.status === '蛋' ? `<span class="small pet-line" title="在講台上孵化中">🥚 孵化中・剩 ${left(x.hatch - Date.now())}・上限 ${capOf(x)}🍚</span>${hpBar(x)}`
         : x.status === '覓食' ? '<span class="small muted">肚子餓了，跑出去自己覓食了，謝謝牠陪伴大家。</span>' : hpBar(x)}
       ${x.fed && x.status === '寵物' ? `<span class="muted small">最近餵食：${esc(x.fed)}</span>` : ''}</div></div>
       ${x.status === '寵物' ? `<div class="pet-feeders"><b>🥫 最近一週餵牠的人</b>${(x.feeders || []).length ? `<div>${x.feeders.map(f => `<span class="pet-fd">${esc(nm(f.key))}<b>×${f.n}</b></span>`).join('')}</div><span class="muted small">餵越多次，牠越常跑去你的座位旁邊睡覺 💤</span>` : '<span class="muted small">這週還沒有人餵牠。</span>'}</div>` : ''}`;
