@@ -19,6 +19,8 @@
   const pct = x => `${x > 0 ? '+' : ''}${(x * 100).toFixed(2)}%`;
   const updn = x => (x > 1e-9 ? 'up' : x < -1e-9 ? 'down' : 'flat');
   const coin = x => Number(x || 0).toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  // 排行榜的投資幣：小數點對齊（整數靠右、小數部分固定寬度靠左）
+  const coinDec = x => { const [i, f] = coin(x).split('.'); return `<span class="dec-i">${i}</span><span class="dec-f">${f ? '.' + f : ''}</span>`; };
   const unit = x => Number(x || 0).toLocaleString('zh-TW', { maximumFractionDigits: 4 });
   const md = d => { const dt = E.parse(d); return `${dt.getMonth() + 1}/${dt.getDate()}（${WD[dt.getDay()]}）`; };
   const month = s => Number(String(s).slice(5, 7));
@@ -146,7 +148,7 @@
       <span class="ir-rank">${x.rank ? (x.rank <= 3 ? ['🥇', '🥈', '🥉'][x.rank - 1] : x.rank) : ''}</span>
       <span class="ir-who">${whoBtn(x)}${x.me ? ' <span class="tag">我</span>' : ''}${x.teacher ? ' <span class="muted small">（不領獎）</span>' : ''}${x.prize || x.steady || !x.eligible ? `<span class="ir-tag">${x.prize ? `🏆+${x.prize}` : ''}${x.steady ? ' 🐢穩健' : ''}${x.eligible ? '' : '尚未交易'}</span>` : ''}</span>
       <span class="ir-ret ${updn(x.ret)}">${pct(x.ret)}</span>
-      <span class="ir-val">${coin(x.value)}</span></div>`;
+      <span class="ir-val">${coinDec(x.value)}</span></div>`;
     const seg = (v, t) => `<button type="button" data-iv="rk" data-v="${v}" aria-pressed="${(ui.rk || 'season') === v}">${t}</button>`;
     let h = `<div class="inv-nav inv-rk">${seg('season', `🏆 ${month(S.season)} 月（本季）`)}${seg('total', '📈 累計（長期）')}</div>`;
     if (ui.rk === 'total') {
@@ -154,7 +156,7 @@
         <div class="inv-row head"><span class="ir-rank">#</span><span class="ir-who">座號</span><span class="ir-ret">累計</span><span class="ir-val">投資幣</span></div>
         ${(S.total || []).map((x, i) => `<div class="inv-row${x.me ? ' me' : ''}"><span class="ir-rank">${i + 1}</span>
           <span class="ir-who">${whoBtn(x)}${x.me ? ' <span class="tag">我</span>' : ''}</span>
-          <span class="ir-ret ${updn(x.total)}">${pct(x.total)}</span><span class="ir-val">${coin(x.value)}</span></div>`).join('') || '<p class="muted small">還沒有人開始投資。</p>'}
+          <span class="ir-ret ${updn(x.total)}">${pct(x.total)}</span><span class="ir-val">${coinDec(x.value)}</span></div>`).join('') || '<p class="muted small">還沒有人開始投資。</p>'}
         <p class="muted small">長期來看，穩定成長、少犯大錯的人通常會慢慢爬上來。</p></div>`;
     }
     h += `<div class="panel"><h3>🏆 ${month(S.season)} 月排行榜 <span class="muted small">${S.final ? '（已結算）' : '（每天收盤後更新）'}</span></h3>

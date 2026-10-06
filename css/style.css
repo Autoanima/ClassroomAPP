@@ -1256,6 +1256,9 @@ body.ww-open { overflow: hidden; }
 .ir-rank { text-align: center; font-weight: 700; }
 .ir-ret, .ir-val { text-align: right; font-variant-numeric: tabular-nums; }
 .ir-ret { font-weight: 700; }
+.ir-val { white-space: nowrap; }
+.ir-val .dec-f { display: inline-block; width: 3ch; text-align: left; }
+.inv-row.head .ir-val { padding-right: 0; }
 .ir-tag { display: block; font-size: 12px; white-space: nowrap; color: var(--muted); margin-top: 1px; }
 .ir-who { min-width: 0; line-height: 1.35; }
 .ir-pf { all: unset; cursor: pointer; border-bottom: 1px dashed var(--line); }
