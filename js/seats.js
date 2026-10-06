@@ -356,7 +356,131 @@
     const seated = new Set(Object.values(chart));
     const none = list.filter(n => !seated.has(n));
     return `<div class="panel"><div class="panel-row"><b>${seated.size} 人</b>${list.length ? `／全班 ${list.length} 人` : ''}${A.isTeacher() ? '　<span class="muted small">要換位置請到「🔁 交換位置」</span>' : ''}</div>
-      ${none.length && A.isTeacher() ? `<div class="panel-row small">還沒有座位：${none.map(esc).join('、')}</div>` : ''}</div>`;
+      ${none.length && A.isTeacher() ? `<div class="panel-row small">還沒有座位：${none.map(esc).join('、')}</div>` : ''}
+      ${A.isTeacher() ? `<div class="actions"><button type="button" class="btn wide" data-sa="pdf">🖨 輸出白底座位表 PDF</button></div>` : ''}</div>`;
+  }
+
+  // ── 🖨 白底座位表 PDF：只留教室配置、大頭照、座號、姓名、講台、講桌（不含裝扮、寵物）；下方列出班級幹部（小老師除外）──
+  const ROLE_ORDER = ['班長', '副班長', '風紀', '學藝', '總務', '衛生', '環保', '康樂', '體育', '資訊', '輔導', '節能', '服務', '事務'];
+  function cadreLines() {
+    const by = new Map();
+    A.students().forEach(k => (A.jobsOf(k).roles || []).forEach(r => {
+      r = String(r).trim();
+      if (!r || /小老師/.test(r)) return;
+      if (!by.has(r)) by.set(r, []);
+      if (!by.get(r).includes(k)) by.get(r).push(k);
+    }));
+    const rank = r => { const i = ROLE_ORDER.findIndex(x => r.startsWith(x)); return i < 0 ? 99 : i; };
+    return [...by].sort((a, b) => rank(a[0]) - rank(b[0])).map(([r, ks]) => ({ role: r, names: ks.map(k => { const p = parseKey(k); return `${p.code} ${p.name}`; }) }));
+  }
+  let jspdfP = null;
+  const loadJsPdf = () => jspdfP ||= new Promise((res, rej) => {
+    if (window.jspdf) return res(window.jspdf);
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload = () => (window.jspdf ? res(window.jspdf) : rej(new Error('PDF 元件載入失敗')));
+    s.onerror = () => { jspdfP = null; rej(new Error('PDF 元件載入失敗，請檢查網路')); };
+    document.head.appendChild(s);
+  });
+  const loadImg = src => new Promise(res => { if (!src) return res(null); const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
+  async function seatPdf(b) {
+    const mapEl = map.el;
+    if (!mapEl?.children.length) return toast('座位表還沒有顯示出來');
+    b.disabled = true; const old = b.textContent; b.textContent = '產生中…';
+    try {
+      const FONT = "'Noto Sans TC','Microsoft JhengHei','PingFang TC','Heiti TC',sans-serif";
+      const W = 2100, H = 2970, M = 110;   // A4 直式
+      const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+      const g = cv.getContext('2d');
+      g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+      g.textBaseline = 'middle';
+      // 標題
+      const cls = A.roster()?.jobs?.CLASS?.[0] || '';
+      const teacherView = $('#viewBtn')?.getAttribute('aria-pressed') === 'true';
+      g.fillStyle = '#111'; g.font = `700 68px ${FONT}`; g.textAlign = 'left';
+      g.fillText(`${cls} 座位表`, M, 150);
+      g.fillStyle = '#666'; g.font = `400 32px ${FONT}`; g.textAlign = 'right';
+      g.fillText(`${A.fmtDate(new Date())}　${teacherView ? '老師視角（從講台往下看）' : '學生視角（講台在前方）'}`, W - M, 158);
+      // 幹部名單先算好，決定地圖可以用多高
+      const cad = cadreLines(), COLS = 3, rowsN = Math.ceil(cad.length / COLS);
+      const cadH = cad.length ? 120 + rowsN * 64 : 0;
+      const mw = mapEl.offsetWidth, mh = mapEl.offsetHeight;
+      const top = 230, maxW = W - 2 * M, maxH = H - top - cadH - M - 40;
+      const sc = Math.min(maxW / mw, maxH / mh), bw = mw * sc, bh = mh * sc, bx = (W - bw) / 2, by = top;
+      const box = el => { const st = el.style, p = v => parseFloat(v) / 100; return { x: bx + p(st.left) * bw, y: by + p(st.top) * bh, w: p(st.width) * bw, h: p(st.height) * bh }; };
+      const rrect = (r, rad) => { g.beginPath(); g.roundRect ? g.roundRect(r.x, r.y, r.w, r.h, rad) : g.rect(r.x, r.y, r.w, r.h); };
+      const kids = [...mapEl.children];
+      // 教室、黑板邊、講台、講桌、前後門
+      kids.filter(el => el.classList.contains('d')).forEach(el => {
+        const r = box(el);
+        if (el.classList.contains('d--room')) { g.fillStyle = '#fff'; g.strokeStyle = '#555'; g.lineWidth = 4; g.fillRect(r.x, r.y, r.w, r.h); g.strokeRect(r.x, r.y, r.w, r.h); }
+        else { g.fillStyle = '#d9d9d9'; g.fillRect(r.x, r.y, r.w, r.h); }
+      });
+      kids.filter(el => el.classList.contains('it')).forEach(el => {
+        const r = box(el), lbl = el.querySelector('.lbl')?.textContent.trim() || '';
+        const door = /door/.test(el.className), desk = el.classList.contains('desk');
+        g.fillStyle = door ? '#f2f2f2' : desk ? '#fff' : '#efefef'; g.strokeStyle = door ? '#999' : '#444'; g.lineWidth = desk ? 4 : 3;
+        rrect(r, 8); g.fill(); g.stroke();
+        g.fillStyle = '#222'; g.textAlign = 'center';
+        if (el.querySelector('.lbl.v') || r.h > r.w * 1.6) {   // 直排（前門、後門）
+          const fs = Math.min(r.w * 0.55, 34); g.font = `700 ${fs}px ${FONT}`;
+          [...lbl].forEach((ch, i, a) => g.fillText(ch, r.x + r.w / 2, r.y + r.h / 2 + (i - (a.length - 1) / 2) * fs * 1.15));
+        } else {
+          g.font = `700 ${Math.min(r.h * 0.5, 44)}px ${FONT}`;
+          g.fillText(lbl, r.x + r.w / 2, r.y + r.h / 2);
+        }
+      });
+      kids.filter(el => el.classList.contains('collbl')).forEach(el => {
+        const r = box(el); g.fillStyle = '#777'; g.textAlign = 'center'; g.font = `500 ${Math.min(r.h * 0.75, 30)}px ${FONT}`;
+        g.fillText(el.textContent.trim(), r.x + r.w / 2, r.y + r.h / 2);
+      });
+      // 座位：大頭照＋座號＋姓名
+      const seats = kids.filter(el => el.classList.contains('seat'));
+      const imgs = await Promise.all(seats.map(el => { const k = cur()[el.dataset.seat]; return loadImg(k ? faces[parseKey(k).code]?.d : ''); }));
+      seats.forEach((el, i) => {
+        const r = box(el), k = cur()[el.dataset.seat];
+        g.lineWidth = 2; g.strokeStyle = '#999'; rrect(r, 10); g.fillStyle = '#fff'; g.fill(); g.stroke();
+        g.textAlign = 'center';
+        if (!k) { g.fillStyle = '#bbb'; g.font = `400 ${r.w * 0.16}px ${FONT}`; g.fillText(el.dataset.seat, r.x + r.w / 2, r.y + r.h / 2); return; }
+        const { code, name } = parseKey(k), pad = r.w * 0.06, txtH = r.h * 0.27;
+        const ph = { x: r.x + pad, y: r.y + pad, w: r.w - 2 * pad, h: r.h - txtH - pad };
+        const im = imgs[i];
+        g.save(); rrect(ph, 8); g.clip();
+        if (im) {   // 置中裁切（cover）
+          const s2 = Math.max(ph.w / im.width, ph.h / im.height), dw = im.width * s2, dh = im.height * s2;
+          g.drawImage(im, ph.x + (ph.w - dw) / 2, ph.y + (ph.h - dh) * 0.25, dw, dh);
+        } else {
+          g.fillStyle = '#eee'; g.fillRect(ph.x, ph.y, ph.w, ph.h);
+          g.fillStyle = '#999'; g.font = `700 ${ph.w * 0.4}px ${FONT}`; g.fillText((name || code).slice(0, 1), ph.x + ph.w / 2, ph.y + ph.h / 2);
+        }
+        g.restore();
+        const fit = (t, fs, wt) => { g.font = `${wt} ${fs}px ${FONT}`; while (fs > 10 && g.measureText(t).width > r.w - 2 * pad) { fs -= 1; g.font = `${wt} ${fs}px ${FONT}`; } };
+        g.fillStyle = '#111'; fit(code.replace(/(\d+)$/, ' $1'), r.w * 0.17, 700); g.fillText(code.replace(/(\d+)$/, ' $1'), r.x + r.w / 2, r.y + r.h - txtH * 0.68);
+        g.fillStyle = '#333'; fit(name, r.w * 0.17, 500); g.fillText(name, r.x + r.w / 2, r.y + r.h - txtH * 0.25);
+      });
+      // 班級幹部
+      if (cad.length) {
+        let y = by + bh + 70;
+        g.strokeStyle = '#ccc'; g.lineWidth = 2; g.beginPath(); g.moveTo(M, y - 30); g.lineTo(W - M, y - 30); g.stroke();
+        g.textAlign = 'left'; g.fillStyle = '#111'; g.font = `700 40px ${FONT}`; g.fillText('班級幹部', M, y + 10);
+        y += 80;
+        const cw = (W - 2 * M) / COLS;
+        cad.forEach((c, i) => {
+          const x = M + (i % COLS) * cw, yy = y + Math.floor(i / COLS) * 64;
+          g.fillStyle = '#555'; g.font = `700 32px ${FONT}`; g.fillText(c.role, x, yy);
+          const rw = g.measureText(c.role + '　').width;
+          g.fillStyle = '#111'; let fs = 32; const t = c.names.join('、');
+          g.font = `500 ${fs}px ${FONT}`; while (fs > 18 && g.measureText(t).width > cw - rw - 20) { fs--; g.font = `500 ${fs}px ${FONT}`; }
+          g.fillText(t, x + rw, yy);
+        });
+      }
+      const { jsPDF } = await loadJsPdf();
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      pdf.addImage(cv.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 210, 297);
+      pdf.save(`${cls || '班級'}座位表_${A.fmtDate(new Date()).replace(/\//g, '')}.pdf`);
+      toast('✓ 已輸出座位表 PDF');
+    } catch (err) { toast('PDF 產生失敗：' + err.message); }
+    b.disabled = false; b.textContent = old;
   }
   // 交換位置（導師）：點兩下互換、恢復預設、清空、大頭照資料夾
   function chartPanel() {
@@ -784,6 +908,7 @@
     const act = b.dataset.sa;
     if (act === 'copyUrl') { toast(await A.copyText(studentUrl()) ? '已複製學生登入網址' : '複製失敗'); return; }
     if (act === 'default') return applyDefault(true);
+    if (act === 'pdf') return seatPdf(b);
     if (act === 'saveDefault') return commitDraft(b);
     if (act === 'clear') {
       if (!await A.ask('確定要清空整張座位表嗎？\n（清空前的座位表會備份，可以還原）', '清空', true)) return;
