@@ -170,7 +170,7 @@
     return q.ids.map((_, i) => ({ x: P0.x + tx * (i - (k - 1) / 2) * g, y: P0.y + ty * (i - (k - 1) / 2) * g }));
   }
   function startParty() {
-    const free = Object.entries(pets).filter(([, p]) => p.mode === 'path' && p.x != null);
+    const free = Object.entries(pets).filter(([, p]) => (p.mode === 'path' || p.mode === 'ride') && p.x != null && !(p.fly && p.fly.k < 1));   // 搭交通工具的也會來（火箭在空中時等牠降落）
     if (free.length < 2) { nextParty = Date.now() + 20000; return; }
     const k = Math.min(free.length, forceK || 2 + Math.floor(Math.random() * (Math.min(6, free.length) - 1)));
     forceK = 0;
@@ -179,7 +179,7 @@
     const p0 = pick[0][1], x = Math.max(geo.L + 80, Math.min(geo.R - 80, p0.x));
     const s0 = p0.y < (geo.T + geo.B) / 2 ? (x - geo.L) / geo.per : (geo.w + geo.h + (geo.R - x)) / geo.per;
     party = { ids: pick.map(([id]) => id), s: s0, phase: 'gather', until: Date.now() + 9000 };
-    pick.forEach(([, p], i) => { p.party = i + 1; p.mode = 'party'; });
+    pick.forEach(([, p], i) => { p.party = i + 1; p.mode = 'party'; p.ang = 0; });
   }
   function playParty() {
     const q = party, k = q.ids.length, def = PARTY[k];
@@ -329,7 +329,7 @@
     const bz = k => ({ x: (1 - k) * (1 - k) * F.from.x + 2 * (1 - k) * k * F.c.x + k * k * F.to.x, y: (1 - k) * (1 - k) * F.from.y + 2 * (1 - k) * k * F.c.y + k * k * F.to.y });
     const q = bz(F.k), q0 = bz(k0), vx = q.x - q0.x, vy = q.y - q0.y;
     if (Math.hypot(vx, vy) > 0.01) {
-      p.face = vx >= 0 ? 1 : -1;
+      if (Math.abs(vx) > Math.hypot(vx, vy) * 0.25) p.face = vx >= 0 ? 1 : -1;   // 幾乎垂直時不換方向（不然每一格都左右翻、看起來在閃）
       p.ang = Math.max(-80, Math.min(80, (p.face > 0 ? Math.atan2(vy, vx) : -Math.atan2(vy, -vx)) * 180 / Math.PI));
     }
     if (F.k >= 1) { p.ang = 0; if (r.route !== 'v') p.s = nearestS(F.to); }
