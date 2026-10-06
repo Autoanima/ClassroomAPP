@@ -316,7 +316,7 @@
       let to;
       if (r.route === 'v') {   // 前後直飛：上邊 ↔ 下邊，x 隨機
         const top = Math.abs(p.y - g.T) < Math.abs(p.y - g.B);
-        to = { x: g.L + Math.random() * g.w, y: top ? g.B : g.T };
+        to = { x: Math.max(g.L, Math.min(g.R, p.x + (Math.random() - 0.5) * 70)), y: top ? g.B : g.T };   // 幾乎直直的，只稍微偏一點
       } else {                 // 斜斜飛到對面的邊
         const s0 = nearestS(from), s1 = s0 + 0.35 + Math.random() * 0.3;
         to = along(g, s1);
@@ -342,6 +342,7 @@
     const r = rideOf(id), want = r && r.route !== 'walk' ? r.v + ':' + r.route : '';
     if ((p.ride ? p.ride.v + ':' + p.ride.route : '') === want) return;
     p.ride = want ? { v: r.v, route: r.route } : null;
+    if (p.x == null || isNaN(p.x)) { const q = along(geo, p.s); p.x = q.x; p.y = q.y; }   // 剛出現：先放在邊邊上的位置
     delete p.fly; delete p.bt; delete p.bd; delete p.wait; delete p.edge; p.ang = 0;
     if (p.ride && (p.ride.v === 'boat' || p.ride.v === 'rocket')) {   // 先走到出發的地方
       if (p.ride.v === 'boat') {
