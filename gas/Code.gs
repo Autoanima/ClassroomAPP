@@ -114,11 +114,11 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ petRide: 1, buyRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ rideLook: 1, rideImage: 1, petRide: 1, buyRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ petRide: 1, buyRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, lunchChange: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ rideLook: 1, rideImage: 1, petRide: 1, buyRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, lunchChange: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
-const GUEST_OK = { getTimetable: 1, getPets: 1, petImage: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
+const GUEST_OK = { rideImage: 1, getTimetable: 1, getPets: 1, petImage: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { cleanLeaves: 1, notifyCheck: 1, saveRecords: 1, uploadPhoto: 1, getCheckLive: 1, setCheckLive: 1 };
 const MONITOR_OK = { addDrawLog: 1, getDrawFx: 1, drawUsed: 1 };   // 用學生身分登入的班長、副班長：可以抽籤
 
@@ -215,6 +215,9 @@ function doPost(e) {
       case 'delCoursePost': return json(delCoursePost(who, req.id));
       case 'feedPet': return json(feedPet(who, req.id));
       case 'petRide': return json(petRide(who, req.id, req.ride));
+      case 'rideLook': return json(rideLook(who, String(req.kind || ''), req.data, req.owner));
+      case 'rideImage': return json(rideImage(req.id));
+      case 'rideRemove': return json(rideRemove(who, req.owner, String(req.kind || '')));
       case 'buyRide': return json(buyRide(who, String(req.kind || '')));
       case 'petLook': return json(petLook(who, req.id, req.name, req.data));
       case 'petImage': return json(petImage(req.id));
@@ -1921,7 +1924,9 @@ function getPets(who) {
   const rm = rideMap(), rides = {}, owned = {}, meK = who.teacher ? CONFIG.TEACHER_NAME : who.key;
   rows.filter(x => x.status === '寵物').forEach(x => { if (rm[x.id]) rides[x.id] = rm[x.id]; if (!owned[x.owner]) owned[x.owner] = ridesOf(sp, x.owner); });
   if (!owned[meK]) owned[meK] = ridesOf(sp, meK);
-  return { ok: true, rides: rides, owned: owned, ridePrice: RIDE_PRICE, pets: rows.filter(x => petLive(x) || (x.status === '覓食' && x.died > week)).map(x => Object.assign(petPub(x), { feeders: feeders(x.id) })),
+  const rim = rideImgMap(), rideImgs = {};
+  Object.keys(rim).forEach(k => { if (owned[k.split('|')[0]] && owned[k.split('|')[0]].indexOf(k.split('|')[1]) >= 0) rideImgs[k] = rim[k]; });
+  return { ok: true, rides: rides, owned: owned, rideImgs: rideImgs, ridePrice: RIDE_PRICE, pets: rows.filter(x => petLive(x) || (x.status === '覓食' && x.died > week)).map(x => Object.assign(petPub(x), { feeders: feeders(x.id) })),
     gone: rows.filter(x => x.status === '飛走' && x.hatch > week).map(petPub), hatchOk: PET.HATCH_OK, me: who.teacher ? CONFIG.TEACHER_NAME : who.key, now: Date.now(), food: PET.FOOD, max: PET.MAX_HP };
 }
 /** 餵罐罐：花 1 點，+1 HP（最多補到這隻自己的上限） */
@@ -1944,10 +1949,13 @@ function feedPet(who, id) {
 }
 // ── 🚗 寵物的交通工具：商店買（每種 10 點，永久保存，不會消耗），主人設定哪一隻寵物搭哪一種、要不要顯示、怎麼走 ──
 //    擁有：「點數使用」工作表（用途：寵物交通工具、對象：car／ring／rocket／boat）；每隻寵物的設定：Script Properties PET_RIDE
-const PET_RIDES = { car: '汽車', ring: '游泳圈', rocket: '火箭', boat: '船' };
+const PET_RIDES = { car: '汽車', ring: '游泳圈', rocket: '火箭', boat: '船', ufo: '飛碟' };
 const RIDE_PRICE = 10;
-const RIDE_ROUTES = { car: ['cw', 'ccw', 'walk'], ring: ['cw', 'ccw', 'walk'], boat: ['h', 'v', 'walk'], rocket: ['x', 'v', 'walk'] };
-function ridesOf(rows, key) { return rows.filter(x => x.who === key && x.use === '寵物交通工具' && PET_RIDES[x.target]).map(x => x.target).filter((k, i, a) => a.indexOf(k) === i); }
+const RIDE_ROUTES = { car: ['cw', 'ccw', 'walk'], ring: ['cw', 'ccw', 'walk'], boat: ['h', 'v', 'walk'], rocket: ['x', 'v', 'walk'], ufo: ['cw', 'ccw', 'warp', 'walk'] };
+function ridesOf(rows, key) {   // 導師移除過的：移除之後再買的才算
+  const rv = rideRevoked();
+  return rows.filter(x => x.who === key && x.use === '寵物交通工具' && PET_RIDES[x.target] && x.t > (rv[key + '|' + x.target] || 0)).map(x => x.target).filter((k, i, a) => a.indexOf(k) === i);
+}
 const rideMap = () => arenaJson(PropertiesService.getScriptProperties().getProperty('PET_RIDE')) || {};
 function buyRide(who, kind) {
   if (!PET_RIDES[kind]) throw new Error('沒有這種交通工具');
@@ -1960,6 +1968,52 @@ function buyRide(who, kind) {
     addSpend(who.key, who.teacher ? 0 : RIDE_PRICE, '寵物交通工具', kind, '買了寵物的' + PET_RIDES[kind]);
   });
   return shopState(who);
+}
+// 交通工具的自訂外觀（主人上傳 PNG 去背）：RIDE_IMG { '主人|car': 雲端檔案 id }；導師移除交通工具：RIDE_REVOKED { '主人|car': 移除時間 }（不退點數，之後可以再買）
+const rideImgMap = () => arenaJson(PropertiesService.getScriptProperties().getProperty('RIDE_IMG')) || {};
+const rideRevoked = () => arenaJson(PropertiesService.getScriptProperties().getProperty('RIDE_REVOKED')) || {};
+function rideLook(who, kind, data, owner) {
+  owner = who.teacher ? String(owner || '') : who.key;
+  if (!PET_RIDES[kind]) throw new Error('沒有這種交通工具');
+  if (!who.teacher && ridesOf(spendRows(), owner).indexOf(kind) < 0) throw new Error('你還沒有' + PET_RIDES[kind]);
+  let fid = '';
+  if (data) {
+    const m = String(data).match(/^data:image\/(png|jpeg|webp|gif);base64,(.+)$/);
+    if (!m) throw new Error('請選一張圖片（建議 PNG 去背）');
+    const bytes = Utilities.base64Decode(m[2]);
+    if (bytes.length > 600000) throw new Error('圖片太大了');
+    const root = getRootFolder(), it = root.getFoldersByName('班級寵物'), folder = it.hasNext() ? it.next() : root.createFolder('班級寵物');
+    fid = folder.createFile(Utilities.newBlob(bytes, 'image/' + m[1], '交通工具_' + owner + '_' + kind + '.' + (m[1] === 'jpeg' ? 'jpg' : m[1]))).getId();
+  }
+  withLock(() => {
+    const map = rideImgMap(), k = owner + '|' + kind;
+    if (map[k]) { try { DriveApp.getFileById(map[k]).setTrashed(true); } catch (e) { /* 舊檔不在了 */ } }
+    if (fid) map[k] = fid; else delete map[k];
+    PropertiesService.getScriptProperties().setProperty('RIDE_IMG', JSON.stringify(map));
+  });
+  return getPets(who);
+}
+function rideImage(id) {
+  const map = rideImgMap();
+  if (!Object.keys(map).some(k => map[k] === String(id))) return { ok: true, img: '' };
+  try { const b = DriveApp.getFileById(String(id)).getBlob(); return { ok: true, img: 'data:' + b.getContentType() + ';base64,' + Utilities.base64Encode(b.getBytes()) }; }
+  catch (e) { return { ok: true, img: '' }; }
+}
+/** 導師：移除某位同學的交通工具（連同自訂外觀、正在搭的寵物也下車）；不退點數 */
+function rideRemove(who, owner, kind) {
+  if (!who.teacher) throw new Error('只有導師可以移除交通工具');
+  owner = String(owner || '');
+  if (!PET_RIDES[kind]) throw new Error('沒有這種交通工具');
+  withLock(() => {
+    const props = PropertiesService.getScriptProperties(), k = owner + '|' + kind;
+    const rv = rideRevoked(); rv[k] = Date.now(); props.setProperty('RIDE_REVOKED', JSON.stringify(rv));
+    const map = rideImgMap();
+    if (map[k]) { try { DriveApp.getFileById(map[k]).setTrashed(true); } catch (e) { /* 舊檔不在了 */ } delete map[k]; props.setProperty('RIDE_IMG', JSON.stringify(map)); }
+    const rm = rideMap(), mine = petRows().filter(x => x.owner === owner).map(x => x.id);
+    Object.keys(rm).forEach(id => { if (mine.indexOf(id) >= 0 && rm[id].v === kind) delete rm[id]; });
+    props.setProperty('PET_RIDE', JSON.stringify(rm));
+  });
+  return getPets(who);
 }
 function petRide(who, id, r) {
   r = r || {};

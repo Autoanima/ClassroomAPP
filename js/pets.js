@@ -46,6 +46,13 @@
       back: `<path d="M57 2v34" stroke="#6b4423" stroke-width="2.4"/><path d="M58 5q15 13 1 28h-1z" fill="#fff" stroke="#adb5bd" stroke-width="1"/><path d="M57 2l9 3-9 3z" fill="#f03e3e"/>`,
       front: `<path d="M2 34h68l-9 13H12z" fill="#8d5a2b"/><path d="M4 36h64" stroke="#5e3a17" stroke-width="2"/><circle cx="22" cy="40" r="2" fill="#ffd43b"/><circle cx="36" cy="40" r="2" fill="#ffd43b"/><circle cx="50" cy="40" r="2" fill="#ffd43b"/>
         <path d="M0 50q6-4 12 0t12 0 12 0 12 0 12 0 12 0" fill="none" stroke="#4dabf7" stroke-width="2.4"/>` },
+    ufo: { name: '飛碟', ico: '🛸', w: 76, h: 44, left: -21, bottom: -12, lift: 9,
+      desc: '鋸齒形飛來飛去，或在一個地方盤旋一下就「咻」地消失、在別的地方出現',
+      routes: [['cw', '順時針鋸齒飛行'], ['ccw', '逆時針鋸齒飛行'], ['warp', '瞬間移動（消失、在別的地方出現）']],
+      back: `<path d="M16 34l-8 10h60l-8-10z" fill="#fff3bf" opacity=".35"/>`,
+      front: `<path d="M20 27q0-21 18-21t18 21z" fill="#a5d8ff" opacity=".38" stroke="#74c0fc" stroke-width="1.4"/><path d="M27 12q4-4 9-4" stroke="#fff" stroke-width="2" fill="none" opacity=".8"/>
+        <ellipse cx="38" cy="30" rx="37" ry="9" fill="#868e96"/><ellipse cx="38" cy="27" rx="37" ry="7" fill="#ced4da"/><ellipse cx="38" cy="36" rx="14" ry="3.5" fill="#495057"/>
+        <circle class="ufo-l" cx="12" cy="29" r="2.4" fill="#ffd43b"/><circle class="ufo-l" cx="25" cy="31" r="2.4" fill="#ff6b6b"/><circle class="ufo-l" cx="38" cy="32" r="2.4" fill="#69db7c"/><circle class="ufo-l" cx="51" cy="31" r="2.4" fill="#ff6b6b"/><circle class="ufo-l" cx="64" cy="29" r="2.4" fill="#ffd43b"/>` },
     rocket: { name: '火箭', ico: '🚀', w: 80, h: 36, left: -22, bottom: -10, lift: 7,
       desc: '咻～飛越教室，車頭會朝著飛的方向轉',
       routes: [['x', '斜斜飛越教室（弧線）'], ['v', '直直往前、往後飛（直線）']],
@@ -58,12 +65,29 @@
   A.petRides = RIDES;
   A.petRideArt = k => (RIDES[k] ? `<svg viewBox="0 0 ${RIDES[k].w} ${RIDES[k].h}" aria-hidden="true">${RIDES[k].back}${RIDES[k].front}</svg>` : '');
   const rideOf = id => { const r = P?.rides?.[id]; return r && RIDES[r.v] ? r : null; };
+  // 主人上傳的外觀：整張圖放在寵物後面（同樣的大小），寵物坐在圖的上半部
+  const rideImgs = store.get('indoor.rideimg', {});   // 雲端檔案 id → data URL
+  const customOf = (owner, v) => { const id = P?.rideImgs?.[owner + '|' + v]; return id && rideImgs[id] ? rideImgs[id] : ''; };
+  const rideLift = (owner, v) => { const D = RIDES[v]; return customOf(owner, v) ? Math.round(34 - (34 - D.bottom - D.h) - D.h * 0.42) : D.lift; };
+  function rideParts(owner, v) {
+    const D = RIDES[v], st = `width:${D.w}px;height:${D.h}px;left:${D.left}px;bottom:${D.bottom}px`, img = customOf(owner, v);
+    if (img) return { back: `<span class="rv rv-back rv-img" style="${st}"><img src="${img}" alt=""></span>`, front: '' };
+    return { back: `<span class="rv rv-back" style="${st}">${rideSvg(v, 'back')}</span>`, front: D.front ? `<span class="rv rv-front" style="${st}">${rideSvg(v, 'front')}</span>` : '' };
+  }
   const rideWrap = (x, inner) => {
     const r = rideOf(x.id);
     if (!r || r.show === false) return inner;
-    const D = RIDES[r.v], st = `width:${D.w}px;height:${D.h}px;left:${D.left}px;bottom:${D.bottom}px`;
-    return `<span class="rv rv-back" style="${st}">${rideSvg(r.v, 'back')}</span>${inner}${D.front ? `<span class="rv rv-front" style="${st}">${rideSvg(r.v, 'front')}</span>` : ''}`;
+    const pp = rideParts(x.owner, r.v);
+    return pp.back + inner + pp.front;
   };
+  async function loadRideImgs() {
+    const want = Object.values(P?.rideImgs || {});
+    Object.keys(rideImgs).forEach(id => { if (!want.includes(id)) delete rideImgs[id]; });
+    for (const id of want.filter(id => !rideImgs[id])) {
+      try { const r = await A.api('rideImage', { id }); if (r.img) { rideImgs[id] = r.img; paintMap(true); if (A.currentTab() === 'pet') render(); } } catch { /* 下次再試 */ }
+    }
+    try { store.set('indoor.rideimg', rideImgs); } catch { /* 空間不夠就只留在記憶體 */ }
+  }
   const imgs = store.get('indoor.petimg', {});   // 圖片 id → data URL（存在這台裝置，有換才重新下載）
   const look = x => (x.imgId && imgs[x.imgId] ? `<img src="${imgs[x.imgId]}" alt="">` : CAT);
   async function loadImgs() {
@@ -81,6 +105,7 @@
       paintMap(true);
       events();
       loadImgs();
+      loadRideImgs();
       return P;
     })();
     return loading;
@@ -131,9 +156,9 @@
     pets = keep;
     geo = geometry(); geoAt = Date.now();
     if (geo) Object.entries(pets).forEach(([id, p]) => syncRide(p, id));
-    if (force || ly.dataset.sig !== alive.map(x => x.id + (x.imgId || '') + JSON.stringify(rideOf(x.id) || '')).join() + '|' + eggs.length) {
-      ly.dataset.sig = alive.map(x => x.id + (x.imgId || '') + JSON.stringify(rideOf(x.id) || '')).join() + '|' + eggs.length;
-      ly.innerHTML = eh + alive.map(x => { const r = rideOf(x.id); return `<button type="button" class="pet${r && r.show !== false ? ' riding ride-' + r.v : ''}" data-pet="${esc(x.id)}" title="${esc(petName(x))}${r ? `（搭${RIDES[r.v].name}）` : ''}"${r && r.show !== false ? ` style="--lift:${RIDES[r.v].lift}px"` : ''}><span class="pet-rig">${rideWrap(x, `<span class="pet-body">${look(x)}</span>`)}</span><i class="pet-shadow"></i><span class="pet-zz" aria-hidden="true">💤</span></button>`; }).join('');
+    if (force || ly.dataset.sig !== alive.map(x => x.id + (x.imgId || '') + JSON.stringify(rideOf(x.id) || '') + (rideOf(x.id) ? customOf(x.owner, rideOf(x.id).v).length : '')).join() + '|' + eggs.length) {
+      ly.dataset.sig = alive.map(x => x.id + (x.imgId || '') + JSON.stringify(rideOf(x.id) || '') + (rideOf(x.id) ? customOf(x.owner, rideOf(x.id).v).length : '')).join() + '|' + eggs.length;
+      ly.innerHTML = eh + alive.map(x => { const r = rideOf(x.id); return `<button type="button" class="pet${r && r.show !== false ? ' riding ride-' + r.v : ''}" data-pet="${esc(x.id)}" title="${esc(petName(x))}${r ? `（搭${RIDES[r.v].name}）` : ''}"${r && r.show !== false ? ` style="--lift:${rideLift(x.owner, r.v)}px"` : ''}><span class="pet-rig">${rideWrap(x, `<span class="pet-body">${look(x)}</span>`)}</span><i class="pet-shadow"></i><span class="pet-zz" aria-hidden="true">💤</span></button>`; }).join('');
     }
     geo = geometry(); geoAt = Date.now();
     placeEggs();
@@ -170,7 +195,7 @@
     return q.ids.map((_, i) => ({ x: P0.x + tx * (i - (k - 1) / 2) * g, y: P0.y + ty * (i - (k - 1) / 2) * g }));
   }
   function startParty() {
-    const free = Object.entries(pets).filter(([, p]) => (p.mode === 'path' || p.mode === 'ride') && p.x != null && !(p.fly && p.fly.k < 1));   // 搭交通工具的也會來（火箭在空中時等牠降落）
+    const free = Object.entries(pets).filter(([, p]) => (p.mode === 'path' || p.mode === 'ride') && p.x != null && !(p.fly && p.fly.k < 1) && !(p.warp && p.warp !== 'hover'));   // 搭交通工具的也會來（火箭在空中時等牠降落）
     if (free.length < 2) { nextParty = Date.now() + 20000; return; }
     const k = Math.min(free.length, forceK || 2 + Math.floor(Math.random() * (Math.min(6, free.length) - 1)));
     forceK = 0;
@@ -280,6 +305,8 @@
         el.style.transform = `translate(${b.x - 17}px, ${b.y - 30}px)`;
         el.classList.toggle('walk', inParty ? moving : p.mode === 'go' || p.mode === 'go2ride' || p.mode === 'back' || p.mode === 'ride' || (p.mode === 'path' && p.walk));
         el.style.setProperty('--ang', ((!inParty && p.mode === 'ride' && p.ang) || 0).toFixed(1) + 'deg');
+        el.classList.toggle('warp-out', p.mode === 'ride' && p.warp === 'out');
+        el.classList.toggle('warp-in', p.mode === 'ride' && p.warp === 'in');
         el.classList.toggle('sleep', p.mode === 'sleep');
         el.classList.toggle('off', !!p.park);
         paintPark(id, p);
@@ -292,6 +319,27 @@
   // ── 🚗 搭交通工具的走法（每種都不一樣）──
   function rideStep(p, dt) {
     const r = p.ride, g = geo, now = Date.now();
+    if (r.v === 'ufo') {
+      p.ang = 0;
+      if (r.route === 'warp') {   // 盤旋 → 咻地消失 → 在教室邊邊另一個地方出現
+        const W = p.wz ||= { ph: 'hover', until: now + 3000 + Math.random() * 3000, at: { x: p.x, y: p.y } };
+        if (now > W.until) {
+          if (W.ph === 'hover') { W.ph = 'out'; W.until = now + 650; }
+          else if (W.ph === 'out') { W.ph = 'in'; W.until = now + 650; p.s = Math.random(); W.at = along(g, p.s); p.face = Math.random() < 0.5 ? 1 : -1; }
+          else { W.ph = 'hover'; W.until = now + 3000 + Math.random() * 3000; }
+        }
+        p.warp = W.ph;
+        const t = now / 1000;
+        return { x: W.at.x + Math.sin(t * 1.7) * 6, y: W.at.y + Math.sin(t * 2.3) * 3 };
+      }
+      p.warp = '';
+      const a = along(g, p.s);   // 鋸齒形：沿著邊前進，一邊左右（或上下）來回
+      p.s += (r.route === 'ccw' ? -1 : 1) * 46 * dt / g.per;
+      const q = along(g, p.s), tl = Math.hypot(q.x - a.x, q.y - a.y) || 1, nx = -(q.y - a.y) / tl, ny = (q.x - a.x) / tl;
+      if (Math.abs(q.x - a.x) > 0.01) p.face = q.x > a.x ? 1 : -1;
+      const ph = (now / 650) % 2, tri = (ph < 1 ? ph : 2 - ph) * 2 - 1;
+      return { x: q.x + nx * tri * 11, y: q.y + ny * tri * 11 };
+    }
     if (r.v === 'car' || r.v === 'ring') {
       const a = along(g, p.s);
       p.s += (r.route === 'ccw' ? -1 : 1) * (r.v === 'car' ? 72 : 20) * dt / g.per;
@@ -341,7 +389,7 @@
   // ── 下車／停車／上車：去聚會或去睡覺前先下交通工具（交通工具停在原地），回來再坐上去繼續原本的走法 ──
   function dismount(p) { p.park = { x: p.x, y: p.y, face: p.face, v: p.vk }; p.ang = 0; }
   function remount(p, id) {
-    p.x = p.park.x; p.y = p.park.y; p.face = p.park.face; delete p.park; p.napAt = 0;
+    p.x = p.park.x; p.y = p.park.y; p.face = p.park.face; delete p.park; p.napAt = 0; delete p.wz; p.warp = '';
     if (p.resync) { p.resync = false; p.ride = null; p.mode = 'path'; p.until = 0; p.s = nearestS({ x: p.x, y: p.y }); syncRide(p, id); return; }   // 玩的時候主人改了設定：照新的設定
     p.s = nearestS({ x: p.x, y: p.y });
     p.mode = p.ride ? 'ride' : 'path'; p.until = 0;
@@ -350,7 +398,7 @@
   function napCheck(p) {
     const now = Date.now();
     if (!p.napAt) { p.napAt = now + 6000 + Math.random() * 6000; return false; }
-    if (now < p.napAt || (p.fly && p.fly.k < 1)) return false;
+    if (now < p.napAt || (p.fly && p.fly.k < 1) || (p.warp && p.warp !== 'hover')) return false;   // 火箭在空中、飛碟正在消失時不下車
     p.napAt = 0;
     const spot = maybeSleep(p);
     if (!spot) return false;
@@ -361,12 +409,13 @@
     let pk = layer.querySelector(`.ride-park[data-for="${CSS.escape(id)}"]`);
     const r = rideOf(id);
     if (!p.park || !r || r.show === false) { pk?.remove(); return; }
-    if (!pk || pk.dataset.v !== r.v) {
+    const owner = P.pets.find(y => y.id === id)?.owner || '', sig = r.v + customOf(owner, r.v).length;
+    if (!pk || pk.dataset.v !== sig) {
       pk?.remove();
       pk = document.createElement('span');
-      pk.className = `pet ride-park riding ride-${r.v}`; pk.dataset.for = id; pk.dataset.v = r.v;
-      const D = RIDES[r.v], st = `width:${D.w}px;height:${D.h}px;left:${D.left}px;bottom:${D.bottom}px`;
-      pk.innerHTML = `<span class="pet-rig"><span class="rv rv-back" style="${st}">${rideSvg(r.v, 'back')}</span>${D.front ? `<span class="rv rv-front" style="${st}">${rideSvg(r.v, 'front')}</span>` : ''}</span><i class="pet-shadow"></i>`;
+      pk.className = `pet ride-park riding ride-${r.v}`; pk.dataset.for = id; pk.dataset.v = sig;
+      const pp = rideParts(owner, r.v);
+      pk.innerHTML = `<span class="pet-rig">${pp.back}${pp.front}</span><i class="pet-shadow"></i>`;
       layer.prepend(pk);   // 放在最下面，寵物走過去會在前面
     }
     pk.style.transform = `translate(${p.park.x - 17}px, ${p.park.y - 30}px)`;
@@ -382,7 +431,7 @@
     if (p.party || p.park || p.mode === 'go' || p.mode === 'sleep') { p.ride = want ? { v: r.v, route: r.route } : null; p.resync = true; return; }   // 正在玩／睡覺：回來再換
     p.ride = want ? { v: r.v, route: r.route } : null;
     if (p.x == null || isNaN(p.x)) { const q = along(geo, p.s); p.x = q.x; p.y = q.y; }   // 剛出現：先放在邊邊上的位置
-    delete p.fly; delete p.bt; delete p.bd; delete p.wait; delete p.edge; p.ang = 0;
+    delete p.fly; delete p.bt; delete p.bd; delete p.wait; delete p.edge; delete p.wz; p.warp = ''; p.ang = 0;
     if (p.ride && (p.ride.v === 'boat' || p.ride.v === 'rocket')) {   // 先走到出發的地方
       if (p.ride.v === 'boat') {
         const H = p.ride.route !== 'v', x = p.x ?? geo.L, y = p.y ?? geo.B;
@@ -671,6 +720,14 @@
       h += `<p class="muted small">${esc(D.desc)}</p><div class="ride-routes">${D.routes.concat([['walk', '照平常走路的方式（只是坐在上面）']]).map(([k, t]) =>
         `<button type="button" data-act="rideR" data-r="${k}" aria-pressed="${(cur.route || D.routes[0][0]) === k}">${esc(t)}</button>`).join('')}</div>
         <label class="ride-show"><input type="checkbox" class="ride-showcb"${cur.show === false ? '' : ' checked'}> 在座位表上顯示${D.name}的樣子</label>`;
+      const own = (P.owned?.[x.owner] || []).includes(v), img = customOf(x.owner, v);
+      if (own && (x.owner === A.me() || A.isTeacher())) {
+        h += `<div class="ride-look"><span class="ride-look-pic">${img ? `<img src="${img}" alt="">` : A.petRideArt(v)}</span><div>
+          <b class="small">${D.name}的外觀${img ? '（自訂）' : '（預設）'}</b>
+          ${x.owner === A.me() ? `<label class="lv-f"><span class="small">上傳自己畫的${D.name}（建議 PNG 去背、橫的；寵物會坐在圖的上半部）</span><input type="file" class="ride-file" accept="image/png,image/webp,image/gif,image/jpeg"></label>
+          <div class="actions"><button type="button" class="btn" data-act="rideLook">上傳外觀</button>${img ? '<button type="button" class="btn" data-act="rideLookDel">恢復預設外觀</button>' : ''}</div>` : ''}
+          ${A.isTeacher() ? `<div class="actions">${img ? '<button type="button" class="btn btn--danger" data-act="rideLookDel">🗑 刪除自訂外觀（導師）</button>' : ''}<button type="button" class="btn btn--danger" data-act="rideRemove">🗑 移除這個${D.name}（導師）</button></div>` : ''}</div></div>`;
+      }
     }
     return h;
   }
@@ -688,6 +745,23 @@
     const sh = box.querySelector('.ride-showcb'); if (sh) cur.show = sh.checked;
     if (act === 'rideV') { cur.v = b.dataset.v; cur.route = ''; }
     if (act === 'rideR') cur.route = b.dataset.r;
+    if (act === 'rideLook' || act === 'rideLookDel' || act === 'rideRemove') {
+      const D = RIDES[cur.v], who = nm(x.owner);
+      if (!D) return;
+      let data = null;
+      if (act === 'rideLook') { const f = box.querySelector('.ride-file')?.files?.[0]; if (!f) return toast('請先選一張圖片'); data = await shrink(f).catch(e => { toast(e.message); return undefined; }); if (data === undefined) return; }
+      if (act === 'rideLookDel' && !await A.ask(`刪除${A.isTeacher() && x.owner !== A.me() ? who + ' 的' : ''}${D.name}自訂外觀，恢復成預設的樣子？`, '刪除', true)) return;
+      if (act === 'rideRemove' && !await A.ask(`移除 ${who} 的${D.name}？\n正在搭的寵物會下車，自訂外觀也會刪除；不會退回點數（之後可以再買）。`, '移除', true)) return;
+      b.disabled = true;
+      try {
+        P = act === 'rideRemove' ? await A.api('rideRemove', { owner: x.owner, kind: cur.v }) : await A.api('rideLook', { kind: cur.v, data, owner: x.owner });
+        const fid = P.rideImgs?.[x.owner + '|' + cur.v];
+        if (data && fid) { rideImgs[fid] = data; try { store.set('indoor.rideimg', rideImgs); } catch { /* 空間不夠 */ } }
+        toast(act === 'rideLook' ? `✓ 已換上新的${D.name}外觀` : act === 'rideLookDel' ? '✓ 已恢復預設外觀' : `✓ 已移除 ${who} 的${D.name}`);
+        paintMap(true); if (A.sheetMode()?.kind === 'pet') openCard(x.id); if (A.currentTab() === 'pet') render();
+      } catch (err) { toast(err.message); b.disabled = false; }
+      return;
+    }
     if (act !== 'petRide') { box.dataset.cfg = JSON.stringify(cur); box.querySelector('.ride-form').innerHTML = rideFormHtml(x, cur); return; }
     b.disabled = true; b.textContent = '儲存中…';
     try {
@@ -736,7 +810,7 @@
     } catch (err) { toast(err.message); if (b) b.disabled = false; }
   }
   A.sheetHandlers.pet = async (act, b) => {
-    if (act === 'rideV' || act === 'rideR' || act === 'petRide') return rideAct(act, b);
+    if (['rideV', 'rideR', 'petRide', 'rideLook', 'rideLookDel', 'rideRemove'].includes(act)) return rideAct(act, b);
     if (act === 'petFeed') return feed(b.dataset.id, b);
     if (act === 'petIncubate') return incubate([b.dataset.id], b);
     if (act === 'petDel') {
@@ -799,7 +873,7 @@
       <li>寵物孵化後<b>每天會餓掉 1 🍚</b>。在商店或寵物卡買<b>罐罐（${P.food} 點）</b>餵牠，<b>+1 🍚</b>（最多補到牠自己的上限）。</li>
       <li>有兩隻以上的寵物時，牠們偶爾會聚在一起玩：<b>2 隻碰碰鼻子、3 隻跳舞、4 隻開火車、5 隻拍團體照、6 隻疊羅漢</b> 🎉</li>
       <li>寵物會記得這一週誰餵牠：<b>餵越多次，牠越常跑去你的座位旁邊睡覺</b> 💤。</li>
-      <li>🚗 在商店買<b>寵物的交通工具</b>（汽車、游泳圈、火箭、船，每種 ${P.ridePrice || 10} 點，<b>永久保存</b>）。主人可以讓寵物坐上去、選要不要顯示、選怎麼走（每種的路線和方向都不一樣）。</li>
+      <li>🚗 在商店買<b>寵物的交通工具</b>（汽車、游泳圈、火箭、船、飛碟，每種 ${P.ridePrice || 10} 點，<b>永久保存</b>）。主人可以讓寵物坐上去、選要不要顯示、選怎麼走（每種的路線和方向都不一樣）。</li>
       <li>飽足度變成 <b>0 🍚</b>，寵物就會肚子餓、<b>跑出去自己覓食</b>，不回來了。大家一起照顧牠吧！</li></ol></details>`;
     const sec = (title, list) => (list.length ? `<div class="panel"><h3>${title}</h3><div class="pet-list">${list.map(x => `<div class="pet-row" data-petcard="${esc(x.id)}" role="button" tabindex="0">${cardHtml(x)}</div>`).join('')}</div></div>` : '');
     const meK = A.isTeacher() ? '' : A.me();
@@ -833,7 +907,7 @@
     const b = e.target.closest('[data-act]');
     if (b?.dataset.act === 'petFeed') { e.stopPropagation(); return feed(b.dataset.id, b); }
     if (b?.dataset.act === 'petIncubate') { e.stopPropagation(); return incubate(b.dataset.ids ? b.dataset.ids.split(',') : [b.dataset.id], b); }
-    if (['rideV', 'rideR', 'petRide'].includes(b?.dataset.act)) { e.stopPropagation(); return rideAct(b.dataset.act, b); }
+    if (['rideV', 'rideR', 'petRide', 'rideLook', 'rideLookDel', 'rideRemove'].includes(b?.dataset.act)) { e.stopPropagation(); return rideAct(b.dataset.act, b); }
     if (b?.dataset.act === 'petSave' || b?.dataset.act === 'petDel') { e.stopPropagation(); return A.sheetHandlers.pet(b.dataset.act, b); }   // 🐾 分頁裡的卡片：儲存外觀、導師移除
     if (e.target.closest('details, input, button')) return;
     const r = e.target.closest('[data-petcard]');
@@ -890,7 +964,7 @@
       store.set(SK, [...sp, { id: Math.random().toString(36).slice(2, 10), who, points: A.isTeacher() ? 0 : 10, use: '寵物交通工具', target: p.kind, note: '', time: '', t: Date.now() }]);
       return prevTest('shopState');
     }
-    if (!['getPets', 'feedPet', 'petLook', 'petImage', 'petAllot', 'petDelete', 'petIncubate', 'petRide'].includes(action)) return prevTest ? prevTest(action, p) : null;
+    if (!['getPets', 'feedPet', 'petLook', 'petImage', 'petAllot', 'petDelete', 'petIncubate', 'petRide', 'rideLook', 'rideImage', 'rideRemove'].includes(action)) return prevTest ? prevTest(action, p) : null;
     const KEY = 'indoor.pets.v1.test', all = store.get(KEY, null) || [], me = A.isTeacher() ? (A.D.teacherLabel || '導師') : A.me(), now = Date.now();
     if (!store.get(KEY, null)) {   // 第一次：補一顆蛋（最近被加分的同學）
       const k = A.students()[4] || A.students()[0];
@@ -933,6 +1007,14 @@
       }
     }
     const RK = 'indoor.petride.v1.test', rm = store.get(RK, {});
+    const IK = 'indoor.rideimg.v1.test', VK = 'indoor.riderevoked.v1.test', im = store.get(IK, {}), rv = store.get(VK, {});
+    if (action === 'rideImage') return { ok: true, img: Object.values(im).find(y => y.id === p.id)?.data || '' };
+    if (action === 'rideLook') { const o = A.isTeacher() ? p.owner : me, k = o + '|' + p.kind; if (p.data) im[k] = { id: 'r' + now.toString(36), data: p.data }; else delete im[k]; store.set(IK, im); }
+    if (action === 'rideRemove') {
+      if (!A.isTeacher()) throw new Error('只有導師可以移除交通工具');
+      const k = p.owner + '|' + p.kind; rv[k] = now; delete im[k]; store.set(VK, rv); store.set(IK, im);
+      const rm0 = store.get('indoor.petride.v1.test', {}); all.filter(x => x.owner === p.owner).forEach(x => { if (rm0[x.id]?.v === p.kind) delete rm0[x.id]; }); store.set('indoor.petride.v1.test', rm0);
+    }
     if (action === 'petRide') {
       const x = all.find(y => y.id === p.id), v = p.ride?.v || '';
       if (!x || x.status !== '寵物') throw new Error('孵化成寵物以後才能搭交通工具');
@@ -942,8 +1024,9 @@
     if (action === 'petImage') { const x = all.find(y => y.id === p.id); return { ok: true, img: store.get('indoor.petimgdata.test', {})[x?.imgId] || '' }; }
     store.set(KEY, all);
     const feeders = x => { const m = {}; (x.feedLog || []).filter(f => f.t > now - 7 * 864e5).forEach(f => { m[f.who] = (m[f.who] || 0) + 1; }); return Object.entries(m).map(([key, n]) => ({ key, n })).sort((a, b) => b.n - a.n); };
-    const spAll = store.get('indoor.shopspend.v1.test', []), ownedOf = k => [...new Set(spAll.filter(y => y.who === k && y.use === '寵物交通工具').map(y => y.target))];
+    const spAll = store.get('indoor.shopspend.v1.test', []), ownedOf = k => [...new Set(spAll.filter(y => y.who === k && y.use === '寵物交通工具' && y.t > (rv[k + '|' + y.target] || 0)).map(y => y.target))];
     const owned = {}; all.forEach(x => { owned[x.owner] ||= ownedOf(x.owner); }); owned[me] ||= ownedOf(me);
-    return { ok: true, rides: rm, owned, ridePrice: 10, pets: all.map(x => ({ ...x, img: x.imgId ? 1 : 0, feeders: feeders(x) })), gone: goneAll.filter(x => now - x.hatch < 7 * 864e5), me, now, food: 1, max: 10 };
+    const rideImgs = {}; Object.entries(im).forEach(([k, y]) => { const [o, v] = k.split('|'); if ((owned[o] || []).includes(v)) rideImgs[k] = y.id; });
+    return { ok: true, rides: rm, owned, rideImgs, ridePrice: 10, pets: all.map(x => ({ ...x, img: x.imgId ? 1 : 0, feeders: feeders(x) })), gone: goneAll.filter(x => now - x.hatch < 7 * 864e5), me, now, food: 1, max: 10 };
   };
 })();

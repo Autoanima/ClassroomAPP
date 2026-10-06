@@ -1880,7 +1880,21 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .ride-ico svg { width: 100%; height: 100%; }
 .ride-show { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 4px 0; }
 .ride-show input { width: 18px; height: 18px; accent-color: var(--accent); }
-@media (prefers-reduced-motion: reduce) { .pet .pet-rig, .pet .rv-back svg, .pet .rk-flame { animation: none !important; } }
+.pet .rv-img img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.ride-look { display: flex; gap: 12px; align-items: flex-start; margin: 10px 0 4px; padding: 10px; border-radius: 12px; background: var(--bg); }
+.ride-look-pic { width: 84px; height: 56px; flex: none; display: grid; place-items: center; }
+.ride-look-pic svg, .ride-look-pic img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.ride-look .actions { margin-top: 6px; flex-wrap: wrap; }
+/* 🛸 飛碟：一直上下飄、燈一閃一閃；瞬間移動時縮小消失、再從光束裡出現 */
+.pet.ride-ufo:not(.off) .pet-rig { animation: rideBob 1.6s ease-in-out infinite; }
+.pet.ride-ufo .ufo-l { animation: ufoLight .9s steps(2) infinite; }
+.pet.ride-ufo .ufo-l:nth-of-type(2n) { animation-delay: .45s; }
+@keyframes ufoLight { 50% { opacity: .25; } }
+.pet.warp-out { animation: ufoOut .65s ease-in forwards; }
+.pet.warp-in { animation: ufoIn .65s ease-out forwards; }
+@keyframes ufoOut { 0% { opacity: 1; scale: 1; } 40% { scale: 1.15 .8; } 100% { opacity: 0; scale: .1 1.6; } }
+@keyframes ufoIn { 0% { opacity: 0; scale: .1 1.6; } 60% { scale: 1.15 .85; } 100% { opacity: 1; scale: 1; } }
+@media (prefers-reduced-motion: reduce) { .pet .pet-rig, .pet .rv-back svg, .pet .rk-flame, .pet .ufo-l, .pet.warp-out, .pet.warp-in { animation: none !important; } }
 .pet.walk .pet-body { animation: petHop .42s ease-in-out infinite; }
 @keyframes petHop { 0%, 100% { translate: 0 0; rotate: -5deg; } 50% { translate: 0 -5px; rotate: 5deg; } }
 .pet:not(.walk):not(.sleep) .pet-body { animation: petLook 2.4s ease-in-out infinite; }
