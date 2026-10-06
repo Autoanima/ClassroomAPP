@@ -2923,36 +2923,45 @@ function getCheckLive(date) {
   return { ok: true, rows: rows };
 }
 /** 近兩週每位同學每天的打掃結果（好／有瑕疵／不好、未出席），給檢查視窗的燈號用；同學只能看自己的 */
-function checkHistory(who, owners) {
-  const can = who.teacher || isInspector(who.key);
-  owners = (owners || []).map(String).filter(k => can || k === who.key).slice(0, 10);
-  const out = {};
-  owners.forEach(k => { out[k] = {}; });
-  if (!owners.length) return { ok: true, hist: out };
-  const sh = liveSheet(), n = sh.getLastRow() - 1;
-  if (n < 1) return { ok: true, hist: out };
+// 全班近兩週（不含今天，今天的手機上就有）一次算好，快取 30 分鐘；有人改了以前的紀錄就清掉
+function checkHistAll() {
+  const today = ymd(new Date()), ck = 'chkhist:' + today, cache = CacheService.getScriptCache(), hit = cache.get(ck);
+  if (hit) { try { return JSON.parse(hit); } catch (e) { /* 重算 */ } }
+  const out = {}, sh = liveSheet(), n = sh.getLastRow() - 1;
   const cut = Utilities.formatDate(new Date(Date.now() - 15 * 864e5), CONFIG.TIMEZONE, 'yyyy/MM/dd');
   const rank = { '': 0, '好': 1, '有瑕疵': 2, '不好': 3 };
-  sh.getRange(2, 1, n, 3).getValues().forEach(r => {
+  if (n > 0) sh.getRange(2, 1, n, 3).getValues().forEach(r => {
     const d = String(r[0]);
-    if (d < cut) return;
+    if (d < cut || d >= today) return;
     const rec = arenaJson(r[2]);
     if (!rec) return;
-    owners.forEach(k => {
-      let base = (rec.status || {})[k] || '', absent = !!(rec.absent || {})[k];
+    const st = rec.status || {}, ab = rec.absent || {};
+    Object.keys(st).concat(Object.keys(ab)).forEach(k => {
+      let base = st[k] || '', absent = !!ab[k];
       if (base === '未出席') { base = ''; absent = true; }
       if (!base && !absent) return;
-      const cur = out[k][d] || { b: '', a: false };   // 同一天好幾個地方：取最差的
+      const m = out[k] = out[k] || {}, cur = m[d] || { b: '', a: false };   // 同一天好幾個地方：取最差的
       if (rank[base] > rank[cur.b]) cur.b = base;
       cur.a = cur.a || absent;
-      out[k][d] = cur;
+      m[d] = cur;
     });
   });
+  try { cache.put(ck, JSON.stringify(out), 1800); } catch (e) { /* 太大就不快取 */ }
+  return out;
+}
+function checkHistory(who, owners) {
+  const can = who.teacher || isInspector(who.key), all = checkHistAll();
+  owners = (owners || []).map(String);
+  if (can && owners.indexOf('*') >= 0) return { ok: true, hist: all, all: true };   // 檢查的人：一次拿全班
+  owners = owners.filter(k => can || k === who.key).slice(0, 10);
+  const out = {};
+  owners.forEach(k => { out[k] = all[k] || {}; });
   return { ok: true, hist: out };
 }
 function setCheckLive(who, date, rows) {
   const d = String(date || '');
   if (!/^\d{4}\/\d{2}\/\d{2}$/.test(d)) throw new Error('日期格式不對');
+  if (d < ymd(new Date())) CacheService.getScriptCache().remove('chkhist:' + ymd(new Date()));   // 改了以前的紀錄：近兩週燈號重算
   return withLock(() => {
     const sh = liveSheet(), n = sh.getLastRow() - 1;
     const vals = n > 0 ? sh.getRange(2, 1, n, 4).getValues() : [];

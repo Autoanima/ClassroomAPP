@@ -945,13 +945,36 @@
   }
   // id 可以是地圖上的物件或整組單位；focus＝使用者點的那個地方（地圖上會標出來）
   // ── 近兩週的燈號：每位負責人每天的結果（最右邊是今天；今天用手機上最新的紀錄）──
-  const histCache = {};   // 同學 → { at, d: { 'yyyy/MM/dd': { b, a } } }
+  // 檢查的人打開掃地分頁時，先在背景把全班的燈號一次拿回來（記在手機上，當天有效），點開地方就馬上顯示
+  const HK = 'indoor.hist.v1' + SFX, histSaved = store.get(HK, null);
+  const histCache = histSaved?.day === fmtDate(new Date()) ? histSaved.c : {};   // 同學 → { at, d: { 'yyyy/MM/dd': { b, a } } }
+  let histAllAt = histSaved?.day === fmtDate(new Date()) ? histSaved.allAt || 0 : 0, histAllP = null;
+  const saveHist = () => { try { store.set(HK, { day: fmtDate(new Date()), allAt: histAllAt, c: histCache }); } catch { /* 空間不夠 */ } };
+  function prefetchHist(force) {
+    if (!isChecker() || isGuest() || (!settings.gasUrl && !TEST)) return Promise.resolve();
+    if (!force && Date.now() - histAllAt < 10 * 60e3) return Promise.resolve();
+    return histAllP ||= api('checkHistory', { owners: ['*'] }).then(r => {
+      const at = Date.now();
+      Object.keys(histCache).forEach(o => { histCache[o] = { at, d: {} }; });
+      Object.entries(r.hist || {}).forEach(([o, d]) => { histCache[o] = { at, d }; });
+      histAllAt = at; saveHist();
+      if (sheetMode?.kind === 'item') rerenderItem(sheetMode.id);
+    }).catch(() => {}).finally(() => { histAllP = null; });
+  }
+  // 今天的燈號：這個地方的紀錄；沒有就看這位同學今天其他地方的紀錄（手機上就有，不用等雲端）
+  function todayOf(o, r) {
+    const now = stOf(r, o);
+    if (now.base || now.absent) return { b: now.base, a: now.absent };
+    const rank = { '': 0, '好': 1, '有瑕疵': 2, '不好': 3 };
+    let x = null;
+    UNITS.forEach(u => { if (!u.owners.includes(o)) return; const y = stOf(state.records[u.id], o); if (!y.base && !y.absent) return; x ||= { b: '', a: false }; if (rank[y.base] > rank[x.b]) x.b = y.base; x.a ||= y.absent; });
+    return x;
+  }
   const histDays = () => { const out = []; for (let i = 13; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); if (i === 0 || d.getDay() % 6) out.push(d); } return out; };
   function histHtml(o, r) {
     const c = histCache[o], today = fmtDate(new Date());
     if (!c) return `<span class="hist2"><span class="hist muted small">讀取燈號…</span></span>`;
-    const now = stOf(r, o);
-    const days = histDays().map(d => { const k = fmtDate(d); return { d, today: k === today, x: k === today ? (now.base || now.absent ? { b: now.base, a: now.absent } : c.d[k]) : c.d[k] }; });
+    const days = histDays().map(d => { const k = fmtDate(d); return { d, today: k === today, x: k === today ? todayOf(o, r) : c.d[k] }; });
     const tip = (d, t) => `${d.getMonth() + 1}/${d.getDate()}（${WEEK[d.getDay()]}）${t}`;
     // 上排：出席（白圈＝有出席、灰圈＝沒出席）；下排：表現（綠＝好、橘＝有瑕疵、紅＝不好）
     const att = days.map(({ d, today: t, x }) => `<i class="lamp att ${!x ? 'none' : x.a ? 'abs' : 'here'}${t ? ' today' : ''}" title="${tip(d, !x ? '沒有紀錄' : x.a ? '沒出席' : '有出席')}"></i>`).join('');
@@ -966,6 +989,13 @@
       <span class="hist" aria-label="近兩週表現扣分 ${nBad}"><span class="hist-lbl">（近兩週）${pts(nBad)} 表現</span>${perf}</span></span>`;
   }
   async function loadHist(owners, after) {
+    if (isChecker()) {   // 檢查的人：全班一起拿（有舊的先顯示，背景更新）
+      if (histAllAt) owners.forEach(o => { histCache[o] ||= { at: histAllAt, d: {} }; });   // 全班已經拿過：沒有紀錄的就是沒有紀錄
+      if (owners.every(o => histCache[o])) { after?.(); prefetchHist(); return; }
+      await prefetchHist(true);
+      owners.forEach(o => { histCache[o] ||= { at: Date.now(), d: {} }; });
+      after?.(); return;
+    }
     const need = owners.filter(o => !histCache[o] || Date.now() - histCache[o].at > 5 * 60e3);
     if (!need.length || isGuest() || (!settings.gasUrl && !TEST)) { if (!histCache[owners[0]] && owners.length) owners.forEach(o => { histCache[o] ||= { at: Date.now(), d: {} }; }); after?.(); return; }
     try {
@@ -1253,7 +1283,8 @@
     }
     if (action === 'checkHistory') {
       const all = store.get('indoor.live.test', {}), rank = { '': 0, '好': 1, '有瑕疵': 2, '不好': 3 }, hist = {};
-      payload.owners.forEach(k => { hist[k] = {}; Object.entries(all).forEach(([d, units]) => Object.values(units).forEach(rec => {
+      const ks = payload.owners.includes('*') ? [...new Set(Object.values(all).flatMap(units => Object.values(units).flatMap(rec => [...Object.keys(rec.status || {}), ...Object.keys(rec.absent || {})])))] : payload.owners;
+      ks.forEach(k => { hist[k] = {}; Object.entries(all).forEach(([d, units]) => Object.values(units).forEach(rec => {
         let b = rec.status?.[k] || '', a = !!rec.absent?.[k]; if (b === '未出席') { b = ''; a = true; }
         if (!b && !a) return; const cur = hist[k][d] || { b: '', a: false }; if (rank[b] > rank[cur.b]) cur.b = b; cur.a ||= a; hist[k][d] = cur;
       })); });
@@ -2632,6 +2663,7 @@
       renderArea();
       setTimeout(pollLive, 50);
       if (Date.now() - ciAt > 20e3) loadCheckins();
+      prefetchHist();
       loadLeaves(refresh);
     };
     mountMap('jobs', 'jobs').el.addEventListener('click', onJobsMapClick);
