@@ -1847,22 +1847,23 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 /* 🚗 寵物的交通工具：寵物不縮小，坐在比牠大的交通工具上 */
 .pet .pet-rig { position: absolute; inset: 0; display: block; transform: rotate(var(--ang, 0deg)); transform-origin: 50% 85%; }
 .pet .pet-rig > .pet-body { position: absolute; inset: 0; }
-.pet.riding:not(.party) .pet-rig > .pet-body { translate: 0 calc(-1 * var(--lift, 0px)); }
-/* 聚在一起玩的時候先下車（交通工具收起來），玩完再坐回去 */
-.pet.riding.party .rv { display: none; }
-.pet.riding.party .pet-rig { animation: none; transform: none; }
+.pet.riding:not(.off) .pet-rig > .pet-body { translate: 0 calc(-1 * var(--lift, 0px)); }
+/* 去聚會、去睡覺前先下車：交通工具停在原地（.ride-park），寵物走過去；回來再坐上去 */
+.pet.riding.off .rv { display: none; }
+.pet.riding.off .pet-rig { animation: none; transform: none; }
+#petLayer .ride-park { pointer-events: none; cursor: default; }
 .pet .rv { position: absolute; display: block; pointer-events: none; transform: scaleX(var(--face, 1)); transform-origin: 50% 100%; }
 .pet .rv svg { width: 100%; height: 100%; display: block; overflow: visible; }
 .pet .rv-back { z-index: 0; } .pet .pet-rig > .pet-body { z-index: 1; } .pet .rv-front { z-index: 2; }
-.pet.riding:not(.party) .pet-shadow { left: -10%; right: -10%; bottom: -12px; }
-.pet.riding.walk:not(.party) .pet-body { animation: none; }
-.pet.ride-car.walk:not(.party) .pet-rig { animation: rideCar .25s linear infinite; }
+.pet.riding:not(.off) .pet-shadow { left: -10%; right: -10%; bottom: -12px; }
+.pet.riding.walk:not(.off) .pet-body { animation: none; }
+.pet.ride-car.walk:not(.off) .pet-rig { animation: rideCar .25s linear infinite; }
 @keyframes rideCar { 0%, 100% { translate: 0 0; } 50% { translate: 0 -1px; } }
-.pet.ride-ring:not(.party) .pet-rig { animation: rideBob 2.2s ease-in-out infinite; }
+.pet.ride-ring:not(.off) .pet-rig { animation: rideBob 2.2s ease-in-out infinite; }
 .pet.ride-ring .rv-back svg { animation: rideSpin 6s linear infinite; }
 @keyframes rideBob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
 @keyframes rideSpin { 0%, 100% { rotate: -7deg; } 50% { rotate: 7deg; } }
-.pet.ride-boat:not(.party) .pet-rig { animation: rideRock 2.6s ease-in-out infinite; }
+.pet.ride-boat:not(.off) .pet-rig { animation: rideRock 2.6s ease-in-out infinite; }
 @keyframes rideRock { 0%, 100% { rotate: -4deg; } 50% { rotate: 4deg; } }
 .pet.ride-rocket .rk-flame { transform-origin: 12px 22px; animation: rideFlame .18s ease-in-out infinite alternate; }
 .pet.ride-rocket:not(.walk) .rk-flame { opacity: .35; }

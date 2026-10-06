@@ -179,7 +179,7 @@
     const p0 = pick[0][1], x = Math.max(geo.L + 80, Math.min(geo.R - 80, p0.x));
     const s0 = p0.y < (geo.T + geo.B) / 2 ? (x - geo.L) / geo.per : (geo.w + geo.h + (geo.R - x)) / geo.per;
     party = { ids: pick.map(([id]) => id), s: s0, phase: 'gather', until: Date.now() + 9000 };
-    pick.forEach(([, p], i) => { p.party = i + 1; p.mode = 'party'; p.ang = 0; });
+    pick.forEach(([, p], i) => { if (p.hasV) dismount(p); p.party = i + 1; p.mode = 'party'; p.ang = 0; });
   }
   function playParty() {
     const q = party, k = q.ids.length, def = PARTY[k];
@@ -204,7 +204,7 @@
     const q = party; party = null;
     q.fx?.remove();
     layer?.querySelectorAll('.pet.party').forEach(el => el.classList.remove('party', 'lead', ...Object.values(PARTY).map(d => d.cls)));
-    q.ids.forEach(id => { const pp = pets[id]; if (!pp) return; delete pp.party; pp.mode = 'back'; pp.s = nearestS(pp); pp.to = along(geo, pp.s); });
+    q.ids.forEach(id => { const pp = pets[id]; if (!pp) return; delete pp.party; pp.mode = 'back'; if (pp.park) pp.to = { x: pp.park.x, y: pp.park.y }; else { pp.s = nearestS(pp); pp.to = along(geo, pp.s); } });
     nextParty = Date.now() + 30000 + Math.random() * 40000;
   }
   let last = 0;
@@ -246,14 +246,14 @@
             if (party.ids.length === 4 && Math.abs(to.x - p.x) > 0.01) p.face = to.x > p.x ? 1 : -1;   // 火車：面向前進的方向
             b = to; moving = party.ids.length === 4;
           }
-        } else if (p.mode === 'ride') {
+        } else if (p.mode === 'ride' && !napCheck(p)) {
           b = rideStep(p, dt);
           moving = true;
         } else if (p.mode === 'path') {
           // 走一段、停一下；偶爾去餵過牠的同學旁邊睡覺（這週餵越多次，越常去）
           if (Date.now() > p.until) {
-            const spot = p.ride ? null : maybeSleep(p);
-            if (spot) { p.mode = 'go'; p.to = spot.pos; p.seat = spot.seat; p.walk = true; }
+            const spot = maybeSleep(p);
+            if (spot) { if (p.hasV) dismount(p); p.mode = 'go'; p.to = spot.pos; p.seat = spot.seat; p.walk = true; }
             else { p.walk = Math.random() < 0.72; p.until = Date.now() + (p.walk ? 3000 + Math.random() * 5000 : 1200 + Math.random() * 2200); if (p.walk && Math.random() < 0.25) p.dir *= -1; }
           }
           if (p.mode === 'path') {
@@ -268,11 +268,11 @@
             const s2 = seatSpot(p.seat);   // 座位表重畫、縮放時跟著座位
             if (s2) p.to = s2;
             b = p.to;
-            if (Date.now() > p.until) { p.mode = 'back'; p.s = nearestS(p.to); p.to = along(geo, p.s); }
+            if (Date.now() > p.until) { p.mode = 'back'; if (p.park) p.to = { x: p.park.x, y: p.park.y }; else { p.s = nearestS(p.to); p.to = along(geo, p.s); } }
           } else {
             const step = 34 * dt, dx = p.to.x - p.x, dy = p.to.y - p.y, d = Math.hypot(dx, dy);
             if (Math.abs(dx) > 0.5) p.face = dx > 0 ? 1 : -1;
-            if (d <= step) { b = { ...p.to }; if (p.mode === 'go2ride') { p.mode = 'ride'; } else if (p.mode === 'go') { p.mode = 'sleep'; p.until = Date.now() + 9000 + Math.random() * 9000; } else { p.mode = 'path'; p.until = 0; if (p.ride) { p.x = b.x; p.y = b.y; p.ride = null; syncRide(p, id); } } }
+            if (d <= step) { b = { ...p.to }; if (p.mode === 'go2ride') { p.mode = 'ride'; } else if (p.mode === 'go') { p.mode = 'sleep'; p.until = Date.now() + 9000 + Math.random() * 9000; } else if (p.park) { remount(p, id); b = { x: p.x, y: p.y }; } else { p.mode = 'path'; p.until = 0; if (p.ride || p.resync) { p.x = b.x; p.y = b.y; p.ride = null; p.resync = false; syncRide(p, id); } } }
             else b = { x: p.x + dx / d * step, y: p.y + dy / d * step };
           }
         }
@@ -281,6 +281,8 @@
         el.classList.toggle('walk', inParty ? moving : p.mode === 'go' || p.mode === 'go2ride' || p.mode === 'back' || p.mode === 'ride' || (p.mode === 'path' && p.walk));
         el.style.setProperty('--ang', ((!inParty && p.mode === 'ride' && p.ang) || 0).toFixed(1) + 'deg');
         el.classList.toggle('sleep', p.mode === 'sleep');
+        el.classList.toggle('off', !!p.park);
+        paintPark(id, p);
         el.style.setProperty('--face', p.face);
       });
     }
@@ -336,11 +338,48 @@
     return q;
   }
   // 船的航線：左右來回＝走離牠最近的上邊或下邊；前後來回＝最近的左邊或右邊（edge：0 上／左、1 下／右）
+  // ── 下車／停車／上車：去聚會或去睡覺前先下交通工具（交通工具停在原地），回來再坐上去繼續原本的走法 ──
+  function dismount(p) { p.park = { x: p.x, y: p.y, face: p.face, v: p.vk }; p.ang = 0; }
+  function remount(p, id) {
+    p.x = p.park.x; p.y = p.park.y; p.face = p.park.face; delete p.park; p.napAt = 0;
+    if (p.resync) { p.resync = false; p.ride = null; p.mode = 'path'; p.until = 0; p.s = nearestS({ x: p.x, y: p.y }); syncRide(p, id); return; }   // 玩的時候主人改了設定：照新的設定
+    p.s = nearestS({ x: p.x, y: p.y });
+    p.mode = p.ride ? 'ride' : 'path'; p.until = 0;
+  }
+  // 搭車中偶爾（6～12 秒看一次）想去餵牠的人旁邊睡覺：火箭要先降落、船靠岸時也可以
+  function napCheck(p) {
+    const now = Date.now();
+    if (!p.napAt) { p.napAt = now + 6000 + Math.random() * 6000; return false; }
+    if (now < p.napAt || (p.fly && p.fly.k < 1)) return false;
+    p.napAt = 0;
+    const spot = maybeSleep(p);
+    if (!spot) return false;
+    dismount(p); p.mode = 'go'; p.to = spot.pos; p.seat = spot.seat; p.walk = true;
+    return true;
+  }
+  function paintPark(id, p) {
+    let pk = layer.querySelector(`.ride-park[data-for="${CSS.escape(id)}"]`);
+    const r = rideOf(id);
+    if (!p.park || !r || r.show === false) { pk?.remove(); return; }
+    if (!pk || pk.dataset.v !== r.v) {
+      pk?.remove();
+      pk = document.createElement('span');
+      pk.className = `pet ride-park riding ride-${r.v}`; pk.dataset.for = id; pk.dataset.v = r.v;
+      const D = RIDES[r.v], st = `width:${D.w}px;height:${D.h}px;left:${D.left}px;bottom:${D.bottom}px`;
+      pk.innerHTML = `<span class="pet-rig"><span class="rv rv-back" style="${st}">${rideSvg(r.v, 'back')}</span>${D.front ? `<span class="rv rv-front" style="${st}">${rideSvg(r.v, 'front')}</span>` : ''}</span><i class="pet-shadow"></i>`;
+      layer.prepend(pk);   // 放在最下面，寵物走過去會在前面
+    }
+    pk.style.transform = `translate(${p.park.x - 17}px, ${p.park.y - 30}px)`;
+    pk.style.setProperty('--face', p.park.face || 1);
+  }
   const boatAt = (H, t, e) => (H ? { x: geo.L + t * geo.w, y: e ? geo.B : geo.T } : { x: e ? geo.R : geo.L, y: geo.T + t * geo.h });
   // 寵物設定改了：開始搭／換一種走法／下車走回邊邊
   function syncRide(p, id) {
     const r = rideOf(id), want = r && r.route !== 'walk' ? r.v + ':' + r.route : '';
+    p.hasV = !!r; p.vk = r?.v || '';
+    if (p.park && (!r || p.park.v !== r.v)) delete p.park;   // 換了交通工具：停著的那台收起來
     if ((p.ride ? p.ride.v + ':' + p.ride.route : '') === want) return;
+    if (p.party || p.park || p.mode === 'go' || p.mode === 'sleep') { p.ride = want ? { v: r.v, route: r.route } : null; p.resync = true; return; }   // 正在玩／睡覺：回來再換
     p.ride = want ? { v: r.v, route: r.route } : null;
     if (p.x == null || isNaN(p.x)) { const q = along(geo, p.s); p.x = q.x; p.y = q.y; }   // 剛出現：先放在邊邊上的位置
     delete p.fly; delete p.bt; delete p.bd; delete p.wait; delete p.edge; p.ang = 0;
