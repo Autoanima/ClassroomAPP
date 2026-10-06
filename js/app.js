@@ -247,6 +247,15 @@
     return changed;
   }
 
+  // ── 今天請假的同學：檢查視窗裡變灰色、不能登記 ──
+  let leaveMap = {}, leaveDay = '', leaveAt = 0;
+  const onLeave = o => (leaveDay === fmtDate(new Date()) && leaveMap[o]) || null;
+  async function loadLeaves(after) {
+    if (!isChecker() || isGuest() || (!settings.gasUrl && !TEST)) return;
+    const day = fmtDate(new Date());
+    if (leaveDay === day && Date.now() - leaveAt < 5 * 60e3) return;
+    try { const r = await api('cleanLeaves', { date: day }); leaveMap = r.leaves || {}; leaveDay = day; leaveAt = Date.now(); after?.(); } catch { /* 下次再試 */ }
+  }
   // 單位的狀態（整組一起）
   function unitSummary(u) {
     const r = state.records[u.id];
@@ -257,7 +266,7 @@
       if (xs.some(x => x.base === '不好')) st = 'bad';
       else if (xs.some(x => x.base === '有瑕疵')) st = 'flaw';
       else if (xs.some(x => x.absent)) st = 'absent';
-      else if (xs.length === u.owners.length) st = 'good';
+      else if (xs.length >= u.owners.filter(o => !onLeave(o)).length) st = 'good';
       else st = 'partial';
     }
     return { st, issue: false, note: (r.note || '').trim(), photos: r.photos || [] };
@@ -903,6 +912,8 @@
     h += `<h3>清潔程度</h3><div class="owners">`;
     if (!item.owners.length) h += `<p class="empty">尚未指定負責同學。請導師到「工作分配」分頁設定。</p>`;
     item.owners.forEach(o => {
+      const lv = onLeave(o);
+      if (lv) { h += `<div class="owner-row on-leave"><div class="owner-name">${esc(o)}<span class="lv-tag">📝 今天請假：${esc(lv.join('、'))}</span></div><p class="muted small">請假中，不用登記「好／不好／未出席」。</p></div>`; return; }
       h += `<div class="owner-row"><div class="owner-name">${esc(o)}${histHtml(o, r)}</div><div class="seg" role="group" aria-label="${esc(o)} 清潔程度">`;
       const x = stOf(r, o);
       STATUSES.forEach(s => {
@@ -966,6 +977,7 @@
   function openItem(id) {
     const it = itemById[id];
     if (!it) return;
+    loadLeaves(() => rerenderItem((unitOf[id] || it).id));
     const u = unitOf[id] || it;
     loadHist(u.owners, () => rerenderItem(u.id));
     const focus = it.group ? it.items[0].id : id;
@@ -1040,6 +1052,7 @@
       ensureSession();
       const r = rec(item.id);
       const o = b.dataset.owner, s = b.dataset.st, cur = stOf(r, o);
+      if (onLeave(o)) return toast(`${nm2(o)} 今天請假，不用登記`);
       r.absent ||= {};
       if (r.status[o] === '未出席') r.status[o] = '';                         // 舊資料
       if (s === '未出席') r.absent[o] = !cur.absent;                           // 未出席：單獨切換
@@ -1118,7 +1131,7 @@
       const pid = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
       try { await idb.put(pid, full); } catch { /* 無 IndexedDB 時只保留小圖 */ }
       ensureSession();
-      rec(itemId).photos.push({ id: pid, thumb, part, st: TEST ? 'test' : settings.gasUrl ? 'uploading' : 'local' });
+      rec(itemId).photos.push({ id: pid, thumb, part, by: isTeacher() ? '' : settings.me || '', st: TEST ? 'test' : settings.gasUrl ? 'uploading' : 'local' });
       touch(item);
       rerenderItem(itemId);
       toast(`已壓縮為 ${Math.round(full.size / 1024)} KB`);
@@ -1230,6 +1243,14 @@
     }
     if (action === 'setOutdoorSheet') throw new Error('測試模式不會連結外掃試算表');
     if (action === 'uploadPhoto') throw new Error('測試模式不會上傳照片');
+    if (action === 'cleanLeaves') {
+      const d = payload.date, P = p => (+p === 0 ? '早自習' : `第${p}節`), leaves = {};
+      store.get('indoor.leave.v1.test', []).filter(x => x.status !== '已取消' && x.from <= d && x.to >= d).forEach(x => {
+        const when = x.from < d && x.to > d ? '整天' : x.from === d && x.to === d && x.fromP === x.toP ? P(x.fromP) : `${x.from === d ? P(x.fromP) : '早上'}～${x.to === d ? P(x.toP) : '放學'}`;
+        (leaves[x.key] ||= []).push(`${x.type} ${when}`);
+      });
+      return { ok: true, date: d, leaves };
+    }
     if (action === 'checkHistory') {
       const all = store.get('indoor.live.test', {}), rank = { '': 0, '好': 1, '有瑕疵': 2, '不好': 3 }, hist = {};
       payload.owners.forEach(k => { hist[k] = {}; Object.entries(all).forEach(([d, units]) => Object.values(units).forEach(rec => {
@@ -1370,7 +1391,7 @@
   // 推上去的紀錄：照片只帶雲端網址（手機裡的小圖太大，也還沒上傳的不帶）
   const liveRec = r => ({
     status: r.status || {}, absent: r.absent || {}, notes: r.notes || {}, issue: !!r.issue, parts: r.parts || {}, note: r.note || '',
-    photos: (r.photos || []).filter(p => p.driveId).map(p => ({ id: p.id, driveId: p.driveId, url: p.url || '', part: p.part || '' })),
+    photos: (r.photos || []).filter(p => p.driveId).map(p => ({ id: p.id, driveId: p.driveId, url: p.url || '', part: p.part || '', by: p.by || '' })),
     updatedAt: r.updatedAt || 0, by: r.by || '',
   });
   const livePending = new Map();
@@ -1387,7 +1408,7 @@
     livePending.clear();
     const date = fmtDate(new Date(state.startedAt || Date.now()));
     try {
-      await api('setCheckLive', { date, rows: items.filter(it => state.records[it.id]).map(it => ({ unit: it.id, rec: liveRec(state.records[it.id]) })) });
+      await api('setCheckLive', { date, rows: items.filter(it => state.records[it.id]).map(it => ({ unit: it.id, rec: { ...liveRec(state.records[it.id]), place: it.full || it.title || '' } })) });
     } catch {
       items.forEach(it => { if (!livePending.has(it.id)) livePending.set(it.id, it); });
       clearTimeout(liveTimer);
@@ -1515,7 +1536,9 @@
     const cnt = { '好': 0, '有瑕疵': 0, '不好': 0, '未出席': 0 };
     const problems = new Map();   // 同學 → [{ item, st, cls, base, absent, note }]（不好、有瑕疵、未出席，或有寫說明的）
     const issues = [];
-    const items = scopeUnits().filter(u => u.area === ui.area); // 報表只包含目前這一區（內掃區、外掃區分開傳）
+    // 導師看外掃區：可以選「全部／南區／北區」分開出報表
+    const rz = ui.area === 'out' && !outZone() ? ui.reportZone || '' : '';
+    const items = scopeUnits().filter(u => u.area === ui.area && (!rz || u.zone === rz)); // 報表只包含目前這一區（內掃區、外掃區分開傳）
     items.forEach(it => {
       const r = state.records[it.id];
       it.owners.forEach(o => {
@@ -1533,7 +1556,7 @@
     const checked = items.filter(it => ['good', 'flaw', 'bad', 'absent'].includes(unitSummary(it).st)).length;
     const d = state.startedAt ? new Date(state.startedAt) : new Date();
     const L = [];
-    const areaName = ui.area === 'out' ? '外掃區' + (outZone() ? D.outdoor.zones[outZone()] : '') : '內掃區';
+    const areaName = ui.area === 'out' ? '外掃區' + (outZone() ? D.outdoor.zones[outZone()] : rz ? D.outdoor.zones[rz] : '') : '內掃區';
     L.push(`【${areaName}檢查】${fmtDateW(d)}`);
     L.push(`檢查 ${checked}/${items.length} 項｜好 ${cnt['好']}・有瑕疵 ${cnt['有瑕疵']}・不好 ${cnt['不好']}・未出席 ${cnt['未出席']}`);
     // 一行一個人：負責人｜狀態｜出席｜說明（詳細版才加上地方和照片）
@@ -1557,6 +1580,7 @@
     commitNote();
     const R = buildReport();
     let h = sheetHead(`${R.areaName}檢查報表`, fmtDateW(R.d));
+    if (ui.area === 'out' && !outZone()) h += `<div class="rpt-zone" role="group" aria-label="外掃報表範圍">${[['', '全部'], ...Object.entries(D.outdoor.zones)].map(([z, t]) => `<button type="button" data-act="rzone" data-z="${z}" aria-pressed="${(ui.reportZone || '') === z}">${t}</button>`).join('')}</div>`;
     h += `<div class="tiles">
       <div class="tile good"><b>${R.cnt['好']}</b><span>好</span></div>
       <div class="tile flaw"><b>${R.cnt['有瑕疵']}</b><span>有瑕疵</span></div>
@@ -1607,6 +1631,7 @@
     }
   }
   sheetHandlers.report = async (act, b) => {
+    if (act === 'rzone') { ui.reportZone = b.dataset.z; saveUi(); return openReport(); }
     const R = sheetMode.R;
     const msg = $('#msgText')?.value || R.message;
     if (act === 'goto') {
@@ -2607,6 +2632,7 @@
       renderArea();
       setTimeout(pollLive, 50);
       if (Date.now() - ciAt > 20e3) loadCheckins();
+      loadLeaves(refresh);
     };
     mountMap('jobs', 'jobs').el.addEventListener('click', onJobsMapClick);
     tabHooks.jobs = () => renderJobs();

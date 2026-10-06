@@ -119,7 +119,7 @@ const STUDENT_OK = Object.assign({ getTimetable: 1, postCourse: 1, delCoursePost
 const CADRE_OK = Object.assign({ getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, lunchChange: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
 const GUEST_OK = { getTimetable: 1, getPets: 1, petImage: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
-const CHECKER_OK = { notifyCheck: 1, saveRecords: 1, uploadPhoto: 1, getCheckLive: 1, setCheckLive: 1 };
+const CHECKER_OK = { cleanLeaves: 1, notifyCheck: 1, saveRecords: 1, uploadPhoto: 1, getCheckLive: 1, setCheckLive: 1 };
 const MONITOR_OK = { addDrawLog: 1, getDrawFx: 1, drawUsed: 1 };   // 用學生身分登入的班長、副班長：可以抽籤
 
 function doGet() {
@@ -202,6 +202,7 @@ function doPost(e) {
       case 'notifyCheck': return json(notifyCheck(who, req.list));
       case 'postAppeal': return json(postAppeal(who, req.unit, req.place, req.text, req.to));
       case 'getCheckLive': return json(getCheckLive(req.date));
+      case 'cleanLeaves': return json(cleanLeaves(req.date));
       case 'checkHistory': return json(checkHistory(who, req.owners || []));
       case 'setCheckLive': return json(setCheckLive(who, req.date, req.rows || []));
       case 'addPoints': return json(addPoints(req.rows || [], who));
@@ -2815,6 +2816,7 @@ const SHEET_LIVE = '檢查即時狀態';
 const HEAD_LIVE = ['日期', '單位', '紀錄', '更新時間', '檢查人'];
 const liveSheet = () => textSheet(SHEET_LIVE, HEAD_LIVE, [1, 2, 3, 5]);
 function getCheckLive(date) {
+  try { cleanBonusTick(); } catch (e) { Logger.log('掃地加分結算失敗：' + e); }
   const d = String(date || ''), sh = liveSheet(), n = sh.getLastRow() - 1;
   if (n < 1) return { ok: true, rows: [] };
   const rows = [];
@@ -2885,6 +2887,78 @@ function setCheckLive(who, date, rows) {
     }
     return { ok: true, saved: saved };
   });
+}
+
+// ── 🧹 掃地檢查加分：每天結算「昨天以前」的檢查結果（從「檢查即時狀態」讀），寫進「加扣分紀錄」（類別：整潔，登記人：系統）──
+//   照片佐證：檢查的同學（衛生股長、外掃監督）每上傳一張照片 +0.05（導師拍的不算）
+//   同一個掃區、同一位負責人：連續 5 次檢查都沒被扣分（沒有「不好」、沒有「未出席」）+0.5；連續 5 次都是「好」+1（取代 +0.5，不重複加）
+//   掃地出席：連續 5 天都有出席 +0.1
+//   沒被檢查、請假的那天不算一次，也不會中斷；加過分就重新數。系統加的分不會生寵物蛋。
+const CLEAN_BONUS = { PHOTO: 0.05, N: 5, SAFE: 0.5, GOOD: 1, ATTEND: 0.1 };
+function cleanBonusTick() {
+  const props = PropertiesService.getScriptProperties(), K = 'CLEAN_BONUS';
+  const today = ymd(new Date()), yest = ymd(new Date(Date.now() - 864e5));
+  const S0 = arenaJson(props.getProperty(K));
+  if (!S0) { props.setProperty(K, JSON.stringify({ last: yest, u: {}, a: {} })); return; }   // 第一次：從今天開始算
+  if (S0.last >= yest) return;
+  withLock(() => {
+    const S = arenaJson(props.getProperty(K)) || S0;
+    if (S.last >= yest) return;
+    let roster = null;
+    try { roster = getStudents().students; } catch (e) { /* 讀不到名單就不過濾 */ }
+    const ok = k => !!k && k !== '值日生' && k !== CONFIG.TEACHER_NAME && (!roster || roster.indexOf(k) >= 0);
+    const sh = liveSheet(), n = sh.getLastRow() - 1, byDay = {};
+    if (n > 0) sh.getRange(2, 1, n, 3).getValues().forEach(r => {
+      const d = String(r[0]), rec = arenaJson(r[2]);
+      if (d > S.last && d < today && rec) (byDay[d] = byDay[d] || []).push({ unit: String(r[1]), rec: rec });
+    });
+    const out = [], now = new Date(), B = CLEAN_BONUS, r2 = x => Math.round(x * 100) / 100;
+    const add = (d, k, p, why, tag) => out.push([toDate(d), k, p, '整潔', why, '系統', now, 'CB-' + d.replace(/\//g, '') + '-' + tag + '-' + k]);
+    Object.keys(byDay).sort().forEach(d => {
+      const att = {}, pics = {};
+      byDay[d].forEach(x => {
+        const rec = x.rec, st = rec.status || {}, ab = rec.absent || {}, place = String(rec.place || x.unit);
+        Object.keys(st).concat(Object.keys(ab)).filter((k, i, a) => a.indexOf(k) === i).forEach(k => {
+          if (!ok(k)) return;
+          let base = st[k] || '', absent = !!ab[k];
+          if (base === '未出席') { base = ''; absent = true; }
+          if (!base && !absent) return;
+          att[k] = absent ? 'abs' : att[k] || 'here';
+          if (!base) { S.u[x.unit + '|' + k] = [0, 0]; return; }
+          const c = S.u[x.unit + '|' + k] = S.u[x.unit + '|' + k] || [0, 0];   // [連續沒扣分, 連續好]
+          if (base === '不好' || absent) { c[0] = 0; c[1] = 0; return; }
+          c[0]++; c[1] = base === '好' ? c[1] + 1 : 0;
+          if (c[1] >= B.N) { add(d, k, B.GOOD, '掃區連續 ' + B.N + ' 次「好」：' + place, 'G' + x.unit.length + x.unit.slice(-6)); c[0] = 0; c[1] = 0; }
+          else if (c[0] >= B.N) { add(d, k, B.SAFE, '掃區連續 ' + B.N + ' 次沒被扣分：' + place, 'S' + x.unit.length + x.unit.slice(-6)); c[0] = 0; }
+        });
+        (rec.photos || []).forEach(p => { if (p && p.by && p.driveId && ok(p.by)) pics[p.by] = (pics[p.by] || 0) + 1; });
+      });
+      Object.keys(att).forEach(k => {
+        S.a[k] = att[k] === 'abs' ? 0 : (S.a[k] || 0) + 1;
+        if (S.a[k] >= B.N) { add(d, k, B.ATTEND, '掃地連續 ' + B.N + ' 天都有出席', 'A'); S.a[k] = 0; }
+      });
+      Object.keys(pics).forEach(k => add(d, k, r2(pics[k] * B.PHOTO), '掃地檢查拍照佐證 ' + pics[k] + ' 張（每張 +' + B.PHOTO + '）', 'P'));
+    });
+    if (out.length) {
+      const ps = pointsSheet(), start = ps.getLastRow() + 1;
+      ps.getRange(start, 1, out.length, HEAD_POINTS.length).setValues(out);
+      ps.getRange(start, 1, out.length, 1).setNumberFormat('yyyy/mm/dd');
+      ps.getRange(start, 7, out.length, 1).setNumberFormat('yyyy/mm/dd hh:mm');
+    }
+    S.last = yest;
+    props.setProperty(K, JSON.stringify(S));
+  });
+}
+/** 掃地檢查：某一天請假的同學（給檢查的人；只有假別和節次，沒有說明和假卡）→ { 同學: ['病假 第1節～第4節', …] } */
+function cleanLeaves(date) {
+  const d = /^\d{4}\/\d\d\/\d\d$/.test(String(date)) ? String(date) : ymd(new Date()), out = {};
+  leaveRows().forEach(x => {
+    if (x.status === '已取消' || !x.key || x.from > d || x.to < d) return;
+    const when = x.from < d && x.to > d ? '整天' : x.from === d && x.to === d && x.fromP === x.toP ? PERIOD(x.fromP)
+      : (x.from === d ? PERIOD(x.fromP) : '早上') + '～' + (x.to === d ? PERIOD(x.toP) : '放學');
+    (out[x.key] = out[x.key] || []).push(x.type + ' ' + when);
+  });
+  return { ok: true, date: d, leaves: out };
 }
 
 // ── ⚔️ 擂台賽：同學互相挑戰（英文單字／日文五十音）；雙方接受後同時開始，同一組題目、每題 5 秒，
@@ -3146,6 +3220,7 @@ const resetAt = () => Number(PropertiesService.getScriptProperties().getProperty
 // ── 📊 加扣分紀錄（最右邊的分頁）：每位同學的加分、扣分、合計，點數字看每一筆的原因、時間、登記人 ──
 //    包含「加扣分紀錄」工作表，和掃地檢查的扣分（不好：扣分統計 B3 的分數；未出席：ABSENT_PER）。從「重置扣分統計」之後開始算。
 function pointsBoard(who) {
+  try { cleanBonusTick(); } catch (e) { Logger.log('掃地加分結算失敗：' + e); }
   const rst = resetAt(), tz = CONFIG.TIMEZONE, out = [];
   const mine = k => who.teacher || k === who.key;
   const psh = pointsSheet();
@@ -3198,6 +3273,7 @@ function recTime(d, key) {
   return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime() : d.getTime();
 }
 function computeScores() {
+  try { cleanBonusTick(); } catch (e) { Logger.log('掃地加分結算失敗：' + e); }
   const ss = getSS();
   const sh = ensureScoreSheet(true);
   const per = Number(sh.getRange('B3').getValue()) || 1;

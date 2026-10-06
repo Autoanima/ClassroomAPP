@@ -1693,6 +1693,12 @@ body.ww-open { overflow: hidden; }
 
 .rpt-opt { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 0 0 6px; }
 .rpt-opt input { width: 18px; height: 18px; accent-color: var(--accent); }
+.rpt-zone { display: flex; gap: 6px; margin: 4px 0 10px; }
+.rpt-zone button { flex: 1; padding: 8px 0; border: 1px solid var(--line); border-radius: 10px; background: var(--card, transparent); color: inherit; font: inherit; font-weight: 600; cursor: pointer; }
+.rpt-zone button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.owner-row.on-leave { opacity: .55; filter: grayscale(1); }
+.owner-row.on-leave p { margin: 2px 0 0; }
+.lv-tag { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--line); color: var(--muted); }
 
 /* 商店「成員點數」：不要擠成一個字一行，改成可以左右滑；同學那一欄固定在左邊 */
 .admin-wrap table.admin th, .admin-wrap table.admin td { white-space: nowrap; }
