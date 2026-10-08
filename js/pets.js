@@ -1014,6 +1014,18 @@
   };
   const prevTest = A.testSeatApi;
   A.testSeatApi = async (action, p = {}) => {
+    if (action === 'giftRide') {
+      const SK = 'indoor.shopspend.v1.test', sp = store.get(SK, []), who = A.isTeacher() ? (A.D.teacherLabel || '導師') : A.me();
+      if (!RIDES[p.kind]) throw new Error('沒有這種交通工具');
+      if (p.to === who || !A.DEMO_STUDENTS.includes(p.to)) throw new Error('請選擇要送的同學');
+      const rv = store.get('indoor.riderevoked.v1.test', {});
+      if (sp.some(x => x.who === p.to && x.use === '寵物交通工具' && x.target === p.kind && x.t > (rv[p.to + '|' + p.kind] || 0))) throw new Error('對方已經有這種交通工具了，不能重複贈送');
+      const st = await prevTest('shopState'), price = A.isTeacher() ? 0 : 10;
+      if (!st.unlimited && st.coins < price) throw new Error('點數不夠（需要 ' + price + ' 點）');
+      const now = Date.now(), row = (owner, points, use, target, note) => ({ id: Math.random().toString(36).slice(2, 10), who: owner, points, use, target, note, time: '', t: now });
+      store.set(SK, [...sp, row(who, price, '送禮', p.to, '寵物交通工具：' + RIDES[p.kind].name), row(p.to, 0, '寵物交通工具', p.kind, who + ' 送的')]);
+      return prevTest('shopState');
+    }
     if (action === 'buyRide') {
       const SK = 'indoor.shopspend.v1.test', sp = store.get(SK, []), who = A.isTeacher() ? (A.D.teacherLabel || '導師') : A.me();
       if (!RIDES[p.kind]) throw new Error('沒有這種交通工具');

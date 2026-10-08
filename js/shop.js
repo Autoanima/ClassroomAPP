@@ -150,10 +150,10 @@
     h += specialsHtml;
     // 🚗 寵物的交通工具：永久保存
     const RD = A.petRides || {}, ownR = new Set(S.rides || []), rp = S.ridePrice || 10;
-    h += `<div class="panel shop-rides"><h3>🚗 寵物的交通工具</h3><p class="muted small">每種 ${rp} 點，<b>永久保存、不會消耗</b>。買了以後到寵物卡的「🚗 交通工具」讓寵物坐上去，可以選要不要顯示、選路線和方向。</p><div class="ride-grid">${Object.keys(RD).map(k => {
+    h += `<div class="panel shop-rides"><h3>🚗 寵物的交通工具</h3><p class="muted small">每種 ${rp} 點，<b>永久保存、不會消耗</b>。可以買給同學，導師免費送。買了以後到寵物卡的「🚗 交通工具」讓寵物坐上去，可以選要不要顯示、選路線和方向。</p><div class="ride-grid">${Object.keys(RD).map(k => {
       const own = ownR.has(k), can = S.unlimited || S.coins >= rp;
       return `<div class="ride-item${own ? ' own' : ''}"><span class="ride-art">${A.petRideArt(k)}</span><b>${RD[k].name}</b><span class="muted small">${RD[k].desc}</span>
-        ${own ? '<span class="tag good">✓ 已擁有</span>' : `<button type="button" class="btn${can ? ' btn--primary' : ''}" data-s="buyRide" data-kind="${k}"${can ? '' : ' disabled'}>💰 ${rp} 點</button>`}</div>`; }).join('')}</div></div>`;
+        ${own ? '<span class="tag good">✓ 已擁有</span>' : `<button type="button" class="btn${can ? ' btn--primary' : ''}" data-s="buyRide" data-kind="${k}"${can ? '' : ' disabled'}>💰 ${rp} 點</button>`}<button type="button" class="btn" data-s="giftRide" data-kind="${k}"${S.unlimited || S.coins >= rp ? '' : ' disabled'}>🎁 送人</button></div>`; }).join('')}</div></div>`;
     h += `<div class="panel penalty-note"><h3>⚠️ 扣分會減少點數</h3>
       <p class="small">每被扣 <b>${S.penaltyPer || 2} 分</b>，商店點數就減少 <b>1 點</b>，最少扣到 0 點（不會變成負的）。${S.penaltyFrom ? `${esc(S.penaltyFrom)} 以後的扣分才算。` : ''}</p>
       <p class="small muted">被扣分的同學，接下來的 3 次抽籤也比較容易被抽到（詳情看「抽籤」頁）。</p></div>`;
@@ -207,6 +207,8 @@
       openEditor();
     } else if (act === 'steal') {
       openSteal();
+    } else if (act === 'giftRide') {
+      openRideGift(b.dataset.kind);
     } else if (act === 'buyRide') {
       const RD = A.petRides?.[b.dataset.kind];
       if (!RD || !await A.ask(`花 ${S.ridePrice || 10} 點買「${RD.name}」給你的寵物？\n永久保存，不會消耗。`, '購買')) return;
@@ -242,6 +244,29 @@
       render();
     }
   });
+
+  // ── 買交通工具送人 ──
+  function openRideGift(kind) {
+    const ride = A.petRides?.[kind];
+    if (!ride) return;
+    const price = S.unlimited ? 0 : (S.ridePrice || 10);
+    let h = A.sheetHead('🎁 送' + ride.name, price ? '花 ' + price + ' 點買給同學，對方永久持有' : '導師免費送給同學，對方永久持有');
+    h += '<div class="field"><label for="rideGiftTo">送給</label><select id="rideGiftTo"><option value="">— 請選擇同學 —</option>'
+      + S.classmates.filter(k => k !== S.me).map(k => '<option value="' + esc(k) + '">' + esc(k) + '</option>').join('')
+      + '</select></div><p class="muted small">對方已擁有同款時無法重複贈送，也不會扣點數。</p><div class="actions"><button type="button" class="btn btn--primary wide" data-act="rideGiftOk"'
+      + (S.unlimited || S.coins >= price ? '' : ' disabled') + '>🎁 送出（' + (price ? price + ' 點' : '導師免費') + '）</button></div>';
+    A.openSheet({ kind: 'giftride', rideKind: kind }, h);
+  }
+  A.sheetHandlers.giftride = async (act, b) => {
+    if (act !== 'rideGiftOk' || b.disabled) return;
+    const kind = A.sheetMode().rideKind, to = $('#rideGiftTo').value, ride = A.petRides?.[kind];
+    if (!to || !ride) return toast('請選擇同學');
+    b.disabled = true;
+    try {
+      if (!await A.ask('送「' + ride.name + '」給 ' + to + '？\n' + (S.unlimited ? '導師不扣點數' : '花 ' + (S.ridePrice || 10) + ' 點'), '送出')) { b.disabled = false; return; }
+      S = await doing('giftRide', { kind, to }); A.closeSheet(); toast('🎁 已送出' + ride.name + '給 ' + to); render(); A.emit?.('petsReload');
+    } catch (err) { toast(err.message); b.disabled = false; }
+  };
 
   // ── 買特殊道具送人 ──
   const CARD_PRICE = () => ({ 交換位置卡: S.swapPrice || 100, 竊盜卡: S.stealPrice || 10, 抽籤必中卡: S.surePrice || 30, 煙火: S.fireworkPrice || 1, 小太陽卡: S.weatherPrice || 5, 小雨傘卡: S.weatherPrice || 5 });

@@ -202,7 +202,7 @@
   const canCheckIn = () => isTeacher() || (isCadre() && D.inspectorSlots.some(s => inspectorName(s.id) === settings.me));
   const canCheckOut = () => !!roster?.outdoor && outZone() != null;
   const isChecker = () => canCheckIn() || canCheckOut();
-  const canPoints = () => isTeacher() || (isCadre() && (ALL_SLOTS.some(s => inspectorName(s.id) === settings.me) || !!roster?.cadres?.[settings.me]));
+  const canPoints = () => isTeacher() || (isCadre() && (ALL_SLOTS.some(s => inspectorName(s.id) === settings.me) || !!roster?.cadres?.[settings.me] || Object.values(roster?.courseHelpers || {}).some(keys => Array.isArray(keys) && keys.includes(settings.me))));
   const checkable = it => (it.area === 'in' ? canCheckIn() : canCheckOut() && (!outZone() || it.zone === outZone()));
   const scopeUnits = () => UNITS.filter(u => checkable(u.items[0]));
   // 某位同學的掃地工作與幹部職位
@@ -236,6 +236,7 @@
   function applyRoster(r) {
     // outdoor：外掃區的工作分配（沒連結時 null）
     const next = { jobs: r?.jobs || {}, inspectors: r?.inspectors || {}, labels: r?.labels || {}, outdoor: r && 'outdoor' in r ? r.outdoor : roster?.outdoor ?? null };
+    next.courseHelpers = r?.courseHelpers || {};
     if (r?.cadres) { next.cadres = r.cadres; next.inspectors = { ...next.inspectors, ...slotsFromCadres(r.cadres) }; }
     const changed = JSON.stringify(next) !== JSON.stringify(roster);
     roster = next;
@@ -1339,7 +1340,7 @@
       const err = new Error(/未知的動作/.test(j.error) ? '雲端程式還是舊版，請重新部署 Code.gs' : j.error || '雲端處理失敗');
       err.code = j.code;
       if (j.code === 'session' && usesSid()) relogin('登入已過期，請重新輸入身分證字號');
-      if (j.code === 'token' && isTeacher() && action !== 'staffLogin') relogin('密碼已變更，請重新登入');
+      if (j.code === 'token' && isTeacher() && action !== 'staffLogin' && action !== 'login') relogin('密碼已變更，請重新登入');
       throw err;
     }
     return j;
@@ -1766,7 +1767,7 @@
     // 幹部名單：也預設收起來；幹部用自己的身分證字號登入，可以登記加扣分
     if (D.cadreSlots?.length) {
       h += `<details class="jobs-fold"${ui.cadreOpen ? ' open' : ''} data-fold="cadre"><summary>🎖 幹部名單</summary>
-        <p class="muted small">幹部用自己的身分證字號登入（「老師／幹部」），可以對全班同學登記加扣分。</p>
+        <p class="muted small">幹部用自己的身分證字號登入（「班級登入」），可以對全班同學登記加扣分。</p>
         <div class="cadre-grid">`;
       if (roster?.cadres) {
         // 依職位分組：先照幹部順序（班長、副班長、風紀…），其他（小老師等）排在後面
@@ -2248,7 +2249,11 @@
   // 只有測試模式可以直接選使用人；正式使用時幹部要用自己的身分證字號登入
   function setUser(name) {
     if (name === D.teacherLabel) Object.assign(settings, { role: 'staff', inspector: name, me: '', sid: '' });
-    else Object.assign(settings, { role: 'cadre', inspector: name, me: name, sid: 'test' });
+    else {
+      const cadre = userList().some(u => u.value === name);
+      Object.assign(settings, { role: cadre ? 'cadre' : 'student', token: '', inspector: cadre ? name : '', me: name, sid: 'test' });
+      if (!cadre) { ui.tab = 'seats'; saveUi(); }
+    }
     saveSettings();
   }
   $('#userChip').addEventListener('click', () => (TEST && isStaff() ? openWho() : openSettings()));
@@ -2420,7 +2425,7 @@
         if (sheetMode?.kind === 'item') rerenderItem(sheetMode.id);
         if (announce) toast('工作分配已更新');
         if (isCadre() && !TEST && !canPoints() && !canCheckOut()) {
-          relogin('你已經不在幹部名單中，請用「學生選位」登入');
+          relogin('身分已變更，請重新登入');
         }
       }
     } catch { /* 下次再試 */ } finally { rosterSyncing = false; }
@@ -2497,17 +2502,12 @@
     lockMode = m;
     document.querySelectorAll('.lock-tabs button').forEach(b => b.setAttribute('aria-pressed', b.dataset.lk === m));
     $('#lockMsg').textContent = '';
-    $('#stepId').hidden = m !== 'student';
+    $('#stepId').hidden = true;
     $('#stepGuest').hidden = m !== 'guest';
     if (m === 'guest') {
       $('#stepPw').hidden = true; $('#stepWho').hidden = true;
       $('#lockBtn').textContent = '任課老師登入';
       $('#lockTitle').textContent = '任課老師';
-    } else if (m === 'student') {
-      $('#stepPw').hidden = true; $('#stepWho').hidden = true;
-      $('#lockBtn').textContent = '登入選位';
-      $('#lockTitle').textContent = '座位選位';
-      setTimeout(() => $('#lockId').focus(), 30);
     } else if (TEST) {
       showWhoStep();
     } else {
@@ -2523,7 +2523,9 @@
     $('#stepPw').hidden = true;
     $('#stepId').hidden = true;
     $('#stepWho').hidden = false;
-    $('#whoSel').innerHTML = whoOptions(settings.inspector);
+    const users = userList();
+    DEMO_STUDENTS.forEach(k => { if (!users.some(u => u.value === k)) users.push({ value: k, text: `學生：${k}` }); });
+    $('#whoSel').innerHTML = users.map(u => `<option value="${esc(u.value)}"${u.value === (settings.me || settings.inspector) ? ' selected' : ''}>${esc(u.text)}</option>`).join('');
     $('#lockBtn').textContent = '開始使用';
     $('#lockTitle').textContent = TEST ? '商?甲（測試模式）' : '商?甲';
     $('#whoSel').focus();
@@ -2562,31 +2564,8 @@
       btn.disabled = false; btn.textContent = '任課老師登入';
       return;
     }
-    if (lockMode === 'student') {
-      const idno = normInput($('#lockId').value).toUpperCase();
-      if (!/^[A-Z][A-Z0-9]\d{8}$/.test(idno)) return lockError('身分證字號格式不正確（1 個英文字母＋9 個數字）');
-      btn.disabled = true; btn.textContent = '確認中…';
-      const slow = setTimeout(() => { $('#lockMsg').innerHTML = '<span class="muted">Google 雲端啟動中，可能需要 10–30 秒…</span>'; }, 4000);
-      try {
-        const r = await api('stuLogin', { idno });
-        $('#lockId').value = '';
-        settings.role = 'student'; settings.sid = r.sid; settings.me = r.me; settings.token = ''; settings.inspector = '';
-        if (r.className) applyRoster(Object.assign({}, roster, { jobs: Object.assign({}, roster?.jobs, { CLASS: [r.className] }) }));
-        saveSettings();
-        ui.tab = 'seats'; saveUi();
-        clearTimeout(slow);
-        start();
-        syncRoster();
-      } catch (err) {
-        clearTimeout(slow);
-        lockError(err.message);
-        $('#lockId').select();
-      }
-      btn.disabled = false; btn.textContent = '登入選位';
-      return;
-    }
     const pw = normInput($('#lockPw').value);
-    if (!pw) return lockError('請輸入密碼');
+    if (!pw) return lockError('請輸入導師密碼或自己的身分證字號');
     if (pw.toLowerCase() === 'test') {
       try { localStorage.setItem(LS_MODE, 'test'); } catch { /* ignore */ }
       location.reload();
@@ -2596,16 +2575,18 @@
     const slow = setTimeout(() => { $('#lockMsg').innerHTML = '<span class="muted">Google 雲端啟動中，第一次可能需要 10–30 秒…</span>'; }, 4000);
     try {
       // 導師：統一密碼；幹部：自己的身分證字號（首字母大小寫都可以）
-      const r = await api('staffLogin', { pw });
+      const r = await api('login', { pw });
       if (r.role === 'teacher') Object.assign(settings, { role: 'staff', token: pw, inspector: D.teacherLabel, sid: '', me: '' });
-      else Object.assign(settings, { role: 'cadre', token: '', sid: r.sid, me: r.me, inspector: r.me });
+      else Object.assign(settings, { role: r.role === 'student' ? 'student' : 'cadre', token: '', sid: r.sid, me: r.me, inspector: r.role === 'student' ? '' : r.me });
       applyRoster(r.roster);
       saveSettings();
       $('#lockPw').value = '';
       clearTimeout(slow);
-      if (!allowedTabs().includes(ui.tab)) ui.tab = isTeacher() ? 'clean' : isChecker() ? 'clean' : 'points';
+      if (isStudent()) ui.tab = 'seats';
+      else if (!allowedTabs().includes(ui.tab)) ui.tab = isTeacher() ? 'clean' : isChecker() ? 'clean' : 'points';
+      saveUi();
       start();
-      toast(isTeacher() ? '導師，歡迎！' : `${r.me}（${r.roles.join('、')}）登入成功`);
+      toast(isTeacher() ? '導師，歡迎！' : isStudent() ? `${r.me}，歡迎！` : `${r.me}（${r.roles.join('、')}）登入成功`);
     } catch (err) {
       settings.token = ''; settings.role = '';
       lockError(err.message);
@@ -2685,7 +2666,7 @@
       return;
     }
     if (TEST) applyRoster(demoRoster());
-    setLockMode(settings.role === 'student' || /stu|seat/i.test(location.hash) ? 'student' : 'staff');
+    setLockMode('staff');
     if (msg) $('#lockMsg').textContent = msg;
   };
 })();

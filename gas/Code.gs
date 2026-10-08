@@ -114,9 +114,9 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ rideLook: 1, rideImage: 1, petRide: 1, buyRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ rideLook: 1, rideImage: 1, petRide: 1, buyRide: 1, giftRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ rideLook: 1, rideImage: 1, petRide: 1, buyRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, lunchChange: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ rideLook: 1, rideImage: 1, petRide: 1, buyRide: 1, giftRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, lunchChange: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
 const GUEST_OK = { rideImage: 1, getTimetable: 1, getPets: 1, petImage: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { cleanLeaves: 1, notifyCheck: 1, saveRecords: 1, uploadPhoto: 1, getCheckLive: 1, setCheckLive: 1 };
@@ -133,6 +133,7 @@ function doPost(e) {
     const req = JSON.parse(e.postData.contents);
     if (req.action === 'stuLogin') return json(stuLogin(req.idno));
     if (req.action === 'staffLogin') return json(staffLogin(req.pw));
+    if (req.action === 'login') return json(staffLogin(req.pw, true));
     if (req.action === 'guestLogin') return json(guestLogin(req.code));
     // who：{ teacher } 或 { key, role: 'S'學生 / 'C'幹部 }
     let who;
@@ -219,6 +220,7 @@ function doPost(e) {
       case 'rideImage': return json(rideImage(req.id));
       case 'rideRemove': return json(rideRemove(who, req.owner, String(req.kind || '')));
       case 'buyRide': return json(buyRide(who, String(req.kind || '')));
+      case 'giftRide': return json(giftRide(who, String(req.kind || ''), String(req.to || '')));
       case 'petLook': return json(petLook(who, req.id, req.name, req.data));
       case 'petImage': return json(petImage(req.id));
       case 'petAllot': return json(petAllot(who, req.owner, req.plan || {}));
@@ -493,6 +495,7 @@ function pushOutdoorToOldApp() {
 function rosterWithOutdoor() {
   const r = getRoster();
   r.outdoor = getOutdoor();
+  r.courseHelpers = courseHelperMap();
   // 幹部名單工作表：網頁依職位自動排入幹部欄位（不用在網頁上再填）
   if (rosterSheet()) { r.cadres = cadreMap(); r.cadreSource = rosterSheet().getName(); }
   if (!r.jobs.CLASS || !r.jobs.CLASS[0]) r.jobs.CLASS = [CONFIG.CLASS_NAME];
@@ -765,6 +768,12 @@ function cadreRoles(key) {
     .filter(r => /^[IC]\d+$/.test(String(r[0]).trim()) && String(r[2]).trim() === key)
     .map(r => String(r[1]).replace(/（.*$/, '').trim() || '幹部');
 }
+/** 課表中由導師指定的小老師；幹部名單上的小老師由 cadreRoles 處理。 */
+function courseHelperRoles(key) {
+  const helpers = courseHelperMap();
+  return Object.keys(helpers).filter(c => Array.isArray(helpers[c]) && helpers[c].indexOf(key) >= 0)
+    .map(c => c + '小老師');
+}
 /** 外掃監督（外掃試算表的 I1 南區、I2 北區）→ 職位名稱 */
 function outdoorRoles(key) {
   const o = getOutdoor();
@@ -780,7 +789,7 @@ function isInspector(key) {
 }
 
 /** 老師／幹部登入：導師用統一密碼；幹部用自己的身分證字號（首字母大小寫都可以） */
-function staffLogin(pw) {
+function staffLogin(pw, unified = false) {
   if (normPw(pw) && normPw(pw) === normPw(CONFIG.TOKEN)) return { ok: true, role: 'teacher', roster: rosterWithOutdoor() };
   if (!/^[A-Z][A-Z0-9]\d{8}$/.test(normId(pw))) {
     Utilities.sleep(1000);
@@ -791,15 +800,18 @@ function staffLogin(pw) {
     Utilities.sleep(1500);
     return { ok: false, error: '找不到這個身分證字號，請確認後再試', code: 'idno' };
   }
-  const roles = cadreRoles(key).concat(outdoorRoles(key));
-  if (!roles.length) return { ok: false, error: key + ' 不在幹部名單中。要選座位請按上方「學生選位」' };
+  const roles = cadreRoles(key).concat(outdoorRoles(key), courseHelperRoles(key));
+  if (!roles.length) {
+    if (!unified) return { ok: false, error: key + ' 不在幹部名單中，請使用班級登入' };
+    return { ok: true, role: 'student', sid: newSession('S', key), me: key, roles: [], roster: rosterWithOutdoor() };
+  }
   return { ok: true, role: 'cadre', sid: newSession('C', key), me: key, roles: roles, roster: rosterWithOutdoor() };
 }
 
 // ── 加扣分：導師與幹部登記，一定要有理由 ──
 function pointsSheet() { return getSheet(SHEET_POINTS, HEAD_POINTS); }
 function addPoints(rows, who) {
-  if (!who.teacher && !cadreRoles(who.key).length) throw new Error('你已經不在幹部名單中，不能登記加扣分');
+  if (!who.teacher && !cadreRoles(who.key).length && !courseHelperRoles(who.key).length) throw new Error('你已經不在幹部或小老師名單中，不能登記加扣分');
   const now = new Date();
   const clean = rows.map(r => {
     const p = Math.round(Number(r.points));
@@ -1969,6 +1981,26 @@ function buyRide(who, kind) {
     }
     addSpend(who.key, who.teacher ? 0 : RIDE_PRICE, '寵物交通工具', kind, '買了寵物的' + PET_RIDES[kind]);
   });
+  return shopState(who);
+}
+/** 買交通工具送給同學：學生付點數、導師免費，收件人永久持有。 */
+function giftRide(who, kind, to) {
+  if (!PET_RIDES[kind]) throw new Error('沒有這種交通工具');
+  if (to === who.key || getStudents().students.indexOf(to) < 0) throw new Error('請選擇要送的同學');
+  const giver = who.teacher ? CONFIG.TEACHER_NAME : who.key;
+  withLock(() => {
+    if (ridesOf(spendRows(), to).indexOf(kind) >= 0) throw new Error('對方已經有' + PET_RIDES[kind] + '了，不能重複贈送');
+    const price = who.teacher ? 0 : RIDE_PRICE;
+    if (!who.teacher && coinsOf(who.key).coins < price) throw new Error('點數不夠（需要 ' + price + ' 點）');
+    const sh = getSheet(SHEET_SPEND, HEAD_SPEND), now = new Date();
+    sh.getRange(sh.getLastRow() + 1, 1, 2, HEAD_SPEND.length).setValues([
+      [now, giver, price, '送禮', to, '寵物交通工具：' + PET_RIDES[kind], Utilities.getUuid().slice(0, 8)],
+      [now, to, 0, '寵物交通工具', kind, giver + ' 送的', Utilities.getUuid().slice(0, 8)]
+    ]);
+  });
+  try {
+    botMail([[to, '🎁 ' + giver + ' 送你「' + PET_RIDES[kind] + '」！\n到寵物卡的「🚗 交通工具」就能使用，永久保存。\n' + CONFIG.SITE_URL + '#tab=pet']], GIFT_BOT);
+  } catch (e) { Logger.log('交通工具已送出，通知失敗：' + e); }
   return shopState(who);
 }
 // 交通工具的自訂外觀（主人上傳 PNG 去背）：RIDE_IMG { '主人|car': 雲端檔案 id }；導師移除交通工具：RIDE_REVOKED { '主人|car': 移除時間 }（不退點數，之後可以再買）
