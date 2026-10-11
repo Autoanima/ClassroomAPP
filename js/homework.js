@@ -60,7 +60,7 @@
     }).join('');
     return `<div class="panel hwt"><h3>🗓 時間軸</h3>
       <div class="hwt-axis">${ticks.map(t => `<span style="left:${P(t)}">${new Date(t).getMonth() + 1}/${new Date(t).getDate()}</span>`).join('')}</div>
-      <div class="hwt-body">${rows}<span class="hwt-now" style="left:${P(now)}"><em>現在</em></span></div>
+      <div class="hwt-body">${rows}<div class="hwt-now-range"><span class="hwt-now" style="left:${P(now)}"><em>現在</em></span></div></div>
       <p class="muted small">長條＝開始收～截止；深色＝已交的比例；紅色＝已截止但還有人沒交。點一項可以看名單。</p></div>`;
   }
   function cardHtml(x) {
