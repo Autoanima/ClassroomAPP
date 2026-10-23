@@ -654,11 +654,11 @@
       // 地圖資訊開關：「不好」的地方顯示負責人和詳細說明
       const u0 = unitOf[it.id] || it;
       const away = u0.owners.filter(onLeave);
-      let cross = el.querySelector(':scope > .leave-cross');
+      let cross = el.querySelector(':scope > .leave-pause');
       if (away.length) {
-        if (!cross) { cross = document.createElement('span'); cross.className = 'leave-cross'; el.appendChild(cross); }
-        cross.textContent = '×'; cross.title = away.map(o => o + '：' + onLeave(o).join('、')).join('；');
-        cross.setAttribute('aria-label', cross.title);
+        if (!cross) { cross = document.createElement('span'); cross.className = 'leave-pause'; el.appendChild(cross); }
+        cross.textContent = '⏸︎'; cross.title = away.map(o => o + '：' + onLeave(o).join('、')).join('；');
+        cross.setAttribute('aria-label', '請假，暫停掃地工作：' + cross.title);
       } else cross?.remove();
       let mi = el.querySelector(':scope > .minfo');
       const showInfo = ui.mapInfo && s.st === 'bad' && (!u0.group || u0.items[0].id === it.id);
@@ -1989,7 +1989,7 @@
     });
     s += `</svg>`;
     const edit = !check && canRoster();
-    const nameBtn = (key, name, sub) => `<button type="button" class="od-nm${name ? '' : ' empty'}${name && name === settings.me ? ' me' : ''}"${edit ? ` data-od="${key}"` : ' tabindex="-1"'}><b>${name && onLeave(name) ? `<span class="od-leave-cross" title="${esc(name + '：' + onLeave(name).join('、'))}">×</span>` : esc(name || '未設定')}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</button>`;
+    const nameBtn = (key, name, sub) => `<button type="button" class="od-nm${name ? '' : ' empty'}${name && name === settings.me ? ' me' : ''}"${edit ? ` data-od="${key}"` : ' tabindex="-1"'}><b>${name && onLeave(name) ? `<span class="od-leave-pause" title="${esc(name + '：' + onLeave(name).join('、'))}">⏸︎</span>` : esc(name || '未設定')}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</button>`;
     const box = ([x, y, w, h]) => `left:${pct(x - vx, vw)};top:${pct(y, H)};width:${pct(w, vw)};height:${pct(h, H)}`;
     let c = '';
     OUT_ITEMS.forEach(it => {
