@@ -130,7 +130,7 @@
     const wxHtml = ['sun', 'rain'].filter(t => wx.some(w => w.kind === t)).map(t => `<span class="wx wx-${t}" title="${esc(wx.filter(w => w.kind === t).map(w => w.by).join('、'))}">${t === 'sun' ? '☀️' : '☂️'}</span>`).join('');
     // 大頭照滿版，底下兩行小字：組別 座號／姓名
     // 擂台賽：皇冠／昏頭放在名字右邊（不蓋到大頭照；一天）
-    return `<span class="photo${A.arenaLost?.(k) ? ' ar-lost' : ''}">${faceHtml(k)}</span>${wxHtml}<span class="sn"><b>${esc(code.replace(/(\d+)$/, ' $1'))}</b><span class="sn-name">${esc(name)}${A.arenaBadges?.(k) || ''}</span></span>${extra}`;
+    return `<span class="photo${A.arenaLost?.(k) ? ' ar-lost' : ''}">${faceHtml(k)}</span>${wxHtml}<span class="sn">${A.onLeave?.(k) ? `<span class="seat-leave" title="${esc(A.onLeave(k).join('、'))}">${esc([...new Set(A.onLeave(k).map(v => v.split(' ')[0]))].join('、'))}</span>` : ''}<b>${esc(code.replace(/(\d+)$/, ' $1'))}</b><span class="sn-name">${esc(name)}${A.arenaBadges?.(k) || ''}</span></span>${extra}`;
   }
   function seatClass(s) {
     const c = [];
@@ -1027,7 +1027,7 @@
     if (!k) return toast(`${seatName(id)}：空位`);
     let h = A.sheetHead(esc(k), seatName(id));
     h += `<div class="seat-big"><span class="face">${faceHtml(k)}</span><div>${dutyHtml(k)}</div></div>`;
-    if (A.isStaff()) h += `<div class="actions"><button type="button" class="btn wide" data-act="points" data-key="${esc(k)}">⚖️ 幫 ${esc(k)} 登記加扣分</button></div>`;
+    if (A.canPoints()) h += `<div class="actions"><button type="button" class="btn wide" data-act="points" data-key="${esc(k)}">⚖️ 幫 ${esc(k)} 登記加扣分</button></div>`;
     A.openSheet({ kind: 'seatinfo' }, h);
   }
   A.sheetHandlers.seatinfo = (act, b) => { if (act === 'points') { A.closeSheet(); A.openPoints?.([b.dataset.key]); } };
@@ -1335,7 +1335,9 @@
     const res = await Promise.all([loadChart().catch(() => false), Date.now() - facesLoaded > 10 * 60e3 ? loadFaces().then(c => { facesLoaded = Date.now(); return c; }).catch(() => false) : false]);
     if (res.some(Boolean)) A.emit('faces');
   });
+  A.on('leaves', () => { if (A.currentTab() === 'seats') renderAll(); });
   A.tabHooks.seats = () => {
+    A.loadLeaves?.();
     discardDraft();
     renderAll();
     refreshData();

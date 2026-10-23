@@ -202,7 +202,7 @@
   const canCheckIn = () => isTeacher() || (isCadre() && D.inspectorSlots.some(s => inspectorName(s.id) === settings.me));
   const canCheckOut = () => !!roster?.outdoor && outZone() != null;
   const isChecker = () => canCheckIn() || canCheckOut();
-  const canPoints = () => isTeacher() || (isCadre() && (ALL_SLOTS.some(s => inspectorName(s.id) === settings.me) || !!roster?.cadres?.[settings.me] || Object.values(roster?.courseHelpers || {}).some(keys => Array.isArray(keys) && keys.includes(settings.me))));
+  const canPoints = () => isTeacher() || canCheckOut() || (isCadre() && (ALL_SLOTS.some(s => inspectorName(s.id) === settings.me) || !!roster?.cadres?.[settings.me] || Object.values(roster?.courseHelpers || {}).some(keys => Array.isArray(keys) && keys.includes(settings.me))));
   const checkable = it => (it.area === 'in' ? canCheckIn() : canCheckOut() && (!outZone() || it.zone === outZone()));
   const scopeUnits = () => UNITS.filter(u => checkable(u.items[0]));
   // 某位同學的掃地工作與幹部職位
@@ -252,10 +252,10 @@
   let leaveMap = {}, leaveDay = '', leaveAt = 0;
   const onLeave = o => (leaveDay === fmtDate(new Date()) && leaveMap[o]) || null;
   async function loadLeaves(after) {
-    if (!isChecker() || isGuest() || (!settings.gasUrl && !TEST)) return;
+    if (!settings.gasUrl && !TEST) return;
     const day = fmtDate(new Date());
     if (leaveDay === day && Date.now() - leaveAt < 5 * 60e3) return;
-    try { const r = await api('cleanLeaves', { date: day }); leaveMap = r.leaves || {}; leaveDay = day; leaveAt = Date.now(); after?.(); } catch { /* 下次再試 */ }
+    try { const r = await api('cleanLeaves', { date: day }); leaveMap = r.leaves || {}; leaveDay = day; leaveAt = Date.now(); after?.(); App.emit('leaves'); } catch { /* 下次再試 */ }
   }
   // 單位的狀態（整組一起）
   function unitSummary(u) {
@@ -595,7 +595,7 @@
   // ── 分頁 ──
   const TABS = ['points', 'clean', 'seats', 'lunch', 'leave', 'tt', 'hw', 'shop', 'fund', 'invest', 'arena', 'draw', 'line', 'jobs', 'pboard', 'pet'];
   const tabHooks = {};
-  const allowedTabs = () => (isGuest() ? ['draw', 'seats', 'tt'] : isStudent() ? ['seats', 'clean', 'draw', 'shop', 'invest', 'arena', 'line', 'jobs', 'lunch', 'leave', 'tt', 'hw', 'fund', 'pboard', 'pet']
+  const allowedTabs = () => (isGuest() ? ['draw', 'seats', 'tt'] : isStudent() ? [...(canPoints() ? ['points'] : []), 'seats', 'clean', 'draw', 'shop', 'invest', 'arena', 'line', 'jobs', 'lunch', 'leave', 'tt', 'hw', 'fund', 'pboard', 'pet']
     : TABS.filter(t => (t === 'points' ? canPoints() : true)));
   const isViewer = () => !isChecker(); // 不能檢查的人（學生、一般幹部）：掃地地圖只能看
   function showTab(name) {
@@ -630,6 +630,13 @@
       if (s.st !== 'none') el.classList.add('st-' + s.st);
       // 地圖資訊開關：「不好」的地方顯示負責人和詳細說明
       const u0 = unitOf[it.id] || it;
+      const away = u0.owners.filter(onLeave);
+      let cross = el.querySelector(':scope > .leave-cross');
+      if (away.length) {
+        if (!cross) { cross = document.createElement('span'); cross.className = 'leave-cross'; el.appendChild(cross); }
+        cross.textContent = '×'; cross.title = away.map(o => o + '：' + onLeave(o).join('、')).join('；');
+        cross.setAttribute('aria-label', cross.title);
+      } else cross?.remove();
       let mi = el.querySelector(':scope > .minfo');
       const showInfo = ui.mapInfo && s.st === 'bad' && (!u0.group || u0.items[0].id === it.id);
       if (showInfo) {
@@ -1959,7 +1966,7 @@
     });
     s += `</svg>`;
     const edit = !check && canRoster();
-    const nameBtn = (key, name, sub) => `<button type="button" class="od-nm${name ? '' : ' empty'}${name && name === settings.me ? ' me' : ''}"${edit ? ` data-od="${key}"` : ' tabindex="-1"'}><b>${esc(name || '未設定')}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</button>`;
+    const nameBtn = (key, name, sub) => `<button type="button" class="od-nm${name ? '' : ' empty'}${name && name === settings.me ? ' me' : ''}"${edit ? ` data-od="${key}"` : ' tabindex="-1"'}><b>${name && onLeave(name) ? `<span class="od-leave-cross" title="${esc(name + '：' + onLeave(name).join('、'))}">×</span>` : esc(name || '未設定')}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</button>`;
     const box = ([x, y, w, h]) => `left:${pct(x - vx, vw)};top:${pct(y, H)};width:${pct(w, vw)};height:${pct(h, H)}`;
     let c = '';
     OUT_ITEMS.forEach(it => {
@@ -2616,11 +2623,12 @@
   }
 
   // ── 給其他模組（座位、抽籤）使用 ──
+  setInterval(() => { if (started && !document.hidden && ['clean', 'seats'].includes(ui.tab)) loadLeaves(() => { if (ui.tab === 'clean') { renderArea(); refresh(); } }); }, 60e3);
   const listeners = {};
   const App = window.App = {
     D, TEST, SFX, $, esc, pad2, toast, ask, store, api, copyText, fmtDate, fmtTime, fmtDateW,
     loadImage, drawTo, toBlob, blobToBase64,
-    isStudent, isStaff, isTeacher, isGuest, isChecker, jobsOf, roster: () => roster, me: () => settings.me, userName: () => settings.inspector,
+    canPoints, onLeave, loadLeaves, isStudent, isStaff, isTeacher, isGuest, isChecker, jobsOf, roster: () => roster, me: () => settings.me, userName: () => settings.inspector,
     students, loadStudents, studentList: () => studentList, className: () => className() || studentList?.className || '',
     DEMO_STUDENTS,
     mountMap, renderMap, sizeMap, maps, flipOn,
@@ -2645,7 +2653,7 @@
       setTimeout(pollLive, 50);
       if (Date.now() - ciAt > 20e3) loadCheckins();
       prefetchHist();
-      loadLeaves(refresh);
+      loadLeaves(() => { renderArea(); refresh(); });
     };
     mountMap('jobs', 'jobs').el.addEventListener('click', onJobsMapClick);
     tabHooks.jobs = () => renderJobs();

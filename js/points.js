@@ -63,6 +63,7 @@
       h += `</ul>`;
     }
     h += `<p class="muted small">${A.isTeacher() ? '試算表「扣分統計」按「計算」後，會把這裡的加扣分和掃地「不好」的扣分合在一起。' : '登記錯了可以按 ✕ 刪除（只能刪自己登記的）。'}</p></div>`;
+    if (!A.isTeacher()) h = `<div class="panel"><h3>📣 幹部每週鼓勵</h3><p class="small">做好幹部工作，每週記得幫自己加 1 分！週五寄提醒，本週日結束前未完成會扣 0.1 分。</p><button type="button" class="btn btn--primary" data-p="weekly">本週幫自己加 1 分</button></div>` + h;
     root.innerHTML = h;
   }
 
@@ -120,6 +121,11 @@
       return;
     }
     if (d.p === 'clear') { chosen.clear(); return keepReason(render); }
+    if (d.p === 'weekly') {
+      b.disabled = true;
+      try { const r = await A.api('weeklySelfPoint'); recent = r.rows || recent; toast('✓ 本週鼓勵 +1 分，繼續把工作做好！'); A.emit('pointsAdded', [{ student: A.me(), points: 1 }]); } catch (err) { toast(err.message); }
+      render(); return;
+    }
     if (d.p === 'reload') return loadRecent();
     if (d.p === 'submit') return submit();
     if (d.del) {
@@ -158,6 +164,11 @@
       const all = store.get(K.test, []);
       return (A.isTeacher() ? all : all.filter(r => r.by === A.me())).slice(-50).reverse();
     };
+    if (action === 'weeklySelfPoint') {
+      const d = new Date(); d.setDate(d.getDate() - (d.getDay() + 6) % 7); d.setHours(0, 0, 0, 0);
+      if (store.get(K.test, []).some(r => r.student === A.me() && r.by === A.me() && r.points >= 1 && r.ts >= d.getTime())) throw new Error('你本週已經幫自己加過分了');
+      return A.testSeatApi('addPoints', { rows: [{ id: uid(), date: A.fmtDate(new Date()), student: A.me(), points: 1, cat: '幹部自評', reason: '每週鼓勵：做好幹部工作' }] });
+    }
     if (action === 'getPoints') return { ok: true, rows: list() };
     if (action === 'addPoints') {
       const now = new Date();

@@ -136,6 +136,7 @@
     };
     const swapFree = held['交換位置卡'] || 0;
     const specialsHtml = `<div class="panel"><h3>特殊道具</h3><p class="muted small">有 🎁 的道具可以買來送給同學，對方可以免費使用。</p><div class="specials">
+      <div class="sp-cell"><button type="button" class="special" data-s="buyIncubator"${S.unlimited || S.coins >= 5 ? '' : ' disabled'}><span class="sp-ico">🐣</span><b>孵蛋器</b><span class="muted small">選一顆自己的蛋使用，每次成功率 ×2，可疊加至 100%。到寵物頁使用。</span><span class="sp-price">💰 5 點・持有 ${S.incubators || 0} 個</span></button></div>
       ${sp('firework', '煙火', '', '🎆', '煙火', '放在同學的座位上，大家下次打開 App 時都會看到', `💰 ${S.fireworkPrice} 點`, S.coins >= S.fireworkPrice)}
       ${sp('swap', '交換位置卡', 'swap', '🔀', '交換位置卡', banned ? `你被扣了 ${S.minus} 分（超過 ${S.swapBan} 分），不能使用` : S.unlimited ? '和另一位同學強制對調座位（導師請按「送人」）' : '和另一位同學強制對調座位', `💰 ${S.swapPrice || 100} 點`, !banned && (swapFree || S.coins >= (S.swapPrice || 100)))}
       ${sp('steal', '竊盜卡', 'steal', '🦹', '竊盜卡', `把別人的一個配件變成你的（到期日不變）${othersN ? '' : '｜目前沒有人有配件'}`, `💰 ${S.stealPrice} 點`, S.coins >= S.stealPrice && othersN)}
@@ -194,6 +195,12 @@
       A.ensureFaces?.(true); // 大家的大頭照裝飾也一起更新
       toast('✓ 已更新');
       return;
+    }
+    if (act === 'buyIncubator') {
+      if (!await A.ask('花 5 點購買一個孵蛋器？到寵物頁選蛋使用，每次成功率乘以 2，最高 100%。', '購買')) return;
+      b.disabled = true;
+      try { S = await doing('buyIncubator'); toast('✓ 已買到孵蛋器，到寵物頁選蛋使用'); A.emit('petsReload'); } catch (err) { toast(err.message); }
+      render(); return;
     }
     if (act === 'buy') {
       const a = S.catalog.find(x => x.id === b.dataset.acc);
@@ -802,7 +809,7 @@
     const inv = store.get(K.inv, []);
     const pts = store.get('indoor.points.v1.test', []);
     const plus = pts.filter(r => r.student === me && r.points > 0);
-    const earned = 10 + plus.reduce((t, r) => t + r.points, 0);
+    const earned = 10 + plus.reduce((t, r) => t + r.points, 0) + store.get('indoor.boxBonus.v1.test', []).filter(x => x.key === me).length * 3;
     const spent = inv.filter(x => x.buyer === me).reduce((t, x) => t + x.price, 0);
     const admin = A.isTeacher() ? A.DEMO_STUDENTS.map(k => {
       const e = 10 + pts.filter(r => r.student === k && r.points > 0).reduce((t, r) => t + r.points, 0);
@@ -826,7 +833,7 @@
     const inv = store.get(K.inv, []);
     const pts = store.get('indoor.points.v1.test', []);
     const plus = pts.filter(r => r.student === me && r.points > 0);
-    const earned = 10 + plus.reduce((t, r) => t + r.points, 0);
+    const earned = 10 + plus.reduce((t, r) => t + r.points, 0) + store.get('indoor.boxBonus.v1.test', []).filter(x => x.key === me).length * 3;
     const spent = inv.filter(x => x.buyer === me).reduce((t, x) => t + x.price, 0);
     // 示範：幾位同學先有配件，才能試竊盜卡
     if (!store.get('indoor.shopdemo.v1.test', false) && list.length) {
@@ -839,7 +846,7 @@
     const others = {};
     inv2.filter(x => x.owner !== me && x.exp >= today).forEach(x => { (others[x.owner] ||= []).push(x); });
     return {
-      ok: true, me, today, ...(() => { const minus = pts.filter(r => r.student === me && r.points < 0).reduce((t, r) => t - r.points, 0); const pen = Math.min(Math.max(0, earned - spent2), Math.floor(minus / 2)); return { coins: earned - spent2 - pen, penalty: pen, penaltyPer: 2, penaltyFrom: '2026/09/26' }; })(), earned, spent: spent2, catalog: list, stealPrice: 10, fireworkPrice: 1, others,
+      incubators: spend.filter(x => x.who === me).reduce((n, x) => n + (x.use === '購買孵蛋器' ? 1 : x.use === '使用孵蛋器' ? -1 : 0), 0), ok: true, me, today, ...(() => { const minus = pts.filter(r => r.student === me && r.points < 0).reduce((t, r) => t - r.points, 0); const pen = Math.min(Math.max(0, earned - spent2), Math.floor(minus / 2)); return { coins: earned - spent2 - pen, penalty: pen, penaltyPer: 2, penaltyFrom: '2026/09/26' }; })(), earned, spent: spent2, catalog: list, stealPrice: 10, fireworkPrice: 1, others,
       stolen: spend.filter(x => x.use === '竊盜卡' && x.target === me).map(x => ({ time: x.time, thief: x.who, name: x.note })),
       minus: pts.filter(r => r.student === me && r.points < 0).reduce((t, r) => t - r.points, 0), swapBan: 10,
       transferPrice: 20, surePrice: 30, transferDays: 10, weatherPrice: 5, weatherDays: 10,
@@ -862,6 +869,10 @@
   }
   A.testSeatApi = async (action, p = {}) => {
     const me = A.isTeacher() ? D.teacherLabel : A.me(), today = ymd(new Date());
+    if (action === 'buyIncubator') {
+      const st = await testState(); if (!A.isTeacher() && st.coins < 5) throw new Error('孵蛋器需要 5 點');
+      store.set(K.spend, [...store.get(K.spend, []), { who: me, points: A.isTeacher() ? 0 : 5, use: '購買孵蛋器', target: '', t: Date.now(), note: '' }]); return testState();
+    }
     if (action === 'createAcc' || action === 'delAcc') throw new Error('測試模式不能創造商品，請用正式登入試用');
     const testFx = () => {
       const sp = store.get(K.spend, []), since = Date.now() - 10 * 86400e3;

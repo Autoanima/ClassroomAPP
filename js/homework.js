@@ -6,8 +6,8 @@
   const A = window.App;
   const { $, esc, toast, store } = A;
   const TARGET = { all: '全班', data: '資料科', mm: '多媒科', custom: '指定同學' };
-  // 逾期扣分：超過截止沒交，每一天（不滿一天算一天）扣 0.1 分；交了就停止
-  const LATE_PER = 0.1;
+  // 逾期扣分：超過截止沒交，每一天（不滿一天算一天）扣 0.2 分；交了就停止
+  const LATE_PER = 0.2;
   const lateDays = (x, doneAt) => { const stop = doneAt || Date.now(); return stop > x.end ? Math.ceil((stop - x.end) / 864e5) : 0; };
   const minus = d => `−${Math.round(d * LATE_PER * 100) / 100}`;
   // 還沒交的人（預設收起來；記住哪幾項打開了）

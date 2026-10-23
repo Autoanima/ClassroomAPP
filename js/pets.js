@@ -616,12 +616,12 @@
   }
   async function playGone(x, at) {
     const { g, what, act } = goneText(x);
-    await notice(goneArt(x.gone), `<h3>🥚 ${esc(nm(x.owner))} 的寵物蛋孵化了！</h3><p>竟然是<b>${esc(what)}</b>！</p><p class="muted small">只有約 1/10 的蛋會孵出真正的寵物，其他會孵出奇怪的東西，然後離開教室。</p>`, '真的假的?!!!?');
+    await notice(goneArt(x.gone), `<h3>🥚 ${esc(nm(x.owner))} 的寵物蛋孵化了！</h3><p>竟然是<b>${esc(what)}</b>！</p><p class="muted small">未使用孵蛋器時約 1/10 的蛋會孵出真正的寵物，其他會孵出奇怪的東西，然後離開教室。</p>`, '真的假的?!!!?');
     if (A.currentTab() !== 'seats') return;
     geo = geometry(); if (geo) at = geo.board;
     const help = goneHelp(x.gone);
     const el = fx(`<span class="g-egg">${EGG}</span>${help ? `<span class="g-help h-${g[1]}">${help}</span>` : ''}${g[1] === 'ufo' ? '<span class="g-beam"></span>' : ''}<span class="g-actor a-${g[1]}">${goneArt(x.gone)}</span><span class="g-say">${esc(what)}<br>${esc(act)}</span>`, 'gone-fx', at.x, at.y);
-    banner(`🥚 <b>${esc(nm(x.owner))}</b> 的寵物蛋孵化了……竟然是<b>${esc(what)}</b>！<br>${esc(act)}。<span class="muted small">（只有約 1/10 的蛋會孵出真正的寵物）</span>`, 7400);
+    banner(`🥚 <b>${esc(nm(x.owner))}</b> 的寵物蛋孵化了……竟然是<b>${esc(what)}</b>！<br>${esc(act)}。<span class="muted small">（未使用孵蛋器時約 1/10 的蛋會孵出真正的寵物）</span>`, 7400);
     await wait(7800); el.remove();
   }
   const markSeen = (k, id) => { seen[k] = [...seen[k].filter(x => x !== id), id].slice(-100); store.set('indoor.pets.seen', seen); };
@@ -677,7 +677,7 @@
         const from = seatCenter(x.owner) || { x: dest.x, y: geo.T + 40 };
         const e = fx(EGG, 'egg-fly', from.x, from.y);
         e.style.setProperty('--dx', (dest.x - from.x) + 'px'); e.style.setProperty('--dy', (dest.y - from.y) + 'px');
-        banner(`🐣 <b>${esc(nm(x.owner))}</b> 按了「孵化」，寵物蛋跳到講台上了！<br><span class="muted small">一天後揭曉：只有約 1/10 會孵出真正的寵物。</span>`, 3500);
+        banner(`🐣 <b>${esc(nm(x.owner))}</b> 按了「孵化」，寵物蛋跳到講台上了！<br><span class="muted small">一天後揭曉：未使用孵蛋器時約 1/10 會孵出真正的寵物。</span>`, 3500);
         await wait(1500); e.remove();
         if (slot) slot.style.visibility = '';
         markSeen('egg', x.id);
@@ -685,9 +685,9 @@
         await playGone(x, to);
         markSeen('gone', x.id); markSeen('egg', x.id);
       } else if (kind === 'hatch') {
-        await notice(look(x), `<h3>🎉 太幸運了！</h3><p><b>${esc(nm(x.owner))}</b> 的寵物蛋<b>真的孵出寵物</b>了！</p><p class="muted small">只有約 1/10 的機會。${x.owner === A.me() ? '到「🐾 寵物」可以幫牠取名字、上傳外觀。' : ''}</p>`, '確定，看牠出來');
+        await notice(look(x), `<h3>🎉 太幸運了！</h3><p><b>${esc(nm(x.owner))}</b> 的寵物蛋<b>真的孵出寵物</b>了！</p><p class="muted small">未使用孵蛋器時約 1/10 的機會。${x.owner === A.me() ? '到「🐾 寵物」可以幫牠取名字、上傳外觀。' : ''}</p>`, '確定，看牠出來');
         const e = fx(`<span class="hatch-egg">${EGG}</span><span class="hatch-pet">${look(x)}</span>`, 'egg-hatch', to.x, to.y);
-        banner(`🎉 太幸運了！<b>${esc(nm(x.owner))}</b> 的寵物蛋<b>真的孵出寵物</b>了（只有約 1/10 的機會）！${x.owner === A.me() ? '<br><span class="muted small">到「🐾 寵物」可以上傳牠的外觀、取名字。</span>' : ''}`, 5000);
+        banner(`🎉 太幸運了！<b>${esc(nm(x.owner))}</b> 的寵物蛋<b>真的孵出寵物</b>了（未使用孵蛋器時約 1/10 的機會）！${x.owner === A.me() ? '<br><span class="muted small">到「🐾 寵物」可以上傳牠的外觀、取名字。</span>' : ''}`, 5000);
         await wait(2400); e.remove();
         markSeen('hatch', x.id);
       } else {
@@ -759,6 +759,8 @@
       ${x.fed && x.status === '寵物' ? `<span class="muted small">最近餵食：${esc(x.fed)}</span>` : ''}</div></div>
       ${x.status === '寵物' ? `<div class="pet-feeders"><b>🥫 最近一週餵牠的人</b>${(x.feeders || []).length ? `<div>${x.feeders.map(f => `<span class="pet-fd">${esc(nm(f.key))}<b>×${f.n}</b></span>`).join('')}</div><span class="muted small">餵越多次，牠越常跑去你的座位旁邊睡覺 💤</span>` : '<span class="muted small">這週還沒有人餵牠。</span>'}</div>` : ''}`;
     if (x.status === '寵物' && !A.isGuest()) h += `<div class="actions"><button type="button" class="btn btn--primary wide" data-act="petFeed" data-id="${esc(x.id)}"${full(x) ? ' disabled' : ''}>🥫 餵罐罐（${P.food} 點，+1 🍚）${full(x) ? '・吃飽了' : ''}</button></div>`;
+    if (isEgg) h += `<p class="small">🐣 孵化成功率：<b>${Math.round((x.hatchChance ?? P.hatchOk ?? 0.1) * 100)}%</b>・已用 ${x.boostUses || 0} 個孵蛋器</p>`;
+    if (isEgg && x.owner === A.me()) h += `<button type="button" class="btn" data-act="petBoost" data-id="${esc(x.id)}"${(P.incubators || 0) > 0 && (x.hatchChance || 0) < 1 ? '' : ' disabled'}>🐣 使用孵蛋器（持有 ${P.incubators || 0} 個，每次成功率 ×2）</button>`;
     if (x.status === '待孵' && (x.owner === A.me() || A.isTeacher())) h += `<div class="actions"><button type="button" class="btn btn--primary wide" data-act="petIncubate" data-id="${esc(x.id)}">🐣 孵化（放到講台上）</button></div>`;
     if (A.isTeacher() && x.status !== '覓食') h += `<div class="actions"><button type="button" class="btn btn--danger wide" data-act="petDel" data-id="${esc(x.id)}">🗑 移除這${isEgg ? '顆蛋' : '隻寵物'}（導師）</button></div>`;
     h += rideBox(x);
@@ -849,6 +851,11 @@
       throw new Error('圖片太大，請換一張');
     } finally { URL.revokeObjectURL(url); }
   }
+  async function boost(id, b) {
+    if (!await A.ask('對這顆蛋使用一個孵蛋器？成功率將乘以 2，最高 100%。', '使用孵蛋器')) return;
+    b.disabled = true;
+    try { P = await A.api('useIncubator', { id }); toast('✓ 孵化成功率已加倍'); if (A.sheetMode()?.kind === 'pet') openCard(id); if (A.currentTab() === 'pet') render(); A.emit('coins'); } catch (err) { toast(err.message); b.disabled = false; }
+  }
   async function feed(id, b) {
     const x = P.pets.find(y => y.id === id);
     if (!x) return;
@@ -869,6 +876,7 @@
     } catch (err) { toast(err.message); if (b) b.disabled = false; }
   }
   A.sheetHandlers.pet = async (act, b) => {
+    if (act === 'petBoost') return boost(b.dataset.id, b);
     if (['rideV', 'rideR', 'petRide', 'rideLook', 'rideLookDel', 'rideRemove'].includes(act)) return rideAct(act, b);
     if (act === 'petFeed') return feed(b.dataset.id, b);
     if (act === 'petIncubate') return incubate([b.dataset.id], b);
@@ -926,7 +934,7 @@
       <li>每一隻蛋／寵物都有<b>自己的 🍚 上限</b>（例如 3 🍚、4 🍚）；同一位主人全部的蛋和寵物，<b>上限加起來最多 ${P.max} 🍚</b>。</li>
       <li>第一顆蛋上限 ${P.max} 🍚；之後每多一顆新蛋，<b>上限最大的那隻會自動分 1 🍚 給新蛋</b>。主人可以自己互相移動上限（例如 8／1／1，每隻至少 1 🍚），所以最多同時有 ${P.max} 隻。</li>
       <li>寵物跑出去覓食後，牠的上限<b>不會</b>分回給其他隻。</li>
-      <li>蛋放到講台上 <b>1 天</b>後孵化，但<b>只有約 1/10 的機會孵出真正的寵物</b>；其他會孵出各種奇怪的東西（小鳥、法拉利、趕上班的老伯…共 ${Object.keys(GONE).length} 種），然後就離開教室了。孵失敗的蛋，牠的 🍚 會平均分給同一位主人其他的蛋和寵物。</li>
+      <li>蛋放到講台上 <b>1 天</b>後孵化，但<b>未使用孵蛋器時約 1/10 的機會孵出真正的寵物</b>；可在商店花 5 點購買孵蛋器，在開始前或孵化中對自己的蛋使用，每次成功率乘以 2（最高 100%）。其他會孵出各種奇怪的東西（小鳥、法拉利、趕上班的老伯…共 ${Object.keys(GONE).length} 種），然後就離開教室了。孵失敗的蛋，牠的 🍚 會平均分給同一位主人其他的蛋和寵物。</li>
       <li>寵物的主人（被加分的同學）可以上傳牠的外觀（建議 PNG 去背），沒上傳就是<b>貓咪</b>。</li>
       <li>寵物會在座位表的教室四邊走來走去；點牠會有愛心或音符，也可以看到牠的<b>飽足度 🍚</b>。</li>
       <li>寵物孵化後<b>每天會餓掉 1 🍚</b>。在商店或寵物卡買<b>罐罐（${P.food} 點）</b>餵牠，<b>+1 🍚</b>（最多補到牠自己的上限）。</li>
@@ -937,8 +945,9 @@
     const sec = (title, list) => (list.length ? `<div class="panel"><h3>${title}</h3><div class="pet-list">${list.map(x => `<div class="pet-row" data-petcard="${esc(x.id)}" role="button" tabindex="0">${cardHtml(x)}</div>`).join('')}</div></div>` : '');
     const meK = A.isTeacher() ? '' : A.me();
     const waiting = by('待孵'), mineWait = waiting.filter(x => x.owner === meK);
+    if (P.pendingGiftEggs) h += `<div class="panel">🎁 還有 ${P.pendingGiftEggs} 顆禮物盒寵物蛋保留待領；目前寵物空間已滿，空出位置後自動領取。</div>`;
     if (mineWait.length) h += `<div class="panel pet-wait"><h3>🥚 你有 ${mineWait.length} 顆寵物蛋還沒孵化</h3>
-      <p class="small">按「🐣 孵化」，蛋才會放到講台上，一天後揭曉（只有約 1/10 會孵出真正的寵物，其他會孵出奇怪的東西跑掉）。</p>
+      <p class="small">按「🐣 孵化」，蛋才會放到講台上，一天後揭曉（未使用孵蛋器時約 1/10 會孵出真正的寵物，其他會孵出奇怪的東西跑掉）。</p>
       <div class="pet-wait-eggs">${mineWait.map(() => EGG).join('')}</div>
       <div class="actions"><button type="button" class="btn btn--primary wide" data-act="petIncubate" data-ids="${esc(mineWait.map(x => x.id).join(','))}">🐣 孵化${mineWait.length > 1 ? `（全部 ${mineWait.length} 顆）` : ''}</button></div></div>`;
     if (meK) h += allotHtml(meK);
@@ -964,6 +973,7 @@
       }
     }
     const b = e.target.closest('[data-act]');
+    if (b?.dataset.act === 'petBoost') { e.stopPropagation(); return boost(b.dataset.id, b); }
     if (b?.dataset.act === 'petFeed') { e.stopPropagation(); return feed(b.dataset.id, b); }
     if (b?.dataset.act === 'petIncubate') { e.stopPropagation(); return incubate(b.dataset.ids ? b.dataset.ids.split(',') : [b.dataset.id], b); }
     if (['rideV', 'rideR', 'petRide', 'rideLook', 'rideLookDel', 'rideRemove'].includes(b?.dataset.act)) { e.stopPropagation(); return rideAct(b.dataset.act, b); }
@@ -1035,16 +1045,33 @@
       store.set(SK, [...sp, { id: Math.random().toString(36).slice(2, 10), who, points: A.isTeacher() ? 0 : 10, use: '寵物交通工具', target: p.kind, note: '', time: '', t: Date.now() }]);
       return prevTest('shopState');
     }
-    if (!['getPets', 'feedPet', 'petLook', 'petImage', 'petAllot', 'petDelete', 'petIncubate', 'petRide', 'rideLook', 'rideImage', 'rideRemove'].includes(action)) return prevTest ? prevTest(action, p) : null;
+    if (!['useIncubator', 'getPets', 'feedPet', 'petLook', 'petImage', 'petAllot', 'petDelete', 'petIncubate', 'petRide', 'rideLook', 'rideImage', 'rideRemove'].includes(action)) return prevTest ? prevTest(action, p) : null;
+    const BK = 'indoor.boxBonus.v1.test', bonuses = store.get(BK, []);
+    const claimMe = A.isTeacher() ? A.D.teacherLabel : A.me();
+    bonuses.filter(x => x.key === claimMe && !x.egg).forEach(x => {
+      const n = store.get('indoor.pets.v1.test', []).filter(p => p.owner === claimMe && ['待孵', '蛋', '寵物'].includes(p.status)).length;
+      if (n < 10) { A.testLayEggs([{ student: claimMe, points: 1, reason: '禮物盒加贈 ' + x.box }]); x.egg = true; }
+    });
+    store.set(BK, bonuses);
     const KEY = 'indoor.pets.v1.test', all = store.get(KEY, null) || [], me = A.isTeacher() ? (A.D.teacherLabel || '導師') : A.me(), now = Date.now();
     if (!store.get(KEY, null)) {   // 第一次：補一顆蛋（最近被加分的同學）
       const k = A.students()[4] || A.students()[0];
       if (k) all.push({ id: 'p' + now.toString(36), owner: k, reason: '上課認真回答', born: now, hatch: now + 864e5, name: '', imgId: '', hp: 10, cap: 10, decay: '', status: '蛋', died: 0, fed: '' });
     }
+    const spBoost = store.get('indoor.shopspend.v1.test', []), boosts = {};
+    spBoost.filter(r => r.use === '使用孵蛋器').forEach(r => { boosts[r.target] = (boosts[r.target] || 0) + 1; });
+    const inventory = () => spBoost.filter(r => r.who === me).reduce((n, r) => n + (r.use === '購買孵蛋器' ? 1 : r.use === '使用孵蛋器' ? -1 : 0), 0);
+    if (action === 'useIncubator') {
+      const egg = all.find(x => x.id === p.id && x.owner === me && ['待孵', '蛋'].includes(x.status));
+      if (!egg || (egg.status === '蛋' && now >= egg.hatch)) throw new Error('只能對自己尚未揭曉的蛋使用');
+      if (inventory() < 1) throw new Error('請先到商店購買孵蛋器（5 點）');
+      if (0.1 * 2 ** (boosts[p.id] || 0) >= 1) throw new Error('成功率已達 100%');
+      spBoost.push({ who: me, points: 0, use: '使用孵蛋器', target: p.id, t: now }); store.set('indoor.shopspend.v1.test', spBoost); boosts[p.id] = (boosts[p.id] || 0) + 1;
+    }
     const day = t => Math.floor((t + 8 * 3600e3) / 864e5);
     all.forEach(x => {
       if (x.status === '蛋' && now >= x.hatch) {
-        if (Math.random() >= 0.1) { x.status = '飛走'; x.gone = Object.keys(GONE)[Math.floor(Math.random() * Object.keys(GONE).length)]; return; }
+        if (Math.random() >= Math.min(1, 0.1 * 2 ** (boosts[x.id] || 0))) { x.status = '飛走'; x.gone = Object.keys(GONE)[Math.floor(Math.random() * Object.keys(GONE).length)]; return; }
         x.status = '寵物'; x.hp = Math.max(1, x.hp || 1); x.decay = day(x.hatch);
       }
       if (x.status === '寵物' && day(now) > x.decay) { x.hp -= day(now) - x.decay; x.decay = day(now); if (x.hp <= 0) { x.hp = 0; x.status = '覓食'; x.died = now; } }
@@ -1098,6 +1125,6 @@
     const spAll = store.get('indoor.shopspend.v1.test', []), ownedOf = k => [...new Set(spAll.filter(y => y.who === k && y.use === '寵物交通工具' && y.t > (rv[k + '|' + y.target] || 0)).map(y => y.target))];
     const owned = {}; all.forEach(x => { owned[x.owner] ||= ownedOf(x.owner); }); owned[me] ||= ownedOf(me);
     const rideImgs = {}; Object.entries(im).forEach(([k, y]) => { const [o, v] = k.split('|'); if ((owned[o] || []).includes(v)) rideImgs[k] = y.id; });
-    return { ok: true, rides: rm, owned, rideImgs, ridePrice: 10, pets: all.map(x => ({ ...x, img: x.imgId ? 1 : 0, feeders: feeders(x) })), gone: goneAll.filter(x => now - x.hatch < 7 * 864e5), me, now, food: 1, max: 10 };
+    return { pendingGiftEggs: bonuses.filter(x => x.key === me && !x.egg).length, incubators: inventory(), hatchOk: 0.1, ok: true, rides: rm, owned, rideImgs, ridePrice: 10, pets: all.map(x => ({ ...x, boostUses: boosts[x.id] || 0, hatchChance: Math.min(1, 0.1 * 2 ** (boosts[x.id] || 0)), img: x.imgId ? 1 : 0, feeders: feeders(x) })), gone: goneAll.filter(x => now - x.hatch < 7 * 864e5), me, now, food: 1, max: 10 };
   };
 })();

@@ -162,7 +162,7 @@
       const acc = kind === '裝扮配件';
       box.got = r.got;
       card.querySelector('.gbw').insertAdjacentHTML('beforeend', `<div class="gb-reward-in"><div class="gb-big">${ICON[kind] || '🎁'}</div>
-        <b>你得到${acc ? `裝扮配件「${esc(r.accName || '')}」` : `一張「${esc(kind)}」`}！</b>
+        <b>${r.bonus ? '加贈 3 點＋一顆寵物蛋！<br>' : ''}你得到${acc ? `裝扮配件「${esc(r.accName || '')}」` : `一張「${esc(kind)}」`}！</b>
         <p class="muted small">${acc ? `已經放進「商店 → 我的配件」，有效 10 天，按「裝扮大頭照」就可以戴上。` : '已經放進你的道具，在「商店 → 特殊道具」可以免費使用。'}</p>
         <button type="button" class="btn btn--primary wide gb-ok">太好了！</button></div>`);
       btn.remove();
@@ -183,6 +183,7 @@
       });
     }
     fx.hidden = true; playing = false;
+    if (r.bonus) { A.emit('coins'); A.emit('petsReload'); }
     paintDock();
     const next = boxes.find(b => !b.opened);
     if (next && A.currentTab() === 'seats') { await wait(200); play(next); }
@@ -221,7 +222,7 @@
     await load();
     if (!canMake) return toast(isMaker() ? '你這週已經放過禮物盒了，下週再來' : '只有導師、班長、副班長可以放禮物盒');
     made = null;
-    let h = A.sheetHead('🎁 放一個禮物盒', '每週一次；大家打開「座位」時會看到它從天而降、爆開，並隨機得到一張道具卡');
+    let h = A.sheetHead('🎁 放一個禮物盒', '每週一次；大家打開「座位」時會看到它從天而降、爆開，並隨機得到獎品，每人另獲 3 點與一顆寵物蛋（滿額保留待領）');
     h += `<label class="create-pick gb-pick"><input type="file" id="gbFile" accept="image/*" hidden><span id="gbPrev" class="create-prev">＋<br><span class="small">選一張圖片</span></span></label>
       <p class="muted small" id="gbInfo">圖片會自動壓縮，方便網路傳送。</p>
       <div class="actions"><button type="button" class="btn btn--primary wide" data-act="gbOk">🎁 放到教室正中間</button></div>`;
@@ -253,7 +254,7 @@
     if (action === 'createGiftBox') { store.set(KEY, [...store.get(KEY, []), { id: Math.random().toString(36).slice(2, 10), by: me, img: p.data, t: Date.now() }]); return { ok: true, boxes: list().map(b => ({ id: b.id, by: b.by, opened: false })) }; }
     if (action === 'openGiftBox') {
       const b = list().find(x => x.id === p.id), o = opened();
-      let got = '', kind = '', accName = '';
+      let got = '', kind = '', accName = '', bonus = false;
       if (!o[me + '|' + p.id]) {
         if (!A.isTeacher() && !A.isGuest()) {                           // 照機率抽（和正式版一樣）
           let r = Math.random() * 100;
@@ -269,9 +270,13 @@
           got = kind;
           store.set('indoor.testcards.v1.test', [...store.get('indoor.testcards.v1.test', []), { who: me, card: got, n: 1, from: '禮物盒', t: Date.now() }]);
         }
+        if (!A.isTeacher() && !A.isGuest()) {
+          const bk = 'indoor.boxBonus.v1.test', bb = store.get(bk, []);
+          if (!bb.some(x => x.key === me && x.box === p.id)) { bb.push({ key: me, box: p.id, egg: false }); store.set(bk, bb); bonus = true; }
+        }
         o[me + '|' + p.id] = got || '看過'; store.set(OK, o);
       }
-      return { ok: true, img: p.noImg ? '' : b?.img || '', by: b?.by || '', got, kind, accName, odds: ODDS };
+      return { bonus, ok: true, img: p.noImg ? '' : b?.img || '', by: b?.by || '', got, kind, accName, odds: ODDS };
     }
     if (action === 'giftBoxImage') {
       const b = list().find(x => x.id === p.id);

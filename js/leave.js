@@ -118,7 +118,7 @@
   // 一筆請假：進度（已登記 → 已上傳假卡 → 已確認）＋動作
   function itemHtml(x, teacher, ro) {
     // 四個步驟：APP 登記 → 家長簽名 → 導師簽名 → 其他處室簽名；上傳假卡＝紙本全部簽完（四步都完成）
-    const back = x.status === '退回', idx = back || x.status === '已登記' ? 0 : 3;
+    const back = x.status === '退回' || x.status === '假卡上傳錯誤', idx = back || x.status === '已登記' ? 0 : 3;
     const flow = `<ol class="lv-flow">${FLOW[isGong(x) ? 'gong' : 'normal'].map((t, i) => `<li class="${i <= idx ? 'done' : i === idx + 1 ? 'next' : ''}"><span class="n">${i <= idx ? '✓' : i + 1}</span><span class="t">${t}</span></li>`).join('')}</ol>`;
     const after = x.status === '已確認' ? `<div class="lv-flow-after ok">✅ ${isGong(x) && !x.cards?.length && !x.nCards ? '導師已在 App 確認' : `${docOf(x)}已上傳，導師已在 App 確認`}</div>`
       : x.status === '已上傳假卡' ? `<div class="lv-flow-after">📷 ${docOf(x)}已上傳，等導師在 App 確認</div>`
@@ -134,6 +134,7 @@
     const btns = [];
     if (x.cards.length) btns.push(`<button type="button" class="btn" data-lv="cards" data-id="${esc(x.id)}">🖼 ${docOf(x)} ${x.cards.length}</button>`);
     // 順序：確認 → 上傳假卡 → 退回 → 取消 → 編輯
+    if (teacher && x.cards.length && x.cardT && x.status !== '假卡上傳錯誤') btns.push(`<button type="button" class="btn btn--danger" data-lv="wrong" data-id="${esc(x.id)}">❌ 假卡上傳錯誤</button>`);
     if (teacher && x.status !== '已確認') btns.push(`<button type="button" class="btn btn--primary" data-lv="ok" data-id="${esc(x.id)}">✓ 導師確認</button>`);
     if (x.status !== '已確認') btns.push(`<button type="button" class="btn lv-up${!teacher && !x.cards.length && !isGong(x) ? ' btn--primary' : ''}" data-lv="upload" data-id="${esc(x.id)}">📷 ${isGong(x) ? '上傳公差單（選填）' : '學生上傳假卡'}</button>`);
     if (teacher && x.status !== '退回' && x.status !== '已確認') btns.push(`<button type="button" class="btn" data-lv="back" data-id="${esc(x.id)}">↩ 導師退回</button>`);
@@ -144,6 +145,7 @@
     }
     return `<div class="lv-item${x.status === '已確認' ? ' done' : ''}${x.status === '已確認' || x.status === '已上傳假卡' ? ' filed' : ''}${isLate(x) ? ' late' : ''}">
       <div class="lv-top"><span class="lv-type ${TYPE_CLS[x.type] || ''}">${esc(x.type)}</span><b>${esc(when(x))}</b>${isLate(x) ? '<span class="lv-late-tag">⚠️ 已逾期</span>' : ''}${teacher ? `<span class="lv-who">${esc(nm(x.key))}</span>` : ''}</div>
+      ${x.status === '假卡上傳錯誤' ? '<div class="hw-red">❌ 假卡上傳錯誤：請重新上傳，已另扣 0.3 分；逾期扣分持續計算。</div>' : ''}
       ${x.note ? `<div class="small">${esc(x.note)}</div>` : ''}
       <div class="lv-steps">${steps}</div>
       ${x.reply && !back ? `<div class="small muted">導師：${esc(x.reply)}</div>` : ''}
@@ -185,7 +187,7 @@
   const took = x => (x.cardT && x.t ? x.cardT - x.t : null);
   const durText = ms => (ms < 86400e3 ? `不到 1 天（${Math.max(1, Math.round(ms / 3600e3))} 小時）` : `${(ms / 86400e3).toFixed(1)} 天`);
   const LATE_DAYS = 3, LATE_PER = 0.1;
-  const pending = x => x.t && !x.cardT && !isGong(x) && (x.status === '已登記' || x.status === '退回');   // 公假的公差單是選填，不計時、不扣分
+  const pending = x => x.t && !x.cardT && !isGong(x) && (x.status === '已登記' || x.status === '退回' || x.status === '假卡上傳錯誤');   // 公假的公差單是選填，不計時、不扣分
   const isLate = x => pending(x) && Date.now() - x.t >= LATE_DAYS * 864e5;
   // 逾期天數（登記滿 3 天之後，每一天、不滿一天算一天；上傳假卡就停止）
   const lateDays = x => { const stop = x.cardT || (pending(x) ? Date.now() : 0); return stop ? Math.max(0, Math.ceil((stop - x.t - LATE_DAYS * 864e5) / 864e5)) : 0; };
@@ -476,6 +478,12 @@
       try { await A.api('remindLeaveCard', { id: x.id }); toast(`📨 已提醒 ${nm(x.key)} 上傳${docOf(x)}`); } catch (err) { toast(err.message); }
       b.disabled = false; return;
     }
+    if (act === 'wrong') {
+      if (!await A.ask('標示假卡上傳錯誤？原上傳不算完成，將補算並持續扣逾期分數，另扣 0.3 分，直到重新上傳。', '假卡上傳錯誤', true)) return;
+      b.disabled = true;
+      try { L = await A.api('setLeaveStatus', { id: x.id, status: '假卡上傳錯誤', reply: '請重新上傳正確且已完成簽核的假卡照片' }); toast('已標示上傳錯誤，並通知同學'); } catch (err) { toast(err.message); }
+      render(); return;
+    }
     if (act === 'ok' || act === 'back') {
       let reply = '';
       if (act === 'back') { reply = prompt('退回的原因（同學會收到飛鴿傳書）', isGong(x) ? '公差單還沒有教官簽名' : '假卡還沒有教官室簽章') ?? null; if (reply === null) return; }
@@ -520,7 +528,7 @@
     if (action === 'addLeave') { const r = p.row; (A.isTeacher() && r.keys ? r.keys : [A.isTeacher() ? r.key : me]).forEach((k, i) => all.push({ id: 'lv' + Date.now() + i, time, t: Date.now(), cardT: 0, key: k, type: r.type, from: r.from, fromP: r.fromP, to: r.to, toP: r.toP, note: r.note || '', status: '已登記', cards: [], reply: '', by: me })); }
     if (action === 'leaveCard') { const x = find(p.id), cid = 'c' + Date.now(); store.set(CK, { ...store.get(CK, {}), [cid]: p.data }); x.cards.push(cid); x.status = '已上傳假卡'; x.cardT ||= Date.now(); }
     if (action === 'getLeaveCard') { const d = store.get(CK, {})[p.fid]; if (!d) throw new Error('找不到這張假卡'); return { ok: true, d }; }
-    if (action === 'setLeaveStatus') (p.ids || [p.id]).forEach(id => { const x = find(id); x.status = p.status; x.reply = p.reply || ''; });
+    if (action === 'setLeaveStatus') (p.ids || [p.id]).forEach(id => { const x = find(id); if (p.status === '假卡上傳錯誤' && x.status !== p.status) { x.cardT = 0; store.set('indoor.points.v1.test', [...store.get('indoor.points.v1.test', []), { id: 'bad-' + Date.now(), student: x.key, points: -0.3, cat: '請假', reason: '假卡上傳錯誤', by: A.D.teacherLabel, ts: Date.now(), time: A.fmtDate(new Date()) }]); } x.status = p.status; x.reply = p.reply || ''; });
     if (action === 'delLeaveCard') { const x = find(p.id); x.cards = x.cards.filter(c => c !== p.fid); if (!x.cards.length && x.status === '已上傳假卡') x.status = '已登記'; }
     if (action === 'cancelLeave') (p.ids || [p.id]).forEach(id => { find(id).status = '已取消'; });
     if (action === 'editLeave') { const x = find(p.id); Object.assign(x, { type: p.row.type, from: p.row.from, fromP: p.row.fromP, to: p.row.to, toP: p.row.toP, note: p.row.note || '' }); }

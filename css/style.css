@@ -2434,3 +2434,9 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 /* 「現在／下一節」的課名放大 */
 .tt-now > div > b { font-size: 19px; font-weight: 800; }
 .tt-now > div { align-items: center; }
+
+/* 請假標示放在各自格子內，避免蓋到鄰座。 */
+.leave-cross { position: absolute; inset: 0; display: grid; place-items: center; color: #e03131; font-size: 44px; font-weight: 900; line-height: 1; pointer-events: none; text-shadow: 0 0 3px var(--panel, #fff); z-index: 4; }
+.od-leave-cross { display: inline-block; color: #e03131; font-size: 32px; line-height: 1; font-weight: 900; }
+.seat-leave { display: block; max-width: 100%; color: #ffb3b3; font-size: .85em; font-weight: 800; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-pref { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }

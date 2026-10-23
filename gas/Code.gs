@@ -48,7 +48,7 @@ const CONFIG = {
   SWAP_BAN_MINUS: 10,
   LEAVE_LATE_DAYS: 3,                 // 請假：登記後超過 3 天還沒上傳假卡＝逾期（自動提醒、標紅色）
   LEAVE_LATE_PER: 0.1,                // 逾期後每一天扣 0.1 分（上傳假卡就停止）
-  HW_LATE_PER: 0.1,                   // 繳交追蹤：超過截止沒交，每一天扣 0.1 分（交了就停止；截止後 1 小時也算 1 天）
+  HW_LATE_PER: 0.2,                   // 繳交追蹤：超過截止沒交，每一天扣 0.2 分（交了就停止；截止後 1 小時也算 1 天）
   ABSENT_PER: 0.1,                    // 掃地檢查「未出席」：另外扣 0.1 分（「不好」照扣分統計 B3 的分數扣）
   PENALTY_PER: 2,                     // 每被扣 2 分，商店點數減 1 點（最少扣到 0 點，不會變負的）
   PENALTY_FROM: '2026/09/26',         // 這天以後的扣分才會扣點數（之前的不算）
@@ -114,11 +114,11 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ rideLook: 1, rideImage: 1, petRide: 1, buyRide: 1, giftRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ buyIncubator: 1, useIncubator: 1, weeklySelfPoint: 1, boardPrefs: 1, setBoardPref: 1, cleanLeaves: 1, rideLook: 1, rideImage: 1, petRide: 1, buyRide: 1, giftRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ rideLook: 1, rideImage: 1, petRide: 1, buyRide: 1, giftRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, lunchChange: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ buyIncubator: 1, useIncubator: 1, weeklySelfPoint: 1, boardPrefs: 1, setBoardPref: 1, cleanLeaves: 1, rideLook: 1, rideImage: 1, petRide: 1, buyRide: 1, giftRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, lunchChange: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
-const GUEST_OK = { rideImage: 1, getTimetable: 1, getPets: 1, petImage: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
+const GUEST_OK = { boardPrefs: 1, setBoardPref: 1, cleanLeaves: 1, rideImage: 1, getTimetable: 1, getPets: 1, petImage: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { cleanLeaves: 1, notifyCheck: 1, saveRecords: 1, uploadPhoto: 1, getCheckLive: 1, setCheckLive: 1 };
 const MONITOR_OK = { addDrawLog: 1, getDrawFx: 1, drawUsed: 1 };   // 用學生身分登入的班長、副班長：可以抽籤
 
@@ -144,7 +144,7 @@ function doPost(e) {
       who = m ? { role: m[1], key: m[2] } : { role: 'S', key: v };
       const ok = who.role === 'G' ? GUEST_OK[req.action]
         : who.role === 'C' ? CADRE_OK[req.action] || (CHECKER_OK[req.action] && isInspector(who.key))
-        : STUDENT_OK[req.action] || (MONITOR_OK[req.action] && isMonitor(who.key));
+        : STUDENT_OK[req.action] || (MONITOR_OK[req.action] && isMonitor(who.key)) || (['addPoints', 'getPoints', 'delPoints'].indexOf(req.action) >= 0 && canScoreKey(who.key));
       if (!ok) return json({ ok: false, error: '沒有權限' });
     } else {
       if (req.token == null || normPw(req.token) !== normPw(CONFIG.TOKEN)) return json({ ok: false, error: '密碼錯誤', code: 'token' });
@@ -228,6 +228,11 @@ function doPost(e) {
       case 'petIncubate': return json(petIncubate(who, req.ids || req.id));
       case 'pointsBoard': return json(pointsBoard(who));
       case 'delPoints': return json(delPoints(req.id, who));
+      case 'buyIncubator': return json(buyIncubator(who));
+      case 'useIncubator': return json(useIncubator(who, String(req.id || '')));
+      case 'weeklySelfPoint': return json(weeklySelfPoint(who));
+      case 'boardPrefs': return json(boardPrefs(who));
+      case 'setBoardPref': return json(setBoardPref(who, String(req.id || ''), !!req.hidden));
       case 'shopState': return json(shopState(who));
       case 'accImages': return json(accImages(req.have || {}, req.want));
       case 'buyAcc': return json(buyAcc(who, String(req.acc || '')));
@@ -322,6 +327,7 @@ function setup() {
   photoFolder();
   ensureScoreSheet(true);
   computeScores();
+  setupFeatureUpdates();
   const folder = getRootFolder();
   getFaceFolder();
   Logger.log('完成！資料夾：' + folder.getUrl());
@@ -811,7 +817,7 @@ function staffLogin(pw, unified = false) {
 // ── 加扣分：導師與幹部登記，一定要有理由 ──
 function pointsSheet() { return getSheet(SHEET_POINTS, HEAD_POINTS); }
 function addPoints(rows, who) {
-  if (!who.teacher && !cadreRoles(who.key).length && !courseHelperRoles(who.key).length) throw new Error('你已經不在幹部或小老師名單中，不能登記加扣分');
+  if (!who.teacher && !canScoreKey(who.key)) throw new Error('你已經不在幹部或小老師名單中，不能登記加扣分');
   const now = new Date();
   const clean = rows.map(r => {
     const p = Math.round(Number(r.points));
@@ -963,6 +969,7 @@ function coinsOf(key, inv) {
   let spent = 0;
   inv.filter(x => x.buyer === key).forEach(x => { spent += x.price; ev.push([timeOf(x.time), 1, x.price]); });
   spendRows().filter(x => x.who === key).forEach(x => { spent += x.points; ev.push([x.t, 1, x.points]); });
+  boxBonusRows().filter(x => x.key === key).forEach(x => ev.push([x.t, 0, x.points]));
   ev.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   let coins = 0, acc = 0, penalty = 0;
   const per = Number(CONFIG.PENALTY_PER) || 2;
@@ -976,8 +983,10 @@ function coinsOf(key, inv) {
       coins -= take; penalty += take;
     }
   });
+  const bonus = boxBonusRows().filter(x => x.key === key);
+  const giftPoints = bonus.reduce((n, x) => n + x.points, 0);
   const red = packs.reduce((t, x) => t + x.points, 0), invest = invAw.reduce((t, x) => t + x.points, 0);
-  return { earned: earned + sales.income + red + invest, spent: spent, coins: coins, income: sales.income, red: red, invest: invest, penalty: penalty, minus: minus };
+  return { earned: earned + sales.income + red + invest + giftPoints, giftPoints: giftPoints, spent: spent, coins: coins, income: sales.income, red: red, invest: invest, penalty: penalty, minus: minus };
 }
 function decoRows() {
   const sh = getSheet(SHEET_DECO, HEAD_DECO);
@@ -1032,7 +1041,7 @@ function shopState(who) {
     minus: minusOf(key), swapBan: CONFIG.SWAP_BAN_MINUS, freeSwap: freeSwapCards(key), rankCards: cardRows().filter(x => x.who === key).slice(-5).reverse(),
     held: heldCards(key), giftable: Object.keys(GIFT_CARDS()), rides: ridesOf(spendRows(), key), ridePrice: RIDE_PRICE,
     penalty: c.penalty || 0, penaltyPer: CONFIG.PENALTY_PER, penaltyFrom: CONFIG.PENALTY_FROM,
-    unlimited: !!who.teacher, income: c.income, sales: who.teacher ? null : salesOf(key, inv), createPrice: CONFIG.CREATE_PRICE,
+    incubators: incubatorsOf(key), unlimited: !!who.teacher, income: c.income, sales: who.teacher ? null : salesOf(key, inv), createPrice: CONFIG.CREATE_PRICE,
     // 導師：全班點數一覽
     admin: who.teacher ? (() => {
       const items = itemsByStudent();
@@ -1264,7 +1273,7 @@ function openGiftBox(who, id, noImg) {
   if (!b) throw new Error('找不到這個禮物盒');
   const img = noImg ? '' : giftBoxImage(id).img;   // 網頁已經預先載好圖片的話就不用再傳
   const me = boxWho(who);
-  let got = '', kind = '', acc = null;
+  let got = '', kind = '', acc = null, bonus = false;
   withLock(() => {
     const old = boxOpens().find(o => o.who === me && o.id === id);
     if (old) return;                                         // 已經拿過了：只看圖片（轉盤可以轉著玩）
@@ -1286,14 +1295,15 @@ function openGiftBox(who, id, noImg) {
       const cs = getSheet(SHEET_CARDS, HEAD_CARDS);
       cs.getRange(cs.getLastRow() + 1, 1, 1, HEAD_CARDS.length).setValues([[now, me, kind, 1, '禮物盒（' + b.by + ' 放的）']]);
     }
+    bonus = boxBonus(who, id);
     const sh = getSheet(SHEET_BOXOPEN, HEAD_BOXOPEN);
     sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_BOXOPEN.length).setValues([[now, me, id, got]]);
   });
   // 飛鴿傳書說明抽到了什麼
   if (got) botMail([[me, '🎁 你打開了 ' + b.by + ' 放的禮物盒，抽到' + (acc
     ? '「' + got + '」！\n已經放進「🛍 商店 → 我的配件」，有效 ' + CONFIG.ACC_DAYS + ' 天，按「裝扮大頭照」就可以戴上。'
-    : '一張「' + got + '」！\n已經放進你的道具，到「🛍 商店 → 特殊道具」就可以免費使用。') + '\n' + CONFIG.SITE_URL + '#tab=shop']], GIFT_BOT);
-  return { ok: true, img: img, by: b.by, got: got, kind: kind, accName: acc ? acc.name : '', accId: acc ? acc.id : '', odds: BOX_ODDS };
+    : '一張「' + got + '」！\n已經放進你的道具，到「🛍 商店 → 特殊道具」就可以免費使用。') + (bonus ? '\n另外獲得 3 點與一顆寵物蛋（滿額時保留待領）。' : '') + '\n' + CONFIG.SITE_URL + '#tab=shop']], GIFT_BOT);
+  return { bonus: bonus, ok: true, img: img, by: b.by, got: got, kind: kind, accName: acc ? acc.name : '', accId: acc ? acc.id : '', odds: BOX_ODDS };
 }
 
 // ── 訂便當：週一～週五中午 12 點登記下週的便當；週四 12 點第一次統計、17 點提醒還沒登記的人；週五 12 點截止並通知 ──
@@ -1703,7 +1713,7 @@ function markHomework(who, id, changes) {
 }
 /** 逾期扣分：截止後還沒交（或晚交），每一天（不滿一天算一天）扣 HW_LATE_PER 分；從「重置扣分統計」之後截止的項目才算 */
 function hwLatePenalties(rst) {
-  const per = Number(CONFIG.HW_LATE_PER) || 0.1, students = getStudents().students, now = Date.now(), out = [];
+  const per = Number(CONFIG.HW_LATE_PER) || 0.2, students = getStudents().students, now = Date.now(), out = [];
   hwRows().forEach(x => {
     if (!x.end || x.end > now || x.end < (rst || 0)) return;
     hwTargets(x.target, students, x.list).forEach(k => {
@@ -1725,7 +1735,7 @@ function remindHomework(who, id) {
   const miss = hwTargets(x.target, null, x.list).filter(k => !x.done[k]);
   if (!miss.length) throw new Error('大家都交了，不用提醒');
   const from = who.teacher ? '導師' : who.key;
-  botMail(miss.map(k => [k, '📥 ' + from + ' 提醒你：「' + x.name + '」' + (late ? '已經在 ' + when + ' 截止了，你還沒交，請盡快補交！（每逾期一天扣 ' + (Number(CONFIG.HW_LATE_PER) || 0.1) + ' 分）' : '要在 ' + when + ' 前繳交，你還沒交喔！（超過截止每天扣 ' + (Number(CONFIG.HW_LATE_PER) || 0.1) + ' 分）') + '\n請交給：' + (x.to === CONFIG.TEACHER_NAME ? '導師' : x.to) + (x.note ? '\n說明：' + x.note : '') + '\n' + CONFIG.SITE_URL + '#tab=hw']), HW_BOT);
+  botMail(miss.map(k => [k, '📥 ' + from + ' 提醒你：「' + x.name + '」' + (late ? '已經在 ' + when + ' 截止了，你還沒交，請盡快補交！（每逾期一天扣 ' + (Number(CONFIG.HW_LATE_PER) || 0.2) + ' 分）' : '要在 ' + when + ' 前繳交，你還沒交喔！（超過截止每天扣 ' + (Number(CONFIG.HW_LATE_PER) || 0.2) + ' 分）') + '\n請交給：' + (x.to === CONFIG.TEACHER_NAME ? '導師' : x.to) + (x.note ? '\n說明：' + x.note : '') + '\n' + CONFIG.SITE_URL + '#tab=hw']), HW_BOT);
   cache.put(ck, '1', 600);
   return { ok: true, sent: miss.length };
 }
@@ -1785,7 +1795,7 @@ function petLay(owner, reason, when, n) {
   const sh = petSheet(), at = sh.getLastRow() + 1, eggs = petNewEggs(live, k);
   sh.getRange(at, 1, k, HEAD_PET.length).setValues(eggs.map(e => [Utilities.getUuid().slice(0, 8), owner, String(reason || '').slice(0, 60), new Date(t), '', '', '', e.hp, '', '待孵', '', '', e.cap, '']));
   sh.getRange(at, 4, k, 2).setNumberFormat('yyyy/mm/dd hh:mm');
-  if (!when) botMail([[owner, '🥚 你' + (reason ? '因為「' + String(reason).slice(0, 40) + '」' : '') + '被加分，得到 ' + k + ' 顆寵物蛋！\n到「🐾 寵物」按「🐣 孵化」，蛋才會放到講台上開始孵化（一天後揭曉，只有約 1/10 會孵出真正的寵物）。\n' + CONFIG.SITE_URL + '#tab=pet']], PET_BOT);
+  if (!when) botMail([[owner, '🥚 你' + (reason ? '因為「' + String(reason).slice(0, 40) + '」' : '') + '被加分，得到 ' + k + ' 顆寵物蛋！\n到「🐾 寵物」按「🐣 孵化」，蛋才會放到講台上開始孵化（一天後揭曉，未使用孵蛋器時約 1/10 會孵出真正的寵物）。\n' + CONFIG.SITE_URL + '#tab=pet']], PET_BOT);
   live.filter(x => x.lent).forEach(x => { sh.getRange(x.row, 8).setValue(x.hp); sh.getRange(x.row, 13).setValue(x.cap); });
   return k;
 }
@@ -1852,9 +1862,11 @@ function petAllot(who, owner, plan) {
 function petTick() {
   const now = Date.now(), today = ymd(new Date()), sh = petSheet();
   const dayN = s => Math.round(Utilities.parseDate(s, CONFIG.TIMEZONE, 'yyyy/MM/dd').getTime() / 864e5);
+  const boosts = {};
+  spendRows().filter(r => r.use === '使用孵蛋器').forEach(r => { boosts[r.target] = (boosts[r.target] || 0) + 1; });
   petRows().forEach(x => {
     if (x.status === '蛋' && now >= x.hatch) {
-      if (Math.random() >= PET.HATCH_OK) {   // 孵出奇怪的東西，然後離開（鳥飛走、法拉利被拖吊…）
+      if (Math.random() >= Math.min(1, PET.HATCH_OK * Math.pow(2, boosts[x.id] || 0))) {   // 孵出奇怪的東西，然後離開（鳥飛走、法拉利被拖吊…）
         x.status = '飛走'; x.gone = PET_GONE[Math.floor(Math.random() * PET_GONE.length)];
         sh.getRange(x.row, 10).setValue('飛走'); sh.getRange(x.row, 14).setValue(x.gone);
         petGiveAway(x);
@@ -1926,6 +1938,7 @@ function getPets(who) {
       props.setProperty('PET_BACKFILL_2', '1');
     }
     petTick();
+    if (!who.teacher && who.role !== 'G') claimBoxEggs(who.key);
   });
   const week = Date.now() - 7 * 864e5;   // 死掉超過一週的不顯示
   // 最近一週誰餵了罐罐（次數多的，寵物比較常去他的座位旁邊睡覺）
@@ -1933,13 +1946,15 @@ function getPets(who) {
   sp.forEach(r => { if (r.use !== '罐罐' || r.t < week) return; const m = fed[r.target] || (fed[r.target] = {}); m[r.who] = (m[r.who] || 0) + 1; });
   const feeders = id => Object.entries(fed[id] || {}).map(([k, n]) => ({ key: k, n: n })).sort((a, b) => b.n - a.n);
   const rows = petRows();
+  const boosts = {};
+  sp.filter(r => r.use === '使用孵蛋器').forEach(r => { boosts[r.target] = (boosts[r.target] || 0) + 1; });
   // 🚗 交通工具：每隻寵物的設定＋每位主人擁有的種類
   const rm = rideMap(), rides = {}, owned = {}, meK = who.teacher ? CONFIG.TEACHER_NAME : who.key;
   rows.filter(x => x.status === '寵物').forEach(x => { if (rm[x.id]) rides[x.id] = rm[x.id]; if (!owned[x.owner]) owned[x.owner] = ridesOf(sp, x.owner); });
   if (!owned[meK]) owned[meK] = ridesOf(sp, meK);
   const rim = rideImgMap(), rideImgs = {};
   Object.keys(rim).forEach(k => { if (owned[k.split('|')[0]] && owned[k.split('|')[0]].indexOf(k.split('|')[1]) >= 0) rideImgs[k] = rim[k]; });
-  return { ok: true, rides: rides, owned: owned, rideImgs: rideImgs, ridePrice: RIDE_PRICE, pets: rows.filter(x => petLive(x) || (x.status === '覓食' && x.died > week)).map(x => Object.assign(petPub(x), { feeders: feeders(x.id) })),
+  return { incubators: incubatorsOf(who.key), pendingGiftEggs: boxBonusRows().filter(x => x.key === who.key && !x.egg).length, ok: true, rides: rides, owned: owned, rideImgs: rideImgs, ridePrice: RIDE_PRICE, pets: rows.filter(x => petLive(x) || (x.status === '覓食' && x.died > week)).map(x => Object.assign(petPub(x), { feeders: feeders(x.id), boostUses: boosts[x.id] || 0, hatchChance: Math.min(1, PET.HATCH_OK * Math.pow(2, boosts[x.id] || 0)) })),
     gone: rows.filter(x => x.status === '飛走' && x.hatch > week).map(petPub), hatchOk: PET.HATCH_OK, me: who.teacher ? CONFIG.TEACHER_NAME : who.key, now: Date.now(), food: PET.FOOD, max: PET.MAX_HP };
 }
 /** 餵罐罐：花 1 點，+1 HP（最多補到這隻自己的上限） */
@@ -2296,6 +2311,7 @@ function delMail(who, id) {
   return { ok: true, mails: getMail(who) };
 }
 function getMail(who) {
+  try { weeklyCadreTick(); } catch (e) { Logger.log('幹部每週提醒：' + e); }
   try { lunchTick(); } catch (e) { Logger.log('訂便當定時工作失敗：' + e); }
   try { investTick(); } catch (e) { Logger.log('投資競賽定時工作失敗：' + e); }
   const me = mailName(who), since = Date.now() - MAIL_DAYS * 86400e3;
@@ -3397,7 +3413,7 @@ function pointsBoard(who) {
   try {
     hwLatePenalties(rst).forEach(x => {
       if (!mine(x.key)) return;
-      out.push({ key: x.key, p: x.p, cat: '繳交', reason: '「' + x.name + '」' + (x.done ? '遲交 ' : '逾期未交 ') + x.days + ' 天（每天 −' + (Number(CONFIG.HW_LATE_PER) || 0.1) + '）', by: x.to, t: x.end,
+      out.push({ key: x.key, p: x.p, cat: '繳交', reason: '「' + x.name + '」' + (x.done ? '遲交 ' : '逾期未交 ') + x.days + ' 天（每天 −' + (Number(CONFIG.HW_LATE_PER) || 0.2) + '）', by: x.to, t: x.end,
         day: Utilities.formatDate(new Date(x.end), tz, 'yyyy/MM/dd'), time: Utilities.formatDate(new Date(x.end), tz, 'MM/dd'), check: false });
     });
   } catch (e) { /* 繳交資料讀不到就先不算 */ }
@@ -3904,7 +3920,7 @@ const leaveFlow = x => (x && x.type === '公假' ? '填寫公差單 → 導師�
 function leaveTick() {
   const props = PropertiesService.getScriptProperties(), K = 'LEAVE_LATE_SENT';
   const sent = JSON.parse(props.getProperty(K) || '[]'), lim = (Number(CONFIG.LEAVE_LATE_DAYS) || 3) * 864e5, now = Date.now();
-  const due = leaveRows().filter(x => x.type !== '公假' && (x.status === '已登記' || x.status === '退回') && x.t && !x.cardT && now - x.t >= lim && sent.indexOf(x.id) < 0);
+  const due = leaveRows().filter(x => x.type !== '公假' && (x.status === '已登記' || x.status === '退回' || x.status === '假卡上傳錯誤') && x.t && !x.cardT && now - x.t >= lim && sent.indexOf(x.id) < 0);
   if (!due.length) return;
   const per = Number(CONFIG.LEAVE_LATE_PER) || 0.1, days = Number(CONFIG.LEAVE_LATE_DAYS) || 3;
   botMail(due.map(x => [x.key, '⚠️ 你的請假已經登記超過 ' + days + ' 天，還沒有上傳' + leaveDoc(x) + '！\n' + leaveText(x) + '\n請盡快跑完簽核流程（' + leaveFlow(x) + '），把簽好的' + leaveDoc(x) + '拍照上傳。\n從現在起每多一天扣 ' + per + ' 分，上傳' + leaveDoc(x) + '就停止。\n' + CONFIG.SITE_URL + '#tab=leave'])
@@ -3918,7 +3934,7 @@ function leaveLatePenalties(rst) {
     if (!x.t || x.t < (rst || 0) || x.type === '公假') return;   // 公假的公差單是選填，不扣分
     // 已取消：導師取消的不扣；同學自己取消的，逾期的部分照算（算到取消那一刻），不能用「取消再重新請假」躲掉扣分
     if (x.status === '已取消' && x.cancelBy !== '本人') return;
-    const stop = x.cardT || ((x.status === '已登記' || x.status === '退回') ? now : x.status === '已取消' ? x.upd : 0);   // 導師直接確認、沒有假卡的：不扣
+    const stop = x.cardT || ((x.status === '已登記' || x.status === '退回' || x.status === '假卡上傳錯誤') ? now : x.status === '已取消' ? x.upd : 0);   // 導師直接確認、沒有假卡的：不扣
     if (!stop) return;
     const days = Math.ceil((stop - x.t - lim) / 864e5);
     if (days <= 0) return;
@@ -4019,12 +4035,22 @@ function delLeaveCard(who, id, fid) {
 /** 導師：確認（已確認）或退回（寫原因）；同學會收到飛鴿傳書 */
 function setLeaveStatus(who, id, status, reply, quiet) {
   if (!who.teacher) throw new Error('只有導師可以確認請假');
-  if (['已確認', '退回'].indexOf(status) < 0) throw new Error('狀態不對');
+  if (['已確認', '退回', '假卡上傳錯誤'].indexOf(status) < 0) throw new Error('狀態不對');
   reply = String(reply || '').trim().slice(0, 200);
   const x = leaveRows().find(r => r.id === id);
   if (!x) throw new Error('找不到這筆請假');
-  withLock(() => { const sh = leaveSheet(); sh.getRange(x.row, 10).setValue(status); sh.getRange(x.row, 12).setValue(reply); sh.getRange(x.row, 14).setValue(new Date()); });
-  botMail([[x.key, (status === '已確認' ? '✅ 導師已經確認你的請假\n' : '↩ 導師退回了你的請假，請依說明處理後再上傳\n') + leaveText(x) + (reply ? '\n導師說明：' + reply : '') + '\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
+  withLock(() => {
+    const fresh = leaveRows().find(r => r.id === id);
+    if (status === '假卡上傳錯誤') {
+      if (fresh.status === '假卡上傳錯誤') return;
+      if (!fresh.cardT || !fresh.cards.length) throw new Error('沒有新的假卡可標示錯誤');
+      const ps = pointsSheet(), penaltyId = 'BAD-CARD-' + id + '-' + fresh.cardT;
+      const vals = ps.getLastRow() > 1 ? ps.getRange(2, 1, ps.getLastRow() - 1, HEAD_POINTS.length).getValues() : [];
+      if (!vals.some(r => String(r[7]) === penaltyId)) ps.appendRow([new Date(), x.key, -0.3, '請假', '假卡上傳錯誤（另扣 0.3 分）', CONFIG.TEACHER_NAME, new Date(), penaltyId]);
+      leaveSheet().getRange(x.row, 15).clearContent();
+    }
+    const sh = leaveSheet(); sh.getRange(x.row, 10).setValue(status); sh.getRange(x.row, 12).setValue(reply); sh.getRange(x.row, 14).setValue(new Date()); });
+  botMail([[x.key, (status === '已確認' ? '✅ 導師已經確認你的請假\n' : status === '假卡上傳錯誤' ? '❌ 假卡上傳錯誤：另扣 0.3 分，原上傳不算完成；補算登記滿 3 天後的逾期扣分，並持續扣到重新上傳正確假卡。\n' : '↩ 導師退回了你的請假，請依說明處理後再上傳\n') + leaveText(x) + (reply ? '\n導師說明：' + reply : '') + '\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
   return quiet ? null : getLeave(who);
 }
 /** 導師發飛鴿傳書提醒同學：跑完簽核後上傳假卡照片 */
@@ -4788,3 +4814,130 @@ var InvestEngine = (function () {
     book: book, seasonStats: seasonStats, sellable: sellable, standings: standings,
   };
 })();
+
+
+// ── 幹部每週鼓勵：名單留存，不追扣功能啟用以前的週次 ──
+function canScoreKey(key) { return !!key && (cadreRoles(key).length > 0 || courseHelperRoles(key).length > 0 || isInspector(key)); }
+const WEEKLY_HEAD = ['週一', '幹部名單', '已提醒', '已結算'];
+const weeklySheet = () => textSheet('幹部每週自評', WEEKLY_HEAD, [1, 2]);
+function scoreWeek(date) {
+  const d = date || new Date(), dow = Number(Utilities.formatDate(d, CONFIG.TIMEZONE, 'u'));
+  return ymd(new Date(d.getTime() - (dow - 1) * 864e5));
+}
+function weeklyCompleted(rows, key, week) {
+  return rows.some(r => String(r[1]) === key && String(r[5]) === key && Number(r[2]) >= 1 && r[6] instanceof Date && scoreWeek(r[6]) === week);
+}
+function weeklyCadreTick() {
+  withLock(() => {
+    const props = PropertiesService.getScriptProperties();
+    if (Date.now() - Number(props.getProperty('WEEKLY_LAST_TICK') || 0) < 5 * 60e3) return;
+    const sh = weeklySheet(), week = scoreWeek(), now = new Date();
+    const rows = sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, 4).getValues() : [];
+    const keys = scoringKeys();
+    let current = rows.find(r => String(r[0]) === week);
+    if (!current) { current = [week, JSON.stringify(keys), '', '']; sh.appendRow(current); rows.push(current); }
+    // 更新本週名單；過去週次依當週留存的名單結算。
+    current[1] = JSON.stringify(keys);
+    const ps = pointsSheet(), points = ps.getLastRow() > 1 ? ps.getRange(2, 1, ps.getLastRow() - 1, HEAD_POINTS.length).getValues() : [];
+    const dow = Number(Utilities.formatDate(now, CONFIG.TIMEZONE, 'u'));
+    rows.forEach((r, i) => {
+      const w = String(r[0]), members = JSON.parse(r[1] || '[]');
+      if (w === week && dow >= 5 && !r[2]) {
+        botMail(members.map(k => [k, '📣 幹部每週鼓勵：謝謝你為班上服務！請在本週日結束前，到「加扣分」幫自己加 1 分，並繼續把工作做好。已完成也請持續努力。未完成會扣 0.1 分。\n' + CONFIG.SITE_URL + '#tab=points']), '📣 幹部每週提醒');
+        r[2] = ymd(now);
+      }
+      if (w < week && !r[3]) {
+        members.filter(k => !weeklyCompleted(points, k, w)).forEach(k => {
+          const id = 'WEEKLY-' + w + '-' + k;
+          if (!points.some(p => String(p[7]) === id)) { const p = [now, k, -0.1, '幹部自評', w + ' 這週未幫自己加 1 分', '系統', now, id]; ps.appendRow(p); points.push(p); }
+        });
+        r[3] = ymd(now);
+      }
+      sh.getRange(i + 2, 1, 1, 4).setValues([r]);
+    });
+    props.setProperty('WEEKLY_LAST_TICK', String(Date.now()));
+  });
+}
+function weeklySelfPoint(who) {
+  if (who.teacher || !canScoreKey(who.key)) throw new Error('只有可評分的幹部可以登記每週鼓勵分');
+  weeklyCadreTick();
+  withLock(() => {
+    const sh = pointsSheet(), rows = sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_POINTS.length).getValues() : [], week = scoreWeek();
+    if (weeklyCompleted(rows, who.key, week)) throw new Error('你本週已經幫自己加過分了');
+    const now = new Date();
+    sh.appendRow([now, who.key, 1, '幹部自評', '每週鼓勵：做好幹部工作', who.key, now, 'SELF-' + week + '-' + who.key]);
+    petLay(who.key, '幹部每週鼓勵', null, 1);
+  });
+  return { ok: true, rows: getPoints(7, who) };
+}
+/** 更新後手動執行一次：讓每週提醒不依賴有人開啟 App。 */
+function setupFeatureUpdates() {
+  weeklyCadreTick();
+  if (!ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'weeklyCadreTick')) ScriptApp.newTrigger('weeklyCadreTick').timeBased().everyHours(1).create();
+}
+
+// 每位使用者的公布欄偏好；週一自動恢復顯示，手動開啟公布欄仍可查看。
+function boardPrefs(who) {
+  const week = scoreWeek(), key = 'BOARD_PREF:' + mailName(who), p = arenaJson(PropertiesService.getScriptProperties().getProperty(key));
+  return { ok: true, week: week, hidden: p && p.week === week ? p.hidden || [] : [] };
+}
+function setBoardPref(who, id, hidden) {
+  if (!getBoard().some(p => p.id === id)) throw new Error('找不到這則公告');
+  withLock(() => {
+    const p = boardPrefs(who), ids = p.hidden.filter(x => x !== id);
+    if (hidden) ids.push(id);
+    PropertiesService.getScriptProperties().setProperty('BOARD_PREF:' + mailName(who), JSON.stringify({ week: p.week, hidden: ids }));
+  });
+  return boardPrefs(who);
+}
+
+// 禮物盒加贈獨立記帳：3 點不當成學業加分；滿額時蛋保留待領。
+const BOX_BONUS_HEAD = ['時間', '同學', '禮物盒', '點數', '寵物蛋'];
+function boxBonusRows() {
+  const sh = getSS().getSheetByName('禮物盒加贈');
+  return !sh || sh.getLastRow() < 2 ? [] : sh.getRange(2, 1, sh.getLastRow() - 1, 5).getValues().map((r, i) => ({ row: i + 2, t: timeOf(r[0]), key: String(r[1]), box: String(r[2]), points: Number(r[3]) || 0, egg: String(r[4] || '') }));
+}
+function boxBonus(who, id) {
+  if (who.teacher || who.role === 'G') return false;
+  const sh = getSheet('禮物盒加贈', BOX_BONUS_HEAD);
+  if (!boxBonusRows().some(x => x.key === who.key && x.box === id)) sh.appendRow([new Date(), who.key, id, 3, '']);
+  try { claimBoxEggs(who.key); } catch (e) { Logger.log('禮物盒寵物蛋保留待領：' + e); }
+  return true;
+}
+function claimBoxEggs(key) {
+  boxBonusRows().filter(x => x.key === key && !x.egg).forEach(x => {
+    const reason = '禮物盒加贈 ' + x.box;
+    const existing = petRows().find(p => p.owner === key && p.reason === reason);
+    if (existing || petLay(key, reason, x.t, 1)) getSS().getSheetByName('禮物盒加贈').getRange(x.row, 5).setValue('已領');
+  });
+}
+
+// 孵蛋器：買入庫存後，選定自己的待孵／孵化中蛋使用；每次 ×2，最高 100%。
+function incubatorsOf(key) { return Math.max(0, spendRows().filter(r => r.who === key).reduce((n, r) => n + (r.use === '購買孵蛋器' ? 1 : r.use === '使用孵蛋器' ? -1 : 0), 0)); }
+function buyIncubator(who) {
+  withLock(() => {
+    if (!who.teacher && coinsOf(who.key).coins < 5) throw new Error('孵蛋器需要 5 點');
+    addSpend(who.key, who.teacher ? 0 : 5, '購買孵蛋器', '', '');
+  });
+  return shopState(who);
+}
+function useIncubator(who, id) {
+  withLock(() => {
+    const x = petRows().find(p => p.id === id && p.owner === who.key);
+    if (!x || (x.status !== '待孵' && x.status !== '蛋') || (x.status === '蛋' && Date.now() >= x.hatch)) throw new Error('只能對自己尚未揭曉的蛋使用');
+    if (incubatorsOf(who.key) < 1) throw new Error('請先到商店購買孵蛋器（5 點）');
+    const used = spendRows().filter(r => r.use === '使用孵蛋器' && r.target === id).length;
+    if (PET.HATCH_OK * Math.pow(2, used) >= 1) throw new Error('這顆蛋的成功率已經是 100%');
+    addSpend(who.key, 0, '使用孵蛋器', id, '成功率乘以 2');
+  });
+  return getPets(who);
+}
+
+function scoringKeys() {
+  const roles = cadreMap(), helpers = courseHelperMap(), roster = getRoster(), outdoor = getOutdoor();
+  const keys = new Set(Object.keys(roles).filter(k => roles[k].length));
+  Object.keys(helpers).forEach(c => (helpers[c] || []).forEach(k => keys.add(k)));
+  Object.keys(roster.inspectors || {}).filter(id => /^I\d+$/.test(id)).forEach(id => keys.add(roster.inspectors[id]));
+  Object.values(outdoor && outdoor.inspectors || {}).forEach(k => keys.add(k));
+  return getStudents().students.filter(k => keys.has(k));
+}
