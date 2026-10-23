@@ -45,3 +45,33 @@ test('seat leave type is inside the name container and safely escaped',()=>{
   c.A.onLeave=()=>['<script> 第1節'];
   assert.ok(!c.seatHtml({id:'A1'}).includes('<script>'));
 });
+
+test('entering seats can bypass stale leave cache and match old seat names by department/number',async()=>{
+  const source=read('app.js'), snippet=source.slice(source.indexOf('  let leaveMap ='),source.indexOf('  // 單位的狀態'));
+  let day='2026/10/23', calls=0, data={'料01新名字':['病假 第1節～第7節']}, fail=false;
+  const c=vm.createContext({settings:{gasUrl:'test'},TEST:false,fmtDate:()=>day,App:{emit(){}},api:async()=>{calls++;if(fail)throw new Error('沒有權限，請更新後端部署');return {leaves:data};}});
+  vm.runInContext(snippet+'\nglobalThis.service = { loadLeaves, onLeave, leaveState };',c);
+  await c.service.loadLeaves();
+  assert.equal(c.service.onLeave('料1舊名字')[0],'病假 第1節～第7節');
+  assert.equal(c.service.onLeave('料０１')[0],'病假 第1節～第7節');
+  assert.equal(c.service.onLeave('多01別人'),null);
+  data={'料02同學':['公假 第1節']};
+  await c.service.loadLeaves();assert.equal(calls,1);
+  await c.service.loadLeaves(null,true);assert.equal(calls,2);
+  assert.equal(c.service.onLeave('料01新名字'),null);
+  assert.equal(c.service.onLeave('料02同學')[0],'公假 第1節');
+  fail=true;await c.service.loadLeaves(null,true);
+  assert.match(c.service.leaveState().error,/沒有權限/);
+  assert.equal(c.service.leaveState().loading,false);
+  day='2026/10/24';assert.equal(c.service.onLeave('料02同學'),null);
+});
+
+test('seat header distinguishes no leave from a failed request',()=>{
+  const source=read('seats.js'),fn=source.slice(source.indexOf('  function renderTop() {'),source.indexOf('  // 非導師的交換位置：試用提示'));
+  const root={innerHTML:''};let state={date:'2026/10/23',leaves:{},loading:false,error:''};
+  const c=vm.createContext({esc,$:()=>root,sub:'chart',selLive:()=>false,studentBanner:()=>'',A:{isStudent:()=>true,fmtDate:()=> '2026/10/23',leaveState:()=>state}});
+  vm.runInContext(fn,c);c.renderTop();assert.match(root.innerHTML,/0 位/);
+  state={...state,error:'請更新後端部署'};c.renderTop();assert.match(root.innerHTML,/讀取失敗/);assert.match(root.innerHTML,/請更新後端部署/);
+  state={...state,error:'',leaves:{'料01同學':['病假 第1節']}};c.renderTop();
+  assert.match(root.innerHTML,/1 位/);assert.match(root.innerHTML,/料01同學：病假/);
+});

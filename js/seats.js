@@ -194,6 +194,13 @@
           <div class="bn-sub">切換畫面就會恢復原本的座位。<span class="draft-btns"><button type="button" class="btn btn--primary" data-tr="commit">💾 存成預設</button><button type="button" class="btn" data-tr="discard">↺ 取消變動</button></span></div></div>`;
       }
     }
+    const ls = A.leaveState?.();
+    if (ls) {
+      const keys = Object.keys(ls.leaves), date = A.fmtDate(new Date()).slice(5);
+      h += `<div class="seat-leave-status small" role="status"><b>📝 今日請假（${esc(date)}）：${ls.loading ? '讀取中…' : ls.error ? '讀取失敗' : ls.date ? `${keys.length} 位` : '尚未讀取'}</b>
+        ${ls.error ? `<span class="hw-red">${esc(ls.error)}</span>` : keys.length ? `<span>${keys.map(k => `${esc(k)}：${esc([...new Set(ls.leaves[k].map(v => v.split(' ')[0]))].join('、'))}`).join('；')}</span>` : ''}
+        <button type="button" class="link-btn" data-tr="refreshLeaves"${ls.loading ? ' disabled' : ''}>重新讀取請假</button></div>`;
+    }
     root.innerHTML = h;
   }
   // 非導師的交換位置：試用提示，或交換位置卡
@@ -303,6 +310,7 @@
   $('#seatTop').addEventListener('click', e => {
     const tr = e.target.closest('[data-tr]');
     if (tr) {
+      if (tr.dataset.tr === 'refreshLeaves') return A.loadLeaves(null, true);
       if (tr.dataset.tr === 'shop') return A.showTab('shop');
       if (tr.dataset.tr === 'commit') return commitDraft(tr);
       if (tr.dataset.tr === 'discard') { discardDraft(true); toast('已取消變動'); renderAll(); return; }
@@ -1313,7 +1321,7 @@
       schedulePoll();
     }, fast ? (A.isStudent() ? 4000 : 3000) : 20000);
   }
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && A.started() && A.currentTab() === 'seats') refreshData(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && A.started() && A.currentTab() === 'seats') { A.loadLeaves?.(null, true); refreshData(); } });
 
   // 倒數計時
   let tickPolled = false;
@@ -1337,7 +1345,7 @@
   });
   A.on('leaves', () => { if (A.currentTab() === 'seats') renderAll(); });
   A.tabHooks.seats = () => {
-    A.loadLeaves?.();
+    A.loadLeaves?.(null, true);
     discardDraft();
     renderAll();
     refreshData();

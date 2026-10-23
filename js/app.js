@@ -249,13 +249,36 @@
   }
 
   // ── 今天請假的同學：檢查視窗裡變灰色、不能登記 ──
-  let leaveMap = {}, leaveDay = '', leaveAt = 0;
-  const onLeave = o => (leaveDay === fmtDate(new Date()) && leaveMap[o]) || null;
-  async function loadLeaves(after) {
+  let leaveMap = {}, leaveDay = '', leaveAt = 0, leaveError = '', leaveLoading = null;
+  // 座位表可能保留舊姓名或只存座號；以科別＋座號核對同一位同學。
+  const leaveCode = k => {
+    const m = String(k || '').normalize('NFKC').replace(/\s+/g, '').match(/^(\D+?)(\d+)/);
+    return m ? m[1] + Number(m[2]) : '';
+  };
+  const onLeave = o => {
+    if (leaveDay !== fmtDate(new Date())) return null;
+    if (leaveMap[o]) return leaveMap[o];
+    const code = leaveCode(o);
+    const key = code && Object.keys(leaveMap).find(k => leaveCode(k) === code);
+    return key ? leaveMap[key] : null;
+  };
+  const leaveState = () => ({ date: leaveDay, leaves: leaveDay === fmtDate(new Date()) ? leaveMap : {}, loading: !!leaveLoading, error: leaveError });
+  async function loadLeaves(after, force = false) {
     if (!settings.gasUrl && !TEST) return;
+    if (leaveLoading) return leaveLoading.then(() => after?.());
     const day = fmtDate(new Date());
-    if (leaveDay === day && Date.now() - leaveAt < 5 * 60e3) return;
-    try { const r = await api('cleanLeaves', { date: day }); leaveMap = r.leaves || {}; leaveDay = day; leaveAt = Date.now(); after?.(); App.emit('leaves'); } catch { /* 下次再試 */ }
+    if (!force && leaveDay === day && Date.now() - leaveAt < 5 * 60e3) return;
+    leaveError = '';
+    leaveLoading = (async () => {
+      try {
+        const r = await api('cleanLeaves', { date: day });
+        if (!r.leaves || typeof r.leaves !== 'object' || Array.isArray(r.leaves)) throw new Error('請假資料格式不正確，請確認後端部署已更新');
+        leaveMap = r.leaves; leaveDay = day; leaveAt = Date.now();
+      } catch (err) { leaveError = err.message || '無法讀取今日請假'; }
+    })();
+    App.emit('leaves');
+    try { await leaveLoading; }
+    finally { leaveLoading = null; after?.(); App.emit('leaves'); }
   }
   // 單位的狀態（整組一起）
   function unitSummary(u) {
@@ -2628,7 +2651,7 @@
   const App = window.App = {
     D, TEST, SFX, $, esc, pad2, toast, ask, store, api, copyText, fmtDate, fmtTime, fmtDateW,
     loadImage, drawTo, toBlob, blobToBase64,
-    canPoints, onLeave, loadLeaves, isStudent, isStaff, isTeacher, isGuest, isChecker, jobsOf, roster: () => roster, me: () => settings.me, userName: () => settings.inspector,
+    canPoints, onLeave, leaveState, loadLeaves, isStudent, isStaff, isTeacher, isGuest, isChecker, jobsOf, roster: () => roster, me: () => settings.me, userName: () => settings.inspector,
     students, loadStudents, studentList: () => studentList, className: () => className() || studentList?.className || '',
     DEMO_STUDENTS,
     mountMap, renderMap, sizeMap, maps, flipOn,
