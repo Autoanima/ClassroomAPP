@@ -200,9 +200,10 @@
     const ls = A.leaveState?.();
     if (ls) {
       const keys = Object.keys(ls.leaves), date = A.fmtDate(new Date()).slice(5);
-      h += `<div class="seat-leave-status small" role="status"><b>📝 今日請假（${esc(date)}）：${ls.loading ? '讀取中…' : ls.error ? '讀取失敗' : ls.date ? `${keys.length} 位` : '尚未讀取'}</b>
+      const leaveOpen = !!root.querySelector?.('.seat-leave-status')?.open;
+      h += `<details class="seat-leave-status small"${leaveOpen ? ' open' : ''}><summary><b>📝 今日請假（${esc(date)}）：${ls.loading ? '讀取中…' : ls.error ? '讀取失敗' : ls.date ? `${keys.length} 位` : '尚未讀取'}</b></summary><div class="seat-leave-content">
         ${ls.error ? `<span class="hw-red">${esc(ls.error)}</span>` : keys.length ? `<span>${keys.map(k => `${esc(k)}：${esc([...new Set(ls.leaves[k].map(v => v.split(' ')[0]))].join('、'))}`).join('；')}</span>` : ''}
-        <button type="button" class="link-btn" data-tr="refreshLeaves"${ls.loading ? ' disabled' : ''}>重新讀取請假</button></div>`;
+        <button type="button" class="link-btn" data-tr="refreshLeaves"${ls.loading ? ' disabled' : ''}>重新讀取請假</button></div></details>`;
     }
     root.innerHTML = h;
   }
