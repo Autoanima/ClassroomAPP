@@ -130,7 +130,10 @@
     const wxHtml = ['sun', 'rain'].filter(t => wx.some(w => w.kind === t)).map(t => `<span class="wx wx-${t}" title="${esc(wx.filter(w => w.kind === t).map(w => w.by).join('、'))}">${t === 'sun' ? '☀️' : '☂️'}</span>`).join('');
     // 大頭照滿版，底下兩行小字：組別 座號／姓名
     // 擂台賽：皇冠／昏頭放在名字右邊（不蓋到大頭照；一天）
-    return `<span class="photo${A.arenaLost?.(k) ? ' ar-lost' : ''}">${faceHtml(k)}</span>${wxHtml}<span class="sn">${A.onLeave?.(k) ? `<span class="seat-leave" title="${esc(A.onLeave(k).join('、'))}">${esc([...new Set(A.onLeave(k).map(v => v.split(' ')[0]))].join('、'))}</span>` : ''}<b>${esc(code.replace(/(\d+)$/, ' $1'))}</b><span class="sn-name">${esc(name)}${A.arenaBadges?.(k) || ''}</span></span>${extra}`;
+    const leaves = A.onLeave?.(k);
+    const leaveTypes = leaves ? [...new Set(leaves.map(v => v.split(' ')[0]))] : [];
+    const leaveLabel = leaveTypes.length ? `<span class="seat-leave${leaveTypes.join('').length > 2 ? ' long' : ''}" title="${esc(leaves.join('、'))}"><span class="seat-leave-word">${leaveTypes.map(t => Array.from(t).reduce((lines, ch, i) => lines + (i && i % 2 === 0 ? '<br>' : '') + esc(ch), '')).join('<br>')}</span></span>` : '';
+    return `<span class="photo${A.arenaLost?.(k) ? ' ar-lost' : ''}">${faceHtml(k)}</span>${wxHtml}${leaveLabel}<span class="sn"><b>${esc(code.replace(/(\d+)$/, ' $1'))}</b><span class="sn-name">${esc(name)}${A.arenaBadges?.(k) || ''}</span></span>${extra}`;
   }
   function seatClass(s) {
     const c = [];

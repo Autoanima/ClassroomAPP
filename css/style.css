@@ -2442,4 +2442,6 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .board-pref { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
 .seat-leave-status { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin-top: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
 .seat-leave-status > span { overflow-wrap: anywhere; }
-.seat .seat-leave { background: #a61e32; color: #fff; border-radius: 3px; padding: 1px 3px; text-shadow: none; }
+.seat .seat-leave { position: absolute; inset: 0 0 29%; z-index: 1; display: flex; align-items: center; justify-content: center; max-width: none; padding: 0; border-radius: 0; background: rgba(166, 30, 50, .82); color: #fff; font-size: max(24px, calc(var(--u) * 51px)); font-weight: 900; line-height: 1; text-align: center; text-shadow: 0 1px 3px rgba(0,0,0,.4); white-space: normal; overflow: hidden; pointer-events: none; }
+.seat-leave-word { display: block; flex: none; transform: scaleX(.7); }
+.seat .seat-leave.long { font-size: max(14px, calc(var(--u) * 26px)); line-height: .95; }

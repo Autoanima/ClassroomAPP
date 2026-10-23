@@ -34,13 +34,13 @@ test('announcement controls persist hide/show preference and auto-open omits hid
   assert.equal(pref.has('p1'),true);assert.match(note.textContent,/週一恢復/);
 });
 
-test('seat leave type is inside the name container and safely escaped',()=>{
+test('seat leave type fills the portrait above the name and is safely escaped',()=>{
   const source=read('seats.js');
   const fn=source.slice(source.indexOf('  function seatHtml(s) {'),source.indexOf('  function seatClass(s) {'));
   const c=vm.createContext({esc,inSel:()=>false,cur:()=>({A1:'student'}),parseKey:()=>({code:'料01',name:'同學'}),faceHtml:()=>'<img>',weather:[],A:{fmtDate:()=> '2026/10/23',onLeave:()=>['病假 第1節～第7節'],arenaLost:()=>false}});
   vm.runInContext(fn,c);
   const html=c.seatHtml({id:'A1'});
-  assert.match(html,/<span class="sn"><span class="seat-leave"/);
+  assert.match(html,/<span class="seat-leave"/);
   assert.ok(html.indexOf('病假</span>')<html.indexOf('sn-name'));
   c.A.onLeave=()=>['<script> 第1節'];
   assert.ok(!c.seatHtml({id:'A1'}).includes('<script>'));
