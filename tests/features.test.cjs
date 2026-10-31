@@ -196,3 +196,17 @@ test('temporary egg-delivery failure keeps gift entitlement without duplicating 
   assert.equal(t.c.boxBonusRows().length,1);assert.equal(t.c.boxBonusRows()[0].egg,'');
   assert.equal(t.eval('getSheet(SHEET_CARDS, HEAD_CARDS).getLastRow()'),2);
 });
+test('students can read ranking order and score details, but guests cannot',()=>{
+  const t=setup();
+  t.c.examRanks=()=>({per:[{rank:{cadre:1,student:2},deptRank:{cadre:1,student:2},pct:{cadre:.1,student:.2},bonus:{cadre:1,student:-1},score:{cadre:91,student:79}}]});
+  t.c.rankSheetUrl=()=>'';t.c.readSession=()=> 'S|student';t.c.json=x=>x;
+  const r=t.c.doPost({postData:{contents:JSON.stringify({sid:'student-session',action:'rankOrder',exam:0})}});
+  assert.equal(r.ok,true);assert.equal(r.order[0],'cadre');assert.equal(r.detail.student.score,79);
+  assert.throws(()=>t.c.rankOrder({key:'student',role:'G'},0),/本班同學/);
+});
+test('student selection view exposes queue and ranks without exposing other wishes',()=>{
+  const t=setup();
+  const r=t.eval(`SelEngine.view({v:1,status:'ready',order:['cadre','student'],ranks:{cadre:1,student:2},turn:0,picks:{},deferred:{},wishes:{cadre:['A1'],student:['A2']},how:{},blocked:[],seats:['A1','A2']},'student',Date.now())`);
+  assert.deepEqual([...r.order],['cadre','student']);assert.equal(r.ranks.cadre,1);
+  assert.deepEqual([...r.myWishes],['A2']);assert.equal(r.wishes,undefined);
+});

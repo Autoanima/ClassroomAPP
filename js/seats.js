@@ -337,12 +337,13 @@
   // ── 下方面板 ──
   function renderPanel() {
     const root = $('#seatPanel');
-    if (sub === 'swap' && !A.isTeacher()) { root.innerHTML = ''; return; }
-    if (A.isStudent()) { root.innerHTML = legendHtml() + (inSel() ? '' : rankExplainHtml()); return; }
-    if (sub === 'chart') { root.innerHTML = chartViewPanel() + rankExplainHtml(); return; }
-    if (sub === 'swap') { root.innerHTML = chartPanel(); return; }
-    if (sub === 'live') { root.innerHTML = livePanel(); return; }
-    root.innerHTML = selPanel();
+    const shared = rankExplainHtml() + rankReadHtml();
+    if (sub === 'swap' && !A.isTeacher()) { root.innerHTML = shared; return; }
+    if (A.isStudent()) { root.innerHTML = legendHtml() + shared; return; }
+    if (sub === 'chart') { root.innerHTML = chartViewPanel() + shared; return; }
+    if (sub === 'swap') { root.innerHTML = chartPanel() + shared; return; }
+    if (sub === 'live') { root.innerHTML = livePanel() + shared; return; }
+    root.innerHTML = selPanel() + shared;
   }
   function legendHtml() {
     if (!inSel()) return `<p class="muted small center">可以按上方的「學生視角／老師視角」切換方向。</p>`;
@@ -373,6 +374,33 @@
       ${rankInfo?.url ? `<div class="actions"><a class="btn wide" href="${esc(rankInfo.url)}" target="_blank" rel="noopener">📄 查看班名次試算表（唯讀）</a></div>` : '<p class="muted small">班名次試算表會在導師公布段考排名後出現。</p>'}
     </details>`;
   }
+  let publicRank = null, publicRankExam = 0, publicRankLoading = false, publicRankError = '';
+  function rankReadHtml() {
+    if (A.isGuest()) return '';
+    const queue = sel?.order || [];
+    let h = `<details class="panel rank-order"${store.get('indoor.rankorderopen', false) ? ' open' : ''}><summary><b>📋 選位排序與分數（全班可看）</b></summary>`;
+    if (queue.length) h += `<details><summary>目前線上選位順序（${queue.length} 人）</summary><ol>${queue.map(k => `<li>${esc(k)}${sel?.ranks?.[k] ? `・班名次 ${esc(String(sel.ranks[k]))}` : ''}</li>`).join('')}</ol></details>`;
+    h += `<p class="small">依綜合分數由高到低選位；同名次依名單文字排序，沒有成績的同學排在最後。</p><div class="rank-pick">${['第一次', '第二次', '第三次'].map((n, i) => `<button type="button" class="btn${publicRankExam === i ? ' btn--primary' : ''}" data-rank-view="${i}"${publicRankLoading ? ' disabled' : ''}>${n}段考排序</button>`).join('')}</div>`;
+    if (publicRankLoading) h += '<p class="muted">讀取中…</p>';
+    else if (publicRankError) h += `<p class="hw-red">${esc(publicRankError)}</p>`;
+    else if (publicRank) {
+      h += `<p><b>${esc(publicRank.label)}</b></p><div class="rank-read-wrap"><table class="rank-read"><thead><tr><th>選位順序</th><th>同學</th><th>科內名次</th><th>百分比</th><th>加扣分</th><th>綜合分數</th></tr></thead><tbody>${publicRank.order.map((k, i) => {
+        const d = publicRank.detail?.[k], fmt = v => v == null ? '—' : esc(String(Math.round(Number(v) * 100) / 100));
+        return `<tr${k === A.me() ? ' class="me"' : ''}><td>${i + 1}</td><th>${esc(k)}</th><td>${fmt(d?.dr)}</td><td>${d ? fmt(d.pct) + '%' : '—'}</td><td>${fmt(d?.bonus)}</td><td>${d ? fmt(d.score) : '無成績，排最後'}</td></tr>`;
+      }).join('')}</tbody></table></div>`;
+    } else h += '<p class="muted small">點選上方段考，即可查看全班選位順序與計分明細。</p>';
+    return h + '</details>';
+  }
+  $('#seatPanel').addEventListener('click', async e => {
+    const b = e.target.closest('[data-rank-view]');
+    if (!b || publicRankLoading) return;
+    publicRankExam = Number(b.dataset.rankView); publicRankLoading = true; publicRankError = ''; publicRank = null;
+    store.set('indoor.rankorderopen', true); renderPanel();
+    try { publicRank = await A.api('rankOrder', { exam: publicRankExam }); }
+    catch (err) { publicRankError = err.message; }
+    finally { publicRankLoading = false; renderPanel(); }
+  });
+  $('#seatPanel').addEventListener('toggle', e => { if (e.target.classList?.contains('rank-order')) store.set('indoor.rankorderopen', e.target.open); }, true);
   $('#seatPanel').addEventListener('toggle', e => { if (e.target.classList?.contains('rank-explain')) store.set('indoor.rankopen', e.target.open); }, true);
 
   // 座位表（只看）：人數與還沒有座位的同學

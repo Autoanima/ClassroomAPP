@@ -75,3 +75,23 @@ test('seat header distinguishes no leave from a failed request',()=>{
   state={...state,error:'',leaves:{'料01同學':['病假 第1節']}};c.renderTop();
   assert.match(root.innerHTML,/1 位/);assert.match(root.innerHTML,/料01同學：病假/);
 });
+test('many failed hatches show one message/animation; each successful hatch stays separate and nothing replays',async()=>{
+  const s=read('pets.js');
+  const grouping=s.slice(s.indexOf('  async function playGoneBatch('),s.indexOf('  const wait =',s.indexOf('  async function playGoneBatch(')));
+  const events=s.slice(s.indexOf('  async function events()'),s.indexOf('  // ── 點寵物：'));
+  let messages=0,animations=0;
+  const seen={got:[],egg:[],hatch:[],dead:[],gone:[]};
+  const pets=[0,1].map(i=>({id:'ok'+i,owner:'student',status:'寵物',hatch:Date.now()}));
+  const c=vm.createContext({seen,P:{pets,gone:Array.from({length:150},(_,i)=>({id:'gone'+i,owner:'student',hatch:Date.now()}))},playing:false,geo:null,
+    A:{currentTab:()=> 'seats',isGuest:()=>false,me:()=> 'student'},store:{set(){}},esc,nm:x=>x,look:()=>'',EGG:'🥚',
+    ensureLayer:()=>true,geometry:()=>({board:{x:0,y:0}}),notice:async()=>{messages++;},fx:()=>{animations++;return {remove(){}};},wait:async()=>{},banner(){},paintMap(){},remindWait(){}});
+  vm.runInContext(grouping+events,c);await c.events();
+  assert.equal(messages,3);assert.equal(animations,3);assert.equal(seen.gone.length,150);
+  await c.events();assert.equal(messages,3);assert.equal(animations,3);
+});
+test('student seat panels keep calculation and order visible during selection and swapping',()=>{
+  const s=read('seats.js'),fn=s.slice(s.indexOf('  function renderPanel()'),s.indexOf('  function legendHtml()'));
+  const root={innerHTML:''},c=vm.createContext({$:()=>root,sub:'chart',A:{isTeacher:()=>false,isStudent:()=>true},rankExplainHtml:()=> '計分方式',rankReadHtml:()=> '全班排序',legendHtml:()=> '圖例'});
+  vm.runInContext(fn,c);c.renderPanel();assert.match(root.innerHTML,/計分方式全班排序/);
+  c.sub='swap';c.renderPanel();assert.match(root.innerHTML,/計分方式全班排序/);
+});

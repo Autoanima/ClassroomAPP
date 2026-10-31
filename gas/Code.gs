@@ -114,7 +114,7 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ buyIncubator: 1, useIncubator: 1, weeklySelfPoint: 1, boardPrefs: 1, setBoardPref: 1, cleanLeaves: 1, rideLook: 1, rideImage: 1, petRide: 1, buyRide: 1, giftRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ rankOrder: 1, buyIncubator: 1, useIncubator: 1, weeklySelfPoint: 1, boardPrefs: 1, setBoardPref: 1, cleanLeaves: 1, rideLook: 1, rideImage: 1, petRide: 1, buyRide: 1, giftRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
 const CADRE_OK = Object.assign({ buyIncubator: 1, useIncubator: 1, weeklySelfPoint: 1, boardPrefs: 1, setBoardPref: 1, cleanLeaves: 1, rideLook: 1, rideImage: 1, petRide: 1, buyRide: 1, giftRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, lunchChange: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
@@ -3645,7 +3645,7 @@ function periodPoints(cuts) {
 }
 /** 現場選位用：依第 N 次段考的班名次排好的名單（沒有成績的放最後） */
 function rankOrder(who, exam) {
-  if (!who.teacher && !cadreRoles(who.key).some(r => /^副?班長$/.test(String(r).trim()))) throw new Error('只有導師、班長、副班長可以使用');
+  if (!who.teacher && (who.role === 'G' || getStudents().students.indexOf(who.key) < 0)) throw new Error('只有本班同學和導師可以查看選位排序');
   const i = Math.max(0, Math.min(2, Number(exam) || 0));
   const R = examRanks();
   const all = getStudents().students;
@@ -4584,13 +4584,14 @@ var SelEngine = (function () {
     }
   }
 
-  // 給學生看的資料：不包含其他人的名次與順序
+  // 給學生看的資料：公開選位順序與班名次，不公開其他人的志願
   function view(S, k, now) {
     if (!S || !S.status || S.status === 'idle') return { v: S ? S.v || 0 : 0, status: 'idle', now: now };
     var my = S.order.indexOf(k);
     return {
       v: S.v, status: S.status, now: now, applied: !!S.applied,
       total: S.order.length, turnPos: S.turn + 1, picked: Object.keys(S.picks).length,
+      order: S.order.slice(), ranks: Object.assign({}, S.ranks), source: S.source || '',
       myPos: my + 1, ahead: my >= 0 ? Math.max(0, my - S.turn) : 0,
       myTurn: S.status === 'open' && S.waiting === k,
       deadline: S.waiting === k ? S.deadline : 0,

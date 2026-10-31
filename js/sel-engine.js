@@ -151,13 +151,14 @@ var SelEngine = (function () {
     }
   }
 
-  // 給學生看的資料：不包含其他人的名次與順序
+  // 給學生看的資料：公開選位順序與班名次，不公開其他人的志願
   function view(S, k, now) {
     if (!S || !S.status || S.status === 'idle') return { v: S ? S.v || 0 : 0, status: 'idle', now: now };
     var my = S.order.indexOf(k);
     return {
       v: S.v, status: S.status, now: now, applied: !!S.applied,
       total: S.order.length, turnPos: S.turn + 1, picked: Object.keys(S.picks).length,
+      order: S.order.slice(), ranks: Object.assign({}, S.ranks), source: S.source || '',
       myPos: my + 1, ahead: my >= 0 ? Math.max(0, my - S.turn) : 0,
       myTurn: S.status === 'open' && S.waiting === k,
       deadline: S.waiting === k ? S.deadline : 0,

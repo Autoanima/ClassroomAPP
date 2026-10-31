@@ -2447,3 +2447,11 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .seat .seat-leave { position: absolute; inset: 0 0 29%; z-index: 1; display: flex; align-items: center; justify-content: center; max-width: none; padding: 0; border-radius: 0; background: rgba(166, 30, 50, .82); color: #fff; font-size: max(24px, calc(var(--u) * 51px)); font-weight: 900; line-height: 1; text-align: center; text-shadow: 0 1px 3px rgba(0,0,0,.4); white-space: normal; overflow: hidden; pointer-events: none; }
 .seat-leave-word { display: block; flex: none; transform: scaleX(.7); }
 .seat .seat-leave.long { font-size: max(14px, calc(var(--u) * 26px)); line-height: .95; }
+
+.pet-batch-fx { display: grid; place-items: center; gap: 6px; width: 180px; margin: -45px 0 0 -90px; padding: 12px; border-radius: 14px; background: var(--panel, #222); color: var(--text, #fff); animation: petBatch 1.4s ease both; text-align: center; }
+.pet-batch-icon { font-size: 38px; }
+@keyframes petBatch { 0% { opacity: 0; transform: translateY(12px) scale(.85); } 20%, 70% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-20px); } }
+.rank-read-wrap { overflow-x: auto; }
+.rank-read { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
+.rank-read td, .rank-read th { padding: 8px; border-bottom: 1px solid var(--line); text-align: center; }
+.rank-read tr.me { background: rgba(139, 111, 230, .2); }
