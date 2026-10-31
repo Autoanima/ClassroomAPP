@@ -622,7 +622,7 @@
     if (A.currentTab() !== 'seats') return;
     geo = geometry(); if (!geo) return;
     const el = fx(`<span class="pet-batch-icon">🥚💨</span><b>${list.length} 顆未孵出寵物</b>`, 'pet-batch-fx', geo.board.x, geo.board.y);
-    try { await wait(1400); } finally { el.remove(); }
+    try { await wait(7800); } finally { el.remove(); }
   }
   const markSeenMany = (k, ids) => { seen[k] = [...new Set([...seen[k], ...ids])].slice(-5000); store.set('indoor.pets.seen', seen); };
   const markSeen = (k, id) => markSeenMany(k, [id]);
@@ -682,9 +682,10 @@
           const label = kind === 'got' ? `收到 ${x.length} 顆寵物蛋` : kind === 'egg' ? `${x.length} 顆蛋開始孵化` : `${x.length} 隻寵物出去覓食了`;
           const key = kind === 'got' ? 'got' : kind === 'egg' ? 'egg' : 'dead';
           markSeenMany(key, x.map(p => p.id));
-          const e = fx(`<span class="pet-batch-icon">${kind === 'dead' ? '🍚' : '🥚'}</span><b>${label}</b>`, 'pet-batch-fx', to.x, to.y);
-          banner(label + '・詳細資料請到「寵物」查看', 2000);
-          try { await wait(1200); } finally { e.remove(); }
+          const e = fx(`<span class="pet-batch-icon">${kind === 'dead' ? '🍚' : '🥚'}</span><b>${label}</b>`, 'pet-batch-fx ' + kind, to.x, to.y);
+          const duration = kind === 'got' ? 1600 : kind === 'egg' ? 1500 : 7800;
+          banner(label + '・詳細資料請到「寵物」查看', duration);
+          try { await wait(duration); } finally { e.remove(); }
         } else if (kind === 'hatch') {
           await notice(look(x), `<h3>🎉 太幸運了！</h3><p><b>${esc(nm(x.owner))}</b> 的寵物蛋<b>真的孵出寵物</b>了！</p><p class="muted small">未使用孵蛋器時約 1/10 的機會。${x.owner === A.me() ? '到「🐾 寵物」可以幫牠取名字、上傳外觀。' : ''}</p>`, '確定，看牠出來');
           const e = fx(`<span class="hatch-egg">${EGG}</span><span class="hatch-pet">${look(x)}</span>`, 'egg-hatch', to.x, to.y);
