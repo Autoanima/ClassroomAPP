@@ -1806,7 +1806,7 @@
       h += `</div>${roster?.cadres ? `<p class="muted small">名單存在試算表「${esc(roster.cadreSource || '幹部名單')}」工作表。</p>` : ''}
         ${isTeacher() ? `<div class="actions"><button type="button" class="btn btn--primary wide" id="editCadres">✏️ 修改幹部名單</button></div>` : '<p class="muted small">只有導師可以修改幹部名單。</p>'}</details>`;
     }
-    root.innerHTML = `<div id="jobPickRoot"></div>` + h;
+    root.innerHTML = h + `<div id="jobPickRoot"></div>`;
     App.renderWorkPick?.();
     $('#editRoster')?.addEventListener('click', openRosterEditor);
     $('#editCadres')?.addEventListener('click', openCadreEditor);

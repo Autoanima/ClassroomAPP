@@ -5121,24 +5121,36 @@ function adminRemoveItem(who, c) {
   });
   return shopState(who);
 }
-function workDefinitions() { return controlRead('WORK_DEFS',[]); }
+function workDefinitions() { const defs=controlRead('WORK_DEFS',[]);if(defs.length)for(const id of ['out:I1','out:I2'])if(!defs.some(d=>d.id===id))defs.push({id,name:'外掃檢查人員 '+id.slice(-1),cap:1});return defs; }
+function workFixedKeys() { const k=getRoster().inspectors?.I1;return getStudents().students.includes(k)?[k]:[]; }
 function workPickConfigure(who,c) {
   if(!who.teacher)throw new Error('只有導師可以更改各區人數');
   withLock(()=>{
     const old=controlRead('WORK_PICK',{});if(old.open)throw new Error('請先停止選填再調整人數');
-    const defs=(c.defs||[]).filter(x=>/^(in|out):J\d+$/.test(x.id)).map(x=>({id:x.id,name:String(x.name).slice(0,90),cap:Math.max(0,Math.min(44,Math.round(Number(x.cap)||0)))}));
+    const defs=(c.defs||[]).filter(x=>/^(in|out):J\d+$|^out:I[12]$/.test(x.id)).map(x=>({id:x.id,name:String(x.name).slice(0,90),cap:/^out:I[12]$/.test(x.id)?1:Math.max(0,Math.min(44,Math.round(Number(x.cap)||0)))}));
     if(!defs.length || new Set(defs.map(x=>x.id)).size!==defs.length)throw new Error('工作設定不完整');
     controlSave('WORK_DEFS',defs);controlAudit(who,'調整掃區人數','',JSON.stringify(defs));
   });return workPickView(who);
 }
+function workCapacity(defs, count, fixed=0) {
+  const inside=defs.filter(d=>d.id.startsWith('in:')).reduce((n,d)=>n+Number(d.cap||0),0);
+  const outside=defs.filter(d=>d.id.startsWith('out:')).reduce((n,d)=>n+Number(d.cap||0),0);
+  return {inside,outside,total:inside+outside,students:count,fixed,required:Math.max(0,count-fixed),shortage:Math.max(0,count-fixed-inside-outside),configured:defs.length>0};
+}
+function workCapacityError(defs,count) {
+  const c=workCapacity(defs,count);
+  return `總名額不足：內掃 ${c.inside} ＋外掃 ${c.outside} ＝ ${c.total} 個；需選填 ${count} 人，還差 ${c.shortage} 個名額。請調整各掃區人數並儲存。`;
+}
 function workPickView(who) {
   const s=controlRead('WORK_PICK',{open:false,order:[],turn:0,picks:{}});
-  return {ok:true,...s,defs:workDefinitions(),teacher:!!who.teacher,myTurn:!!(s.open&&s.order[s.turn]===who.key)};
+  return {ok:true,...s,capacity:workCapacity(workDefinitions(),getStudents().students.length,workFixedKeys().length),defs:workDefinitions(),teacher:!!who.teacher,myTurn:!!(s.open&&s.order[s.turn]===who.key)};
 }
 function workPickStart(who,c) {
   if(!who.teacher)throw new Error('只有導師可以開放工作選填');
-  const rank=rankOrder(who,c.exam),defs=workDefinitions();
-  if(defs.reduce((n,d)=>n+d.cap,0)<rank.order.length)throw new Error('總名額少於學生人數，請先增加人手名額');
+  const rank=rankOrder(who,c.exam),defs=workDefinitions(),fixed=workFixedKeys();
+  rank.order=rank.order.filter(k=>!fixed.includes(k));
+  if(!defs.length)throw new Error('尚未儲存工作名額設定，請先展開「導師設定各掃區人數」並儲存。');
+  if(workCapacity(defs,rank.order.length).shortage)throw new Error(workCapacityError(defs,rank.order.length));
   withLock(()=>{
     if(controlRead('WORK_PICK',{}).open)throw new Error('選填已經進行中');
     controlSave('WORK_PICK',{open:true,order:rank.order,turn:0,picks:{},exam:Number(c.exam)||0,label:rank.label,session:Utilities.getUuid(),started:Date.now()});
@@ -5156,7 +5168,7 @@ function workPickChoose(who,c) {
     if(!s.open){
       for(const d of defs){
         const [area,id]=d.id.split(':'),ek=area==='in'?'ROSTER_EXTRA_IN':'ROSTER_EXTRA_OUT',extra=controlRead(ek,{});
-        const chosen=Object.keys(s.picks).filter(k=>s.picks[k]===d.id);extra[id]=chosen;controlSave(ek,extra);
+        const chosen=Object.keys(s.picks).filter(k=>s.picks[k]===d.id);if(!/^I/.test(id)){extra[id]=chosen;controlSave(ek,extra);}
         const sh=getSheet(area==='in'?SHEET_ROSTER:SHEET_OUT,HEAD_ROSTER),rows=sh.getLastRow()>1?sh.getRange(2,1,sh.getLastRow()-1,4).getValues():[];
         const i=rows.findIndex(r=>String(r[0])===id);
         if(i<0)sh.appendRow([id,d.name,chosen[0]||'',chosen[1]||'']);else sh.getRange(i+2,3,1,2).setValues([[chosen[0]||'',chosen[1]||'']]);

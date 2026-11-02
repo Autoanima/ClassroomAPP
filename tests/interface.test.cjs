@@ -120,7 +120,7 @@ test('job simulation enforces capacity and turn and applies only its demo roster
   const s=read('classroom-control.js'),data={},students=['s1','s2'],roster={jobs:{J01:['old']}};let teacher=true,me='s1';
   const A={D:{teacherLabel:'導師'},students:()=>students,roster:()=>roster,isTeacher:()=>teacher,me:()=>me,store:{get:(k,d)=>data[k]||d,set:(k,v)=>data[k]=v},testSeatApi:async(a)=>a==='rankOrder'?{order:students}:null};
   const c=vm.createContext({A,defaultDefs:()=>[{id:'in:J01',name:'工作',cap:1}],canEdit:()=>teacher,console});
-  vm.runInContext(s.slice(s.indexOf('  const previousTest ='),s.lastIndexOf('})();')),c);
+  vm.runInContext(s.slice(s.indexOf('  const fixedDemo ='),s.lastIndexOf('})();')),c);
   const call=command=>A.testSeatApi('classControl',{command});
   A.fmtDate=()=> '2026/11/02';
   await assert.rejects(call({act:'jobsStart'}),/總名額不足/);
@@ -128,4 +128,13 @@ test('job simulation enforces capacity and turn and applies only its demo roster
   teacher=false;me='s2';await assert.rejects(call({act:'jobsPick',id:'in:J01'}),/還沒輪到/);
   me='s1';await call({act:'jobsPick',id:'in:J01'});assert.equal(data['indoor.demoroster.v1.test'],undefined);
   me='s2';const r=await call({act:'jobsPick',id:'in:J01'});assert.equal(r.open,false);assert.deepEqual(Array.from(data['indoor.demoroster.v1.test'].jobs.J01),students);assert.deepEqual(roster.jobs.J01,['old']);
+});
+
+
+test('work capacity display distinguishes draft values and shows the arithmetic',()=>{
+ const s=read('classroom-control.js');const c=vm.createContext({});vm.runInContext(s.slice(s.indexOf('  function capacityHtml'),s.indexOf('  async function loadJobs')),c);
+ const html=c.capacityHtml([{id:'in:J01',cap:27},{id:'out:J01',cap:14}],44,false);
+ assert.match(html,/內掃 27 ＋外掃 14/);assert.match(html,/還差 3 個名額/);assert.match(html,/尚未儲存/);
+ assert.match(c.capacityHtml([{id:'in:J01',cap:44}],44,true),/名額足夠/);
+ assert.ok(read('app.js').includes('root.innerHTML = h + `<div id="jobPickRoot"></div>`'));
 });

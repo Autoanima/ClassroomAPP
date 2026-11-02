@@ -261,7 +261,7 @@ test('work selection enforces turn, capacity and locked roles, then persists mor
   const t=setup();t.c.rankOrder=()=>({order:['cadre','inspector','helper'],label:'第一次段考'});
   assert.throws(()=>t.c.workPickConfigure({key:'cadre'},{defs:[]}),/只有導師/);
   t.c.workPickConfigure({teacher:true},{defs:[{id:'in:J06',name:'玻璃',cap:3},{id:'in:DUTY',name:'值日生',cap:4},{id:'in:I1',name:'環保',cap:1}]});
-  assert.equal(t.c.workDefinitions().length,1);
+  assert.equal(t.c.workDefinitions().length,3);
   t.c.workPickStart({teacher:true},{exam:0});
   assert.throws(()=>t.c.workPickChoose({key:'helper'},{id:'in:J06'}),/還沒輪到/);
   for(const key of ['cadre','inspector','helper'])t.c.workPickChoose({key},{id:'in:J06'});
@@ -308,4 +308,27 @@ test('weather expiry normalizes Sheets Date cells and rejects malformed expiry',
   assert.equal(t.eval('spendRows()[0].note'),'2026/10/30');
   assert.equal(t.c.weatherList().length,1);assert.equal(t.c.weatherList()[0].kind,'rain');
   t.setTime('2026-11-02T16:00:00Z');assert.equal(t.c.weatherList().length,0);
+});
+
+
+test('work capacity reports exact deficit and unsaved settings separately',()=>{
+ const t=setup();t.c.rankOrder=()=>({order:['a','b','c','d'],label:'測試'});
+ assert.throws(()=>t.c.workPickStart({teacher:true},{exam:0}),/尚未儲存/);
+ t.c.workPickConfigure({teacher:true},{defs:[{id:'in:J01',name:'內掃',cap:0},{id:'out:J01',name:'外掃',cap:1}]});
+ const c=t.c.workPickView({teacher:true}).capacity;
+ assert.equal(c.inside,0);assert.equal(c.outside,3);assert.equal(c.total,3);assert.equal(c.required,4);assert.equal(c.shortage,1);
+ assert.throws(()=>t.c.workPickStart({teacher:true},{exam:0}),/還差 1 個名額/);
+ t.c.workPickConfigure({teacher:true},{defs:[{id:'in:J01',name:'內掃',cap:1},{id:'out:J01',name:'外掃',cap:1}]});
+ assert.equal(t.c.workPickView({teacher:true}).capacity.shortage,0);t.c.workPickStart({teacher:true},{exam:0});
+});
+
+
+test('only indoor environmental officer is fixed; outdoor inspectors can be replaced by picks',()=>{
+ const t=setup();t.c.getRoster=()=>({inspectors:{I1:'cadre'},jobs:{}});t.c.rankOrder=()=>({order:['cadre','inspector','helper','student'],label:'測試'});
+ t.c.workPickConfigure({teacher:true},{defs:[{id:'in:J01',name:'掃地',cap:1}]});
+ const cap=t.c.workPickView({teacher:true}).capacity;assert.equal(cap.fixed,1);assert.equal(cap.required,3);assert.equal(cap.total,3);assert.equal(cap.shortage,0);
+ const started=t.c.workPickStart({teacher:true},{exam:0});assert.deepEqual(Array.from(started.order),['inspector','helper','student']);
+ t.c.workPickChoose({key:'inspector'},{id:'out:I1'});t.c.workPickChoose({key:'helper'},{id:'out:I2'});t.c.workPickChoose({key:'student'},{id:'in:J01'});
+ const rows=t.eval('getSheet(SHEET_OUT,HEAD_ROSTER).rows');assert.ok(rows.some(r=>r[0]==='I1'&&r[2]==='inspector'));assert.ok(rows.some(r=>r[0]==='I2'&&r[2]==='helper'));
+ assert.equal(t.eval("controlRead('ROSTER_EXTRA_OUT',{})").I1,undefined);
 });
