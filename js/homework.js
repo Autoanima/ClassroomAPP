@@ -37,9 +37,11 @@
   }
 
   // ── 時間軸：每一項一條，從開始到截止；直線＝現在；條裡面的深色＝已交的比例 ──
+  const hasMissing = x => x.forMe ? !x.myDone : Number(x.n || 0) < Number(x.total || 0);
+  const trackedHomework = (x, now) => hasMissing(x) || x.end >= now - 7 * 86400e3;
   function timelineHtml(items) {
     const now = Date.now();
-    const list = items.filter(x => x.end > now - 7 * 86400e3);
+    const list = items.filter(x => trackedHomework(x, now));
     if (!list.length) return '';
     let t0 = Math.min(now, ...list.map(x => x.start)), t1 = Math.max(now, ...list.map(x => x.end));
     const pad = Math.max(3600e3 * 6, (t1 - t0) * 0.04); t0 -= pad; t1 += pad;
@@ -52,13 +54,13 @@
     for (let i = ticks.length - 1; i >= 0; i--) if (i % every) ticks.splice(i, 1);
     const rows = list.map(x => {
       const st = stage(x), frac = x.total ? x.n / x.total : 0, miss = x.forMe ? (x.myDone ? 0 : 1) : x.total - x.n;
-      const tail = x.forMe ? (x.myDone ? '✅ 你交了' : st === 'late' ? '⚠️ 你逾期未交' : '⏳ 你還沒交') : `${x.n}/${x.total}${st === 'late' && miss ? `・<b class="hw-red">${miss} 人逾期</b>` : ''}`;
+      const tail = x.forMe ? (x.myDone ? '✅ 你交了' : st === 'late' ? '⚠️ 你逾期未交' : '⏳ 你還沒交') : `${x.n}/${x.total}${miss ? st === 'late' ? `・<b class="hw-red">${miss} 人逾期未交</b>` : `・未交 ${miss} 人` : '・已全交'}`;
       return `<div class="hwt-row${miss ? '' : ' complete'}" data-hw="open" data-id="${esc(x.id)}" role="button" tabindex="0">
         <div class="hwt-name"><b>${esc(x.name)}</b><span class="${st === 'late' && miss ? 'hw-red' : 'muted'}">${remain(x)}</span></div>
         <div class="hwt-track"><span class="hwt-bar ${st}${st === 'late' && miss ? ' miss' : ''}" style="left:${P(x.start)};width:calc(${P(x.end)} - ${P(x.start)})"><i style="width:${(x.forMe ? (x.myDone ? 1 : 0) : frac) * 100}%"></i></span></div>
         <div class="hwt-tail small">${tail}</div></div>`;
     }).join('');
-    return `<div class="panel hwt"><h3>🗓 時間軸</h3>
+    return `<div class="panel hwt"><h3>🗓 時間軸（${list.length} 項）</h3><p class="muted small">仍有未交的項目會持續顯示，不因截止超過一週而隱藏。</p>
       <div class="hwt-axis">${ticks.map(t => `<span style="left:${P(t)}">${new Date(t).getMonth() + 1}/${new Date(t).getDate()}</span>`).join('')}</div>
       <div class="hwt-body">${rows}<div class="hwt-now-range"><span class="hwt-now" style="left:${P(now)}"><em>現在</em></span></div></div>
       <p class="muted small">長條＝開始收～截止；深色＝已交的比例；紅色＝已截止但還有人沒交。點一項可以看名單。</p></div>`;
@@ -93,9 +95,9 @@
     const items = H.items || [];
     if (!items.length) { root.innerHTML = h + `<div class="panel"><p class="muted">目前沒有繳交項目。</p></div>`; return; }
     h += timelineHtml(items);
-    const now = Date.now(), active = items.filter(x => x.end >= now - 7 * 86400e3), old = items.filter(x => x.end < now - 7 * 86400e3);
+    const now = Date.now(), active = items.filter(x => trackedHomework(x, now)), old = items.filter(x => !trackedHomework(x, now));
     h += active.map(cardHtml).join('');
-    if (old.length) h += `<details class="panel"><summary><b>截止超過一週的項目（${old.length}）</b></summary>${old.map(cardHtml).join('')}</details>`;
+    if (old.length) h += `<details class="panel"><summary><b>已繳齊且截止超過一週的項目（${old.length}）</b></summary>${old.map(cardHtml).join('')}</details>`;
     root.innerHTML = h;
   }
 

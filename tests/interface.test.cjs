@@ -138,3 +138,14 @@ test('work capacity display distinguishes draft values and shows the arithmetic'
  assert.match(c.capacityHtml([{id:'in:J01',cap:44}],44,true),/名額足夠/);
  assert.ok(read('app.js').includes('root.innerHTML = h + `<div id="jobPickRoot"></div>`'));
 });
+
+
+test('homework timeline keeps every incomplete item even months after deadline',()=>{
+ const s=read('homework.js'),c=vm.createContext({Date,esc,stage:()=> 'late',remain:()=> '已截止'});
+ vm.runInContext(s.slice(s.indexOf('  const hasMissing ='),s.indexOf('  function cardHtml'))+';globalThis.tracked=trackedHomework;',c);
+ const now=Date.now(),items=Array.from({length:8},(_,i)=>({id:'old'+i,name:'未交項目'+i,start:now-100*864e5,end:now-60*864e5,n:i,total:10}));
+ const html=c.timelineHtml(items);assert.equal((html.match(/class="hwt-row/g)||[]).length,8);assert.match(html,/8 項/);assert.match(html,/逾期未交/);
+ assert.equal(c.tracked({end:now-60*864e5,n:10,total:10},now),false);
+ assert.equal(c.tracked({end:now-60*864e5,forMe:true,myDone:null},now),true);
+ assert.equal(c.tracked({end:now-60*864e5,forMe:true,myDone:now},now),false);
+});
