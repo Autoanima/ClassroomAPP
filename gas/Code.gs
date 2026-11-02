@@ -2569,9 +2569,13 @@ function giftCard(who, card, to) {
   if (getStudents().students.indexOf(to) < 0 || to === who.key) throw new Error('請選擇要送的同學');
   const giver = who.teacher ? CONFIG.TEACHER_NAME : who.key;
   withLock(() => {
-    const c = coinsOf(who.key);
-    if (c.coins < price) throw new Error('點數不夠（' + card + '要 ' + price + ' 點，你有 ' + c.coins + ' 點）');
-    addSpend(who.key, price, '送禮', to, card);
+    if(card==='交換位置卡'&&!who.teacher){
+      if((heldCards(who.key)[card]||0)<1)throw new Error('你沒有可轉送的交換位置卡；轉送只能使用自己持有的卡，不會另外扣點購買。');
+      addSpend(who.key,0,card,to,'轉送持有卡（不扣點數）');
+    }else{
+      const c=coinsOf(who.key);if(!who.teacher&&c.coins<price)throw new Error('點數不夠（'+card+'要 '+price+' 點，你有 '+c.coins+' 點）');
+      addSpend(who.key,who.teacher?0:price,'送禮',to,card);
+    }
     const sh = getSheet(SHEET_CARDS, HEAD_CARDS);
     sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_CARDS.length).setValues([[new Date(), to, card, 1, giver + ' 送的']]);
   });

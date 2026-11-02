@@ -332,3 +332,16 @@ test('only indoor environmental officer is fixed; outdoor inspectors can be repl
  const rows=t.eval('getSheet(SHEET_OUT,HEAD_ROSTER).rows');assert.ok(rows.some(r=>r[0]==='I1'&&r[2]==='inspector'));assert.ok(rows.some(r=>r[0]==='I2'&&r[2]==='helper'));
  assert.equal(t.eval("controlRead('ROSTER_EXTRA_OUT',{})").I1,undefined);
 });
+
+
+test('earned swap card transfers one owned card without buying or charging points',()=>{
+ const t=setup();t.c.shopState=()=>({ok:true});t.c.coinsOf=()=>{throw Error('must not charge or check points for transfer');};
+ t.eval("getSheet(SHEET_CARDS,HEAD_CARDS).appendRow([new Date(),'student','交換位置卡',1,'段考獎勵'])");
+ assert.equal(t.c.heldCards('student').交換位置卡,1);
+ t.c.giftCard({key:'student'},'交換位置卡','cadre');
+ assert.equal(t.c.heldCards('student').交換位置卡,undefined);assert.equal(t.c.heldCards('cadre').交換位置卡,1);
+ assert.equal(t.spend.length,1);assert.equal(t.spend[0].points,0);assert.equal(t.spend[0].use,'交換位置卡');
+ assert.throws(()=>t.c.giftCard({key:'student'},'交換位置卡','helper'),/沒有可轉送/);assert.equal(t.spend.length,1);
+ t.c.giftCard({key:'cadre'},'交換位置卡','helper');assert.equal(t.c.heldCards('helper').交換位置卡,1);
+ assert.throws(()=>t.c.giftCard({key:'helper'},'交換位置卡','helper'),/請選擇/);
+});

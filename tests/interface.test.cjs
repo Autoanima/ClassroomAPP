@@ -149,3 +149,12 @@ test('homework timeline keeps every incomplete item even months after deadline',
  assert.equal(c.tracked({end:now-60*864e5,forMe:true,myDone:null},now),true);
  assert.equal(c.tracked({end:now-60*864e5,forMe:true,myDone:now},now),false);
 });
+
+
+test('swap gift dialog permits an owned card with zero points and rejects no inventory',()=>{
+ const src=read('shop.js');let html='';const S={unlimited:false,held:{交換位置卡:1},coins:0,me:'student',classmates:['student','other']};
+ const c=vm.createContext({S,esc,CARD_PRICE:()=>({'交換位置卡':100}),A:{sheetHead:(t,d)=>t+d,openSheet:(m,h)=>html=h}});
+ vm.runInContext(src.slice(src.indexOf('  function openCardGift('),src.indexOf('  A.sheetHandlers.giftcard')),c);
+ c.openCardGift('交換位置卡','🔀');assert.match(html,/不扣點數/);assert.ok(!html.includes('100'));assert.ok(!html.includes(' disabled'));
+ S.held={};c.openCardGift('交換位置卡','🔀');assert.match(html,/你沒有可轉送/);assert.match(html,/ disabled/);
+});
