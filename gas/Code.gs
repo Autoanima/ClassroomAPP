@@ -1996,9 +1996,12 @@ const PET_RIDES = { car: '汽車', ring: '游泳圈', rocket: '火箭', boat: '�
 const RIDE_PRICE = 10;
 // 每種交通工具只能走自己的路線（只能選方向）
 const RIDE_ROUTES = { car: ['cw', 'ccw'], ring: ['cw', 'ccw'], boat: ['h', 'v'], rocket: ['x', 'v'], ufo: ['cw', 'ccw', 'warp'], worm: ['lr', 'rl'] };
-function ridesOf(rows, key) {   // 導師移除過的：移除之後再買的才算
-  const rv = rideRevoked();
-  return rows.filter(x => x.who === key && x.use === '寵物交通工具' && PET_RIDES[x.target] && x.t > (rv[key + '|' + x.target] || 0)).map(x => x.target).filter((k, i, a) => a.indexOf(k) === i);
+function ridesOf(rows,key) {
+  const rv=rideRevoked(),owned=new Set();
+  rows.filter(x=>x.who===key&&PET_RIDES[x.target]).forEach(x=>{
+    if(x.use==='寵物交通工具'&&x.t>(rv[key+'|'+x.target]||0))owned.add(x.target);
+    if(x.use==='轉送交通工具')owned.delete(x.target);
+  });return [...owned];
 }
 const rideMap = () => arenaJson(PropertiesService.getScriptProperties().getProperty('PET_RIDE')) || {};
 function buyRide(who, kind) {
@@ -2013,20 +2016,20 @@ function buyRide(who, kind) {
   });
   return shopState(who);
 }
-/** 買交通工具送給同學：學生付點數、導師免費，收件人永久持有。 */
+/** 轉送現有交通工具：扣除持有權並卸下；導師無持有物時可免費贈送。 */
 function giftRide(who, kind, to) {
   if (!PET_RIDES[kind]) throw new Error('沒有這種交通工具');
   if (to === who.key || getStudents().students.indexOf(to) < 0) throw new Error('請選擇要送的同學');
   const giver = who.teacher ? CONFIG.TEACHER_NAME : who.key;
   withLock(() => {
     if (ridesOf(spendRows(), to).indexOf(kind) >= 0) throw new Error('對方已經有' + PET_RIDES[kind] + '了，不能重複贈送');
-    const price = who.teacher ? 0 : RIDE_PRICE;
-    if (!who.teacher && coinsOf(who.key).coins < price) throw new Error('點數不夠（需要 ' + price + ' 點）');
-    const sh = getSheet(SHEET_SPEND, HEAD_SPEND), now = new Date();
-    sh.getRange(sh.getLastRow() + 1, 1, 2, HEAD_SPEND.length).setValues([
-      [now, giver, price, '送禮', to, '寵物交通工具：' + PET_RIDES[kind], Utilities.getUuid().slice(0, 8)],
-      [now, to, 0, '寵物交通工具', kind, giver + ' 送的', Utilities.getUuid().slice(0, 8)]
-    ]);
+    const transfer=ridesOf(spendRows(),who.key).includes(kind);
+    if(!transfer&&!who.teacher)throw new Error('你沒有可轉送的'+PET_RIDES[kind]);
+    const sh=getSheet(SHEET_SPEND,HEAD_SPEND),now=new Date(),rows=[];
+    if(transfer)rows.push([now,who.key,0,'轉送交通工具',kind,'送給 '+to,Utilities.getUuid().slice(0,8)]);
+    rows.push([now,to,0,'寵物交通工具',kind,giver+' 送的',Utilities.getUuid().slice(0,8)]);
+    sh.getRange(sh.getLastRow()+1,1,rows.length,HEAD_SPEND.length).setValues(rows);
+    if(transfer){const rm=rideMap(),mine=petRows().filter(x=>x.owner===who.key).map(x=>x.id);Object.keys(rm).forEach(id=>{if(mine.includes(id)&&rm[id].v===kind)delete rm[id];});PropertiesService.getScriptProperties().setProperty('PET_RIDE',JSON.stringify(rm));}
   });
   try {
     botMail([[to, '🎁 ' + giver + ' 送你「' + PET_RIDES[kind] + '」！\n到寵物卡的「🚗 交通工具」就能使用，永久保存。\n' + CONFIG.SITE_URL + '#tab=pet']], GIFT_BOT);
@@ -2498,7 +2501,7 @@ function buyDrawCard(who, kind, to) {
   if (kind === 'transfer' && to === who.key) throw new Error('替身不能是自己');
   const price = kind === 'transfer' ? CONFIG.TRANSFER_PRICE : CONFIG.SURE_PRICE;
   withLock(() => {
-    addSpend(who.key, kind === 'sure' ? payCard(who, card, price) : (() => { const c = coinsOf(who.key); if (c.coins < price) throw new Error('點數不夠（' + card + '要 ' + price + ' 點，你有 ' + c.coins + ' 點）'); return price; })(), card, to, '');
+    addSpend(who.key, payCard(who, card, price), card, to, '');
   });
   return shopState(who);
 }
@@ -2546,7 +2549,7 @@ function cardRows() {
 function freeSwapCards(key) {
   return heldCards(key)['交換位置卡'] || 0;
 }
-const GIFT_CARDS = () => ({ 交換位置卡: CONFIG.SWAP_PRICE, 竊盜卡: CONFIG.STEAL_PRICE, 抽籤必中卡: CONFIG.SURE_PRICE, 煙火: CONFIG.FIREWORK_PRICE, 小太陽卡: CONFIG.WEATHER_PRICE, 小雨傘卡: CONFIG.WEATHER_PRICE });
+const GIFT_CARDS = () => ({ 交換位置卡: CONFIG.SWAP_PRICE, 竊盜卡: CONFIG.STEAL_PRICE, 抽籤必中卡: CONFIG.SURE_PRICE, 煙火: CONFIG.FIREWORK_PRICE, 抽籤轉移卡: CONFIG.TRANSFER_PRICE, 孵蛋器: 5, 小太陽卡: CONFIG.WEATHER_PRICE, 小雨傘卡: CONFIG.WEATHER_PRICE });
 /** 手上還沒用的道具卡（別人送的、段考獎勵）：收到的 − 用掉的（點數 0 的使用紀錄） */
 function heldCards(key, cards, spend) {
   const out = {};
@@ -2562,22 +2565,25 @@ function payCard(who, card, price) {
   if (c.coins < price) throw new Error('點數不夠（' + card + '要 ' + price + ' 點，你有 ' + c.coins + ' 點）');
   return price;
 }
-/** 買特殊道具送給同學：送禮的人付點數，對方得到一張可以免費使用的卡 */
+/** 轉送本人持有的特殊道具：不扣點數；導師無庫存時仍可免費贈送。 */
 function giftCard(who, card, to) {
   const price = GIFT_CARDS()[card];
   if (price == null) throw new Error('這個道具不能送人');
   if (getStudents().students.indexOf(to) < 0 || to === who.key) throw new Error('請選擇要送的同學');
   const giver = who.teacher ? CONFIG.TEACHER_NAME : who.key;
   withLock(() => {
-    if(card==='交換位置卡'&&!who.teacher){
-      if((heldCards(who.key)[card]||0)<1)throw new Error('你沒有可轉送的交換位置卡；轉送只能使用自己持有的卡，不會另外扣點購買。');
-      addSpend(who.key,0,card,to,'轉送持有卡（不扣點數）');
+    const held=card==='孵蛋器'?incubatorsOf(who.key):(heldCards(who.key)[card]||0),transfer=held>0;
+    if(!transfer&&!who.teacher)throw new Error('你沒有可轉送的'+card+'；只能轉送自己持有的道具，不會另外扣點購買。');
+    if(card==='孵蛋器'){
+      if(transfer)addSpend(who.key,0,'轉出孵蛋器',to,'轉送持有道具');
+      addSpend(to,0,'轉入孵蛋器',giver,'收到轉送');
     }else{
-      const c=coinsOf(who.key);if(!who.teacher&&c.coins<price)throw new Error('點數不夠（'+card+'要 '+price+' 點，你有 '+c.coins+' 點）');
-      addSpend(who.key,who.teacher?0:price,'送禮',to,card);
+      const sh=getSheet(SHEET_CARDS,HEAD_CARDS),now=new Date(),rows=[];
+      if(transfer)rows.push([now,who.key,card,-1,'轉送給 '+to]);
+      rows.push([now,to,card,1,giver+' 送的']);
+      sh.getRange(sh.getLastRow()+1,1,rows.length,HEAD_CARDS.length).setValues(rows);
     }
-    const sh = getSheet(SHEET_CARDS, HEAD_CARDS);
-    sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_CARDS.length).setValues([[new Date(), to, card, 1, giver + ' 送的']]);
+    addSpend(who.key,0,'轉送道具',to,card);
   });
   botMail([[to, '🎁 ' + giver + ' 送你一張「' + card + '」！\n到「🛍 商店 → 特殊道具」就可以免費使用（會顯示「🎟 你有 1 張」）。\n' + CONFIG.SITE_URL + '#tab=shop']], GIFT_BOT);
   return shopState(who);
@@ -3933,7 +3939,7 @@ function leaveRows() {
 const leavePub = x => ({ id: x.id, time: x.time, t: x.t, cardT: x.cardT, key: x.key, type: x.type, from: x.from, fromP: x.fromP, to: x.to, toP: x.toP, note: x.note, status: x.status, cards: x.cards, reply: x.reply, by: x.by });
 const PERIOD = p => (Number(p) === 0 ? '早自習' : '第' + p + '節');
 const leaveText = x => x.type + '：' + x.from.slice(5) + ' ' + PERIOD(x.fromP) + (x.from === x.to ? (x.fromP === x.toP ? '' : '～' + PERIOD(x.toP)) : ' ～ ' + x.to.slice(5) + ' ' + PERIOD(x.toP));
-/** 請假逾期：登記後超過 LEAVE_LATE_DAYS 天還沒上傳假卡 → 寄一次飛鴿傳書給同學和導師（任何人打開 App 讀請假時檢查） */
+/** 請假逾期：登記後超過 LEAVE_LATE_DAYS 天還沒上傳假卡 → 只寄一次飛鴿傳書給同學（任何人打開 App 讀請假時檢查） */
 // 公假：線下流程是公差單（填寫公差單 → 導師簽名 → 教官簽名）
 const leaveDoc = x => (x && x.type === '公假' ? '公差單' : '假卡');
 const leaveFlow = x => (x && x.type === '公假' ? '填寫公差單 → 導師簽名 → 教官簽名' : '家長簽名 → 導師簽名 → 教官室等處室');
@@ -3944,7 +3950,7 @@ function leaveTick() {
   if (!due.length) return;
   const per = Number(CONFIG.LEAVE_LATE_PER) || 0.1, days = Number(CONFIG.LEAVE_LATE_DAYS) || 3;
   botMail(due.map(x => [x.key, '⚠️ 你的請假已經登記超過 ' + days + ' 天，還沒有上傳' + leaveDoc(x) + '！\n' + leaveText(x) + '\n請盡快跑完簽核流程（' + leaveFlow(x) + '），把簽好的' + leaveDoc(x) + '拍照上傳。\n從現在起每多一天扣 ' + per + ' 分，上傳' + leaveDoc(x) + '就停止。\n' + CONFIG.SITE_URL + '#tab=leave'])
-    .concat(due.map(x => [CONFIG.TEACHER_NAME, '⚠️ ' + x.key + ' 的請假登記超過 ' + days + ' 天還沒上傳' + leaveDoc(x) + '（已提醒同學）\n' + leaveText(x) + '\n' + CONFIG.SITE_URL + '#tab=leave'])), LEAVE_BOT);
+    , LEAVE_BOT);
   props.setProperty(K, JSON.stringify(sent.concat(due.map(x => x.id)).slice(-300)));
 }
 /** 請假逾期扣分：登記滿 LEAVE_LATE_DAYS 天後，每一天（不滿一天算一天）扣 LEAVE_LATE_PER 分，到上傳假卡為止 */
@@ -4935,7 +4941,7 @@ function claimBoxEggs(key) {
 }
 
 // 孵蛋器：買入庫存後，選定自己的待孵／孵化中蛋使用；每次 ×2，最高 100%。
-function incubatorsOf(key, rows) { return Math.max(0, (rows || spendRows()).filter(r => r.who === key).reduce((n, r) => n + (r.use === '購買孵蛋器' ? 1 : r.use === '使用孵蛋器' ? -1 : 0), 0)); }
+function incubatorsOf(key, rows) { return Math.max(0, (rows || spendRows()).filter(r => r.who === key).reduce((n, r) => n + (['購買孵蛋器','轉入孵蛋器'].includes(r.use)?1:['使用孵蛋器','轉出孵蛋器'].includes(r.use)?-1:0), 0)); }
 function buyIncubator(who) {
   withLock(() => {
     if (!who.teacher && coinsOf(who.key).coins < 5) throw new Error('孵蛋器需要 5 點');

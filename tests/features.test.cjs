@@ -340,8 +340,35 @@ test('earned swap card transfers one owned card without buying or charging point
  assert.equal(t.c.heldCards('student').交換位置卡,1);
  t.c.giftCard({key:'student'},'交換位置卡','cadre');
  assert.equal(t.c.heldCards('student').交換位置卡,undefined);assert.equal(t.c.heldCards('cadre').交換位置卡,1);
- assert.equal(t.spend.length,1);assert.equal(t.spend[0].points,0);assert.equal(t.spend[0].use,'交換位置卡');
+ assert.equal(t.spend.length,1);assert.equal(t.spend[0].points,0);assert.equal(t.spend[0].use,'轉送道具');
  assert.throws(()=>t.c.giftCard({key:'student'},'交換位置卡','helper'),/沒有可轉送/);assert.equal(t.spend.length,1);
  t.c.giftCard({key:'cadre'},'交換位置卡','helper');assert.equal(t.c.heldCards('helper').交換位置卡,1);
  assert.throws(()=>t.c.giftCard({key:'helper'},'交換位置卡','helper'),/請選擇/);
+});
+
+
+test('all held special cards transfer without points or accidentally activating effects',()=>{
+ const t=setup();t.c.shopState=()=>({ok:true});t.c.coinsOf=()=>{throw Error('must not charge');};t.c.drawWeights=()=>({});
+ for(const card of ['交換位置卡','竊盜卡','抽籤必中卡','煙火','小太陽卡','小雨傘卡','抽籤轉移卡']){
+   t.eval(`getSheet(SHEET_CARDS,HEAD_CARDS).appendRow([new Date(),'student',${JSON.stringify(card)},1,'獎勵'])`);
+   t.c.giftCard({key:'student'},card,'cadre');assert.equal(t.c.heldCards('student')[card],undefined);assert.equal(t.c.heldCards('cadre')[card],1);
+ }
+ assert.equal(t.c.fireworksList().length,0);assert.equal(t.c.weatherList().length,0);assert.equal(t.c.drawFx().sure.length,0);assert.equal(t.c.drawFx().transfers.length,0);assert.ok(t.spend.every(x=>x.points===0));
+ for(const card of ['禮物盒','信紙','創造卡'])assert.throws(()=>t.c.giftCard({key:'student'},card,'cadre'),/不能送人/);
+ t.spend.push({who:'student',points:5,use:'購買孵蛋器'});t.c.giftCard({key:'student'},'孵蛋器','cadre');assert.equal(t.c.incubatorsOf('student'),0);assert.equal(t.c.incubatorsOf('cadre'),1);
+ assert.throws(()=>t.c.giftCard({key:'student'},'孵蛋器','helper'),/沒有可轉送/);
+});
+
+test('vehicle transfer moves ownership, unmounts sender pets and rejects duplicate or missing vehicles',()=>{
+ const t=setup();t.c.shopState=()=>({ok:true});t.c.coinsOf=()=>{throw Error('must not charge');};t.c.petRows=()=>[{owner:'student',id:'pet1'}];
+ vm.runInContext(source.slice(source.indexOf('function spendRows()'),source.indexOf('function addSpend(')),t.c);
+ const sh=t.eval('getSheet(SHEET_SPEND,HEAD_SPEND)');sh.appendRow([new t.Date(),'student',10,'寵物交通工具','car','','original']);t.props.PET_RIDE=JSON.stringify({pet1:{v:'car'}});
+ t.c.giftRide({key:'student'},'car','cadre');assert.equal(t.c.ridesOf(t.c.spendRows(),'student').length,0);assert.deepEqual(Array.from(t.c.ridesOf(t.c.spendRows(),'cadre')),['car']);assert.equal(JSON.parse(t.props.PET_RIDE).pet1,undefined);
+ assert.throws(()=>t.c.giftRide({key:'helper'},'car','cadre'),/已經有/);assert.throws(()=>t.c.giftRide({key:'student'},'car','helper'),/沒有可轉送/);
+ t.c.giftRide({key:'cadre'},'car','helper');assert.deepEqual(Array.from(t.c.ridesOf(t.c.spendRows(),'helper')),['car']);assert.equal(t.c.ridesOf(t.c.spendRows(),'cadre').length,0);
+ assert.equal(sh.rows.slice(2).reduce((n,r)=>n+Number(r[2]),0),0);
+});
+
+test('missing leave card reminders go only to students, never the teacher',()=>{
+ const t=setup();const sh=seedLeave(t,'已登記');sh.getRange(2,15).setValue('');t.c.leaveTick();assert.equal(t.mails.length,1);assert.equal(t.mails[0].to,'student');t.c.leaveTick();assert.equal(t.mails.length,1);
 });

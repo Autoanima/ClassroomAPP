@@ -3,6 +3,7 @@
 (() => {
   const A = window.App, D = A.D;
   const { $, esc, toast, store } = A;
+  A.rideInventory=(rows,key,rv={})=>{const owned=new Set();rows.filter(x=>x.who===key).forEach(x=>{if(x.use==='寵物交通工具'&&x.t>(rv[key+'|'+x.target]||0))owned.add(x.target);if(x.use==='轉送交通工具')owned.delete(x.target);});return [...owned];};
   const K = { inv: 'indoor.shopinv.v1.test', deco: 'indoor.shopdeco.v1.test', spend: 'indoor.shopspend.v1.test', seenFx: 'indoor.fxseen.v1' + A.SFX };
   let S = null;          // 雲端回傳的商店狀態
   let loading = false;
@@ -132,11 +133,11 @@
       const priceTxt = n ? `🎟 你有 ${n} 張` : price;
       const giftable = (S.giftable || []).includes(card);
       return `<div class="sp-cell"><button type="button" class="special ${cls}" data-s="${key}"${n || can ? '' : ' disabled'}${extra}><span class="sp-ico">${ico}</span><b>${title}</b><span class="muted small">${desc}</span><span class="sp-price">${priceTxt}</span></button>
-        ${giftable ? `<button type="button" class="sp-gift" data-s="giftCard" data-card="${esc(card)}" data-ico="${ico}"${card==='交換位置卡'&&!S.unlimited&&!n ? ' disabled' : ''}>🎁 ${card==='交換位置卡'&&!S.unlimited?'轉送持有卡':'送人'}</button>` : ''}</div>`;
+        ${giftable ? `<button type="button" class="sp-gift" data-s="giftCard" data-card="${esc(card)}" data-ico="${ico}"${!S.unlimited&&!n ? ' disabled' : ''}>🎁 ${n?'轉送持有道具':S.unlimited?'免費贈送':'轉送持有道具'}</button>` : ''}</div>`;
     };
     const swapFree = held['交換位置卡'] || 0;
-    const specialsHtml = `<div class="panel"><h3>特殊道具</h3><p class="muted small">交換位置卡可轉送自己持有的卡，不扣點數；其他有 🎁 的道具可買來送給同學。</p><div class="specials">
-      <div class="sp-cell"><button type="button" class="special" data-s="buyIncubator"${S.unlimited || S.coins >= 5 ? '' : ' disabled'}><span class="sp-ico">🐣</span><b>孵蛋器</b><span class="muted small">選一顆自己的蛋使用，每次成功率 ×2，可疊加至 100%。到寵物頁使用。</span><span class="sp-price">💰 5 點・持有 ${S.incubators || 0} 個</span></button></div>
+    const specialsHtml = `<div class="panel"><h3>特殊道具</h3><p class="muted small">持有的特殊道具可轉送，不扣點數；禮物盒、信紙、創造卡除外。已使用的效果不能轉送。</p><div class="specials">
+      <div class="sp-cell"><button type="button" class="special" data-s="buyIncubator"${S.unlimited || S.coins >= 5 ? '' : ' disabled'}><span class="sp-ico">🐣</span><b>孵蛋器</b><span class="muted small">選一顆自己的蛋使用，每次成功率 ×2，可疊加至 100%。到寵物頁使用。</span><span class="sp-price">💰 5 點・持有 ${S.incubators || 0} 個</span></button><button class="sp-gift" data-s="giftCard" data-card="孵蛋器" data-ico="🐣"${S.unlimited || S.incubators>0 ? '' : ' disabled'}>🎁 轉送持有道具</button></div>
       ${sp('firework', '煙火', '', '🎆', '煙火', '放在同學的座位上，大家下次打開 App 時都會看到', `💰 ${S.fireworkPrice} 點`, S.coins >= S.fireworkPrice)}
       ${sp('swap', '交換位置卡', 'swap', '🔀', '交換位置卡', banned ? `你被扣了 ${S.minus} 分（超過 ${S.swapBan} 分），不能使用` : S.unlimited ? '和另一位同學強制對調座位（導師請按「送人」）' : '和另一位同學強制對調座位', `💰 ${S.swapPrice || 100} 點`, !banned && (swapFree || S.coins >= (S.swapPrice || 100)))}
       ${sp('steal', '竊盜卡', 'steal', '🦹', '竊盜卡', `把別人的一個配件變成你的（到期日不變）${othersN ? '' : '｜目前沒有人有配件'}`, `💰 ${S.stealPrice} 點`, S.coins >= S.stealPrice && othersN)}
@@ -151,10 +152,10 @@
     h += specialsHtml;
     // 🚗 寵物的交通工具：永久保存
     const RD = A.petRides || {}, ownR = new Set(S.rides || []), rp = S.ridePrice || 10;
-    h += `<div class="panel shop-rides"><h3>🚗 寵物的交通工具</h3><p class="muted small">每種 ${rp} 點，<b>永久保存、不會消耗</b>。可以買給同學，導師免費送。買了以後到寵物卡的「🚗 交通工具」讓寵物坐上去，可以選要不要顯示、選路線和方向。</p><div class="ride-grid">${Object.keys(RD).map(k => {
+    h += `<div class="panel shop-rides"><h3>🚗 寵物的交通工具</h3><p class="muted small">每種 ${rp} 點，<b>永久保存、不會消耗</b>。可將自己持有的交通工具轉送，不扣點數，送出後自己不再持有。導師也可免費贈送。買了以後到寵物卡的「🚗 交通工具」讓寵物坐上去，可以選要不要顯示、選路線和方向。</p><div class="ride-grid">${Object.keys(RD).map(k => {
       const own = ownR.has(k), can = S.unlimited || S.coins >= rp;
       return `<div class="ride-item${own ? ' own' : ''}"><span class="ride-art">${A.petRideArt(k)}</span><b>${RD[k].name}</b><span class="muted small">${RD[k].desc}</span>
-        ${own ? '<span class="tag good">✓ 已擁有</span>' : `<button type="button" class="btn${can ? ' btn--primary' : ''}" data-s="buyRide" data-kind="${k}"${can ? '' : ' disabled'}>💰 ${rp} 點</button>`}<button type="button" class="btn" data-s="giftRide" data-kind="${k}"${S.unlimited || S.coins >= rp ? '' : ' disabled'}>🎁 送人</button></div>`; }).join('')}</div></div>`;
+        ${own ? '<span class="tag good">✓ 已擁有</span>' : `<button type="button" class="btn${can ? ' btn--primary' : ''}" data-s="buyRide" data-kind="${k}"${can ? '' : ' disabled'}>💰 ${rp} 點</button>`}<button type="button" class="btn" data-s="giftRide" data-kind="${k}"${S.unlimited || own ? '' : ' disabled'}>🎁 ${own?'轉送現有交通工具':S.unlimited?'導師免費贈送':'沒有可轉送的交通工具'}</button></div>`; }).join('')}</div></div>`;
     h += `<div class="panel penalty-note"><h3>⚠️ 扣分會減少點數</h3>
       <p class="small">每被扣 <b>${S.penaltyPer || 2} 分</b>，商店點數就減少 <b>1 點</b>，最少扣到 0 點（不會變成負的）。${S.penaltyFrom ? `${esc(S.penaltyFrom)} 以後的扣分才算。` : ''}</p>
       <p class="small muted">被扣分的同學，接下來的 3 次抽籤也比較容易被抽到（詳情看「抽籤」頁）。</p></div>`;
@@ -266,12 +267,12 @@
   function openRideGift(kind) {
     const ride = A.petRides?.[kind];
     if (!ride) return;
-    const price = S.unlimited ? 0 : (S.ridePrice || 10);
-    let h = A.sheetHead('🎁 送' + ride.name, price ? '花 ' + price + ' 點買給同學，對方永久持有' : '導師免費送給同學，對方永久持有');
+    const transfer=(S.rides||[]).includes(kind),price=0;
+    let h = A.sheetHead('🎁 送' + ride.name, transfer?'轉送自己持有的交通工具，不扣點數；送出後自己不再持有':'導師免費贈送，對方永久持有');
     h += '<div class="field"><label for="rideGiftTo">送給</label><select id="rideGiftTo"><option value="">— 請選擇同學 —</option>'
       + S.classmates.filter(k => k !== S.me).map(k => '<option value="' + esc(k) + '">' + esc(k) + '</option>').join('')
       + '</select></div><p class="muted small">對方已擁有同款時無法重複贈送，也不會扣點數。</p><div class="actions"><button type="button" class="btn btn--primary wide" data-act="rideGiftOk"'
-      + (S.unlimited || S.coins >= price ? '' : ' disabled') + '>🎁 送出（' + (price ? price + ' 點' : '導師免費') + '）</button></div>';
+      + (S.unlimited || transfer ? '' : ' disabled') + '>🎁 送出（' + (transfer?'轉送現有交通工具，不扣點數':'導師免費') + '）</button></div>';
     A.openSheet({ kind: 'giftride', rideKind: kind }, h);
   }
   A.sheetHandlers.giftride = async (act, b) => {
@@ -280,7 +281,7 @@
     if (!to || !ride) return toast('請選擇同學');
     b.disabled = true;
     try {
-      if (!await A.ask('送「' + ride.name + '」給 ' + to + '？\n' + (S.unlimited ? '導師不扣點數' : '花 ' + (S.ridePrice || 10) + ' 點'), '送出')) { b.disabled = false; return; }
+      if (!await A.ask('送「' + ride.name + '」給 ' + to + '？\n' + ((S.rides||[]).includes(kind)?'轉送自己持有的交通工具，不扣點數；送出後自己不再持有':'導師免費贈送'), '送出')) { b.disabled = false; return; }
       S = await doing('giftRide', { kind, to }); A.closeSheet(); toast('🎁 已送出' + ride.name + '給 ' + to); render(); A.emit?.('petsReload');
     } catch (err) { toast(err.message); b.disabled = false; }
   };
@@ -288,13 +289,13 @@
   // ── 買特殊道具送人 ──
   const CARD_PRICE = () => ({ 交換位置卡: S.swapPrice || 100, 竊盜卡: S.stealPrice || 10, 抽籤必中卡: S.surePrice || 30, 煙火: S.fireworkPrice || 1, 小太陽卡: S.weatherPrice || 5, 小雨傘卡: S.weatherPrice || 5 });
   function openCardGift(card, ico) {
-    const transfer=card==='交換位置卡'&&!S.unlimited;
-    const price=S.unlimited||transfer?0:CARD_PRICE()[card],count=S.held?.[card]||0;
+    const count=card==='孵蛋器'?(S.incubators||0):(S.held?.[card]||0),transfer=!S.unlimited||count>0;
+    const price=0;
     const allowed=transfer?count>0:S.coins>=price;
-    let h = A.sheetHead(`🎁 ${transfer?'轉送自己持有的':'送一張'}${card}`, transfer?`你有 ${count} 張；自己減少 1 張，對方增加 1 張，不扣點數`:S.unlimited?'導師免費贈送':`花 ${price} 點買給同學，對方可以免費使用`);
+    let h = A.sheetHead(`🎁 ${transfer?'轉送自己持有的':'送一張'}${card}`, transfer?`你有 ${count} ${card==='孵蛋器'?'個':'張'}；自己減少 1 個、對方增加 1 個，不扣點數`:S.unlimited?'導師免費贈送':`花 ${price} 點買給同學，對方可以免費使用`);
     h += `<div class="field"><label for="gcTo">送給</label><select id="gcTo"><option value="">— 請選擇同學 —</option>${S.classmates.filter(k => k !== S.me).map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join('')}</select></div>
-      <div class="actions"><button type="button" class="btn btn--primary wide" data-act="gcOk"${allowed ? '' : ' disabled'}>${ico} 送出（${transfer?'轉送現有卡，不扣點數':S.unlimited ? '導師免費' : price + ' 點'}）</button></div>
-      ${allowed?'':`<p class="muted small">${transfer?'你沒有可轉送的交換位置卡。':`點數不夠（你有 ${S.coins} 點）`}</p>`}`;
+      <div class="actions"><button type="button" class="btn btn--primary wide" data-act="gcOk"${allowed ? '' : ' disabled'}>${ico} 送出（${transfer?'轉送持有道具，不扣點數':S.unlimited ? '導師免費' : price + ' 點'}）</button></div>
+      ${allowed?'':`<p class="muted small">${transfer?`你沒有可轉送的${esc(card)}。`:`點數不夠（你有 ${S.coins} 點）`}</p>`}`;
     A.openSheet({ kind: 'giftcard', card }, h);
   }
   A.sheetHandlers.giftcard = async (act, b) => {
@@ -302,7 +303,7 @@
     const { card } = A.sheetMode();
     const to = $('#gcTo').value;
     if (!to) return toast('請選擇同學');
-    if (!await A.ask(`送一張「${card}」給 ${to}？\n（${card==='交換位置卡'&&!S.unlimited?'轉送自己現有的 1 張，不扣點數':S.unlimited ? '導師不扣點數' : `花 ${CARD_PRICE()[card]} 點`}）`, '送出')) return;
+    if (!await A.ask(`送一張「${card}」給 ${to}？\n（${!S.unlimited||((card==='孵蛋器'?S.incubators:S.held?.[card])||0)>0?'轉送自己持有的 1 個道具，不扣點數':'導師免費贈送'}）`, '送出')) return;
     b.disabled = true;
     try { S = await doing('giftCard', { card, to }); A.closeSheet(); toast(`🎁 已送出${card}給 ${to}`); } catch (err) { toast(err.message); b.disabled = false; }
     render();
@@ -858,11 +859,11 @@
     const others = {};
     inv2.filter(x => x.owner !== me && x.exp >= today).forEach(x => { (others[x.owner] ||= []).push(x); });
     return {
-      incubators: spend.filter(x => x.who === me).reduce((n, x) => n + (x.use === '購買孵蛋器' ? 1 : x.use === '使用孵蛋器' ? -1 : 0), 0), ok: true, me, today, ...(() => { const minus = pts.filter(r => r.student === me && r.points < 0).reduce((t, r) => t - r.points, 0); const pen = Math.min(Math.max(0, earned - spent2), Math.floor(minus / 2)); return { coins: earned - spent2 - pen, penalty: pen, penaltyPer: 2, penaltyFrom: '2026/09/26' }; })(), earned, spent: spent2, catalog: list, stealPrice: 10, fireworkPrice: 1, others,
+      incubators: spend.filter(x => x.who === me).reduce((n, x) => n + (['購買孵蛋器','轉入孵蛋器'].includes(x.use)?1:['使用孵蛋器','轉出孵蛋器'].includes(x.use)?-1:0), 0), ok: true, me, today, ...(() => { const minus = pts.filter(r => r.student === me && r.points < 0).reduce((t, r) => t - r.points, 0); const pen = Math.min(Math.max(0, earned - spent2), Math.floor(minus / 2)); return { coins: earned - spent2 - pen, penalty: pen, penaltyPer: 2, penaltyFrom: '2026/09/26' }; })(), earned, spent: spent2, catalog: list, stealPrice: 10, fireworkPrice: 1, others,
       stolen: spend.filter(x => x.use === '竊盜卡' && x.target === me).map(x => ({ time: x.time, thief: x.who, name: x.note })),
       minus: pts.filter(r => r.student === me && r.points < 0).reduce((t, r) => t - r.points, 0), swapBan: 10,
-      transferPrice: 20, surePrice: 30, transferDays: 10, weatherPrice: 5, weatherDays: 10,
-      giftable: ['交換位置卡', '竊盜卡', '抽籤必中卡', '煙火', '小太陽卡', '小雨傘卡'],
+      transferPrice: 20, surePrice: 30, transferDays: 10, weatherPrice: 5, weatherDays: 5,
+      giftable: ['孵蛋器','抽籤轉移卡','交換位置卡', '竊盜卡', '抽籤必中卡', '煙火', '小太陽卡', '小雨傘卡'],
       held: (() => { const h = {}; store.get('indoor.testcards.v1.test', []).filter(x => x.who === me).forEach(x => { h[x.card] = (h[x.card] || 0) + x.n; }); spend.filter(x => x.who === me && x.points === 0 && h[x.use]).forEach(x => { h[x.use]--; }); Object.keys(h).forEach(k => { if (h[k] <= 0) delete h[k]; }); return h; })(),
       rankCards: store.get('indoor.testcards.v1.test', []).filter(x => x.who === me).slice(-5).reverse(),
       myDraw: (() => {
@@ -876,7 +877,7 @@
       classmates: A.DEMO_STUDENTS.filter(k => k !== me),
       inv: inv2.filter(x => x.owner === me).map(x => ({ ...x, expired: x.exp < today })),
       deco: store.get(K.deco, {})[me] || [],
-      rides: [...new Set(spend.filter(x => x.who === me && x.use === '寵物交通工具').map(x => x.target))], ridePrice: 10,
+      rides: A.rideInventory(spend,me,store.get('indoor.riderevoked.v1.test',{})), ridePrice: 10,
     };
   }
   A.testSeatApi = async (action, p = {}) => {
@@ -913,24 +914,28 @@
     if (action === 'giftCard') {
       const st = await testState();
       const price = { 交換位置卡: 20, 竊盜卡: 10, 抽籤必中卡: 30, 煙火: 1, 小太陽卡: 5, 小雨傘卡: 5 }[p.card];
-      const transfer=p.card==='交換位置卡'&&!A.isTeacher();
-      if(transfer&&!(st.held?.[p.card]>0))throw new Error('你沒有可轉送的交換位置卡');
+      const count=p.card==='孵蛋器'?(st.incubators||0):(st.held?.[p.card]||0),transfer=count>0;
+      if(!transfer&&!A.isTeacher())throw new Error('你沒有可轉送的'+p.card);
+
       if (!A.isTeacher() && !transfer && st.coins < price) throw new Error('點數不夠');
-      const t = new Date();
-      store.set(K.spend, [...store.get(K.spend, []), { id: Math.random().toString(36).slice(2, 10), who: me, points: A.isTeacher() || transfer ? 0 : price, use: transfer?p.card:'送禮', target: p.to, note: transfer?'轉送持有卡（不扣點數）':p.card, time: '', t: Date.now() }]);
-      store.set('indoor.testcards.v1.test', [...store.get('indoor.testcards.v1.test', []), { who: p.to, card: p.card, n: 1, from: me + ' 送的', t: t.getTime() }]);
+      const t=Date.now(),cards=store.get('indoor.testcards.v1.test',[]),sp=store.get(K.spend,[]);
+      if(p.card==='孵蛋器'){
+        if(transfer)sp.push({who:me,points:0,use:'轉出孵蛋器',target:p.to,t});sp.push({who:p.to,points:0,use:'轉入孵蛋器',target:me,t});
+      }else{if(transfer)cards.push({who:me,card:p.card,n:-1,from:'轉送給 '+p.to,t});cards.push({who:p.to,card:p.card,n:1,from:me+' 送的',t});}
+      sp.push({who:me,points:0,use:'轉送道具',target:p.to,note:p.card,t});store.set(K.spend,sp);store.set('indoor.testcards.v1.test',cards);
       return testState();
     }
     if (action === 'buyWeather') {
       const st = await testState();
-      if (st.coins < 5) throw new Error('點數不夠');
+      const price=(st.held?.[p.kind==='sun'?'小太陽卡':'小雨傘卡']||0)>0?0:5;
+      if (st.coins < price) throw new Error('點數不夠');
       const t = new Date();
-      store.set(K.spend, [...store.get(K.spend, []), { id: Math.random().toString(36).slice(2, 10), who: me, points: 5, use: p.kind === 'sun' ? '小太陽卡' : '小雨傘卡', target: p.to, note: schoolDaysLater(5), time: `${A.pad2(t.getMonth() + 1)}/${A.pad2(t.getDate())} ${A.fmtTime(t)}`, t: Date.now() }]);
+      store.set(K.spend, [...store.get(K.spend, []), { id: Math.random().toString(36).slice(2, 10), who: me, points: price, use: p.kind === 'sun' ? '小太陽卡' : '小雨傘卡', target: p.to, note: schoolDaysLater(5), time: `${A.pad2(t.getMonth() + 1)}/${A.pad2(t.getDate())} ${A.fmtTime(t)}`, t: Date.now() }]);
       return testState();
     }
     if (action === 'buyDrawCard') {
       const st = await testState();
-      const tr = p.kind === 'transfer', price = tr ? 20 : 30;
+      const tr = p.kind === 'transfer', price = (st.held?.[tr?'抽籤轉移卡':'抽籤必中卡']||0)>0?0:tr?20:30;
       if (tr && p.to === me) throw new Error('替身不能是自己');
       if (st.coins < price) throw new Error('點數不夠');
       const t = new Date();
@@ -970,7 +975,7 @@
     }
     if (action === 'stealAcc' || action === 'buyFirework') {
       const st = await testState();
-      const price = action === 'stealAcc' ? 10 : 1;
+      const price=(st.held?.[action==='stealAcc'?'竊盜卡':'煙火']||0)>0?0:action==='stealAcc'?10:1;
       if (st.coins < price) throw new Error('點數不夠');
       const spend = store.get(K.spend, []), t = new Date();
       const time = `${A.pad2(t.getMonth() + 1)}/${A.pad2(t.getDate())} ${A.fmtTime(t)}`;

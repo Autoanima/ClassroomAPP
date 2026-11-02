@@ -1036,17 +1036,17 @@
       if (!RIDES[p.kind]) throw new Error('沒有這種交通工具');
       if (p.to === who || !A.DEMO_STUDENTS.includes(p.to)) throw new Error('請選擇要送的同學');
       const rv = store.get('indoor.riderevoked.v1.test', {});
-      if (sp.some(x => x.who === p.to && x.use === '寵物交通工具' && x.target === p.kind && x.t > (rv[p.to + '|' + p.kind] || 0))) throw new Error('對方已經有這種交通工具了，不能重複贈送');
-      const st = await prevTest('shopState'), price = A.isTeacher() ? 0 : 10;
-      if (!st.unlimited && st.coins < price) throw new Error('點數不夠（需要 ' + price + ' 點）');
+      if (A.rideInventory(sp,p.to,rv).includes(p.kind)) throw new Error('對方已經有這種交通工具了，不能重複贈送');
+      const transfer=A.rideInventory(sp,who,rv).includes(p.kind);if(!transfer&&!A.isTeacher())throw new Error('你沒有可轉送的交通工具');
       const now = Date.now(), row = (owner, points, use, target, note) => ({ id: Math.random().toString(36).slice(2, 10), who: owner, points, use, target, note, time: '', t: now });
-      store.set(SK, [...sp, row(who, price, '送禮', p.to, '寵物交通工具：' + RIDES[p.kind].name), row(p.to, 0, '寵物交通工具', p.kind, who + ' 送的')]);
+      store.set(SK, [...sp,...(transfer?[row(who,0,'轉送交通工具',p.kind,'送給 '+p.to)]:[]),row(p.to,0,'寵物交通工具',p.kind,who+' 送的')]);
+      const rm=store.get('indoor.petride.v1.test',{}),mine=store.get('indoor.pets.v1.test',[]).filter(x=>x.owner===who).map(x=>x.id);Object.keys(rm).forEach(id=>{if(mine.includes(id)&&rm[id].v===p.kind)delete rm[id];});store.set('indoor.petride.v1.test',rm);
       return prevTest('shopState');
     }
     if (action === 'buyRide') {
       const SK = 'indoor.shopspend.v1.test', sp = store.get(SK, []), who = A.isTeacher() ? (A.D.teacherLabel || '導師') : A.me();
       if (!RIDES[p.kind]) throw new Error('沒有這種交通工具');
-      if (sp.some(x => x.who === who && x.use === '寵物交通工具' && x.target === p.kind)) throw new Error(`你已經有${RIDES[p.kind].name}了（永久保存，不用再買）`);
+      if (A.rideInventory(sp,who,store.get('indoor.riderevoked.v1.test',{})).includes(p.kind)) throw new Error(`你已經有${RIDES[p.kind].name}了（永久保存，不用再買）`);
       const st = await prevTest('shopState');
       if (!st.unlimited && st.coins < 10) throw new Error(`點數不夠（${RIDES[p.kind].name}要 10 點，你有 ${st.coins} 點）`);
       store.set(SK, [...sp, { id: Math.random().toString(36).slice(2, 10), who, points: A.isTeacher() ? 0 : 10, use: '寵物交通工具', target: p.kind, note: '', time: '', t: Date.now() }]);
@@ -1067,7 +1067,7 @@
     }
     const spBoost = store.get('indoor.shopspend.v1.test', []), boosts = {};
     spBoost.filter(r => r.use === '使用孵蛋器').forEach(r => { boosts[r.target] = (boosts[r.target] || 0) + 1; });
-    const inventory = () => spBoost.filter(r => r.who === me).reduce((n, r) => n + (r.use === '購買孵蛋器' ? 1 : r.use === '使用孵蛋器' ? -1 : 0), 0);
+    const inventory = () => spBoost.filter(r => r.who === me).reduce((n, r) => n + (['購買孵蛋器','轉入孵蛋器'].includes(r.use)?1:['使用孵蛋器','轉出孵蛋器'].includes(r.use)?-1:0), 0);
     if (action === 'useIncubator') {
       const egg = all.find(x => x.id === p.id && x.owner === me && ['待孵', '蛋'].includes(x.status));
       if (!egg || (egg.status === '蛋' && now >= egg.hatch)) throw new Error('只能對自己尚未揭曉的蛋使用');
@@ -1129,7 +1129,7 @@
     if (action === 'petImage') { const x = all.find(y => y.id === p.id); return { ok: true, img: store.get('indoor.petimgdata.test', {})[x?.imgId] || '' }; }
     store.set(KEY, all);
     const feeders = x => { const m = {}; (x.feedLog || []).filter(f => f.t > now - 7 * 864e5).forEach(f => { m[f.who] = (m[f.who] || 0) + 1; }); return Object.entries(m).map(([key, n]) => ({ key, n })).sort((a, b) => b.n - a.n); };
-    const spAll = store.get('indoor.shopspend.v1.test', []), ownedOf = k => [...new Set(spAll.filter(y => y.who === k && y.use === '寵物交通工具' && y.t > (rv[k + '|' + y.target] || 0)).map(y => y.target))];
+    const spAll = store.get('indoor.shopspend.v1.test', []), ownedOf = k => A.rideInventory(spAll,k,rv);
     const owned = {}; all.forEach(x => { owned[x.owner] ||= ownedOf(x.owner); }); owned[me] ||= ownedOf(me);
     const rideImgs = {}; Object.entries(im).forEach(([k, y]) => { const [o, v] = k.split('|'); if ((owned[o] || []).includes(v)) rideImgs[k] = y.id; });
     return { pendingGiftEggs: bonuses.filter(x => x.key === me && !x.egg).length, incubators: inventory(), hatchOk: 0.1, ok: true, rides: rm, owned, rideImgs, ridePrice: 10, pets: all.map(x => ({ ...x, boostUses: boosts[x.id] || 0, hatchChance: Math.min(1, 0.1 * 2 ** (boosts[x.id] || 0)), img: x.imgId ? 1 : 0, feeders: feeders(x) })), gone: goneAll.filter(x => now - x.hatch < 7 * 864e5), me, now, food: 1, max: 10 };
