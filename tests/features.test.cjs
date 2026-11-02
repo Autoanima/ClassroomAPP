@@ -15,6 +15,7 @@ class Sheet {
     return {
       getValues() { return Array.from({length: nr}, (_, i) => Array.from({length: nc}, (_, j) => s.rows[row+i-1]?.[col+j-1] ?? '')); },
       getValue() { return this.getValues()[0][0]; },
+      getDisplayValues() { return this.getValues().map(r=>r.map(v=>String(v))); },
       setValues(v) { for(let i=0;i<nr;i++) for(let j=0;j<nc;j++) { s.rows[row+i-1] ||= []; s.rows[row+i-1][col+j-1] = v[i][j]; } return this; },
       setValue(v) { return this.setValues([[v]]); },
       clearContent() { return this.setValue(''); },
@@ -209,4 +210,88 @@ test('student selection view exposes queue and ranks without exposing other wish
   const r=t.eval(`SelEngine.view({v:1,status:'ready',order:['cadre','student'],ranks:{cadre:1,student:2},turn:0,picks:{},deferred:{},wishes:{cadre:['A1'],student:['A2']},how:{},blocked:[],seats:['A1','A2']},'student',Date.now())`);
   assert.deepEqual([...r.order],['cadre','student']);assert.equal(r.ranks.cadre,1);
   assert.deepEqual([...r.myWishes],['A2']);assert.equal(r.wishes,undefined);
+});
+
+function dutySetup() {
+  const t=setup('2026-11-02T00:00:00Z');
+  t.c.getStudents=()=>({students:['多01','多02','多03','多04','料01','料02','料03','料04']});
+  t.c.getDuty=()=>({date:t.eval('ymd(new Date())'),list:[]});
+  t.c.cleanLeaves=()=>({leaves:{}});
+  return t;
+}
+test('daily duty chooses two per department, avoids leave and keeps a seven-day reserve',()=>{
+  const t=dutySetup();t.c.cleanLeaves=()=>({leaves:{'多01':['病假']}});
+  const r=t.c.dutyStateV2({teacher:true});
+  assert.equal(r.today.list.length,4);assert.equal(r.today.list.filter(k=>k.startsWith('多')).length,2);
+  assert.ok(!r.today.list.includes('多01'));assert.equal(r.hold[0].key,'多01');assert.equal(r.hold[0].expires,'2026/11/09');
+  const again=t.c.dutyStateV2({teacher:true});assert.deepEqual([...again.today.list],[...r.today.list]);
+});
+test('unfinished duty remains queued across same-day reads and continues next school day',()=>{
+  const t=dutySetup(),r=t.c.dutyStateV2({teacher:true}),key=r.today.list[0];
+  t.c.dutyChangeV2({teacher:true},{action:'bad',key});t.c.dutyStateV2({teacher:true});
+  assert.ok(t.eval("controlRead('DUTY_AUTO_V2',{})").repeat.includes(key));
+  t.setTime('2026-11-03T00:00:00Z');
+  assert.ok(t.c.dutyStateV2({teacher:true}).today.list.includes(key));
+});
+test('newly registered leave replaces a scheduled duty student; manual restoration completes reserve',()=>{
+  const t=dutySetup(),first=t.c.dutyStateV2({teacher:true}),key=first.today.list[0];
+  t.c.cleanLeaves=()=>({leaves:{[key]:['曠課']}});
+  const second=t.c.dutyStateV2({teacher:true});assert.ok(!second.today.list.includes(key));assert.ok(second.hold.some(x=>x.key===key));
+  t.c.cleanLeaves=()=>({leaves:{}});
+  const list=[...second.today.list],i=list.findIndex(k=>k[0]===key[0]);list[i]=key;
+  const restored=t.c.dutyChangeV2({teacher:true},{list});assert.ok(restored.today.list.includes(key));assert.ok(!restored.hold.some(x=>x.key===key));
+  assert.throws(()=>t.c.dutyChangeV2({key:'student'},{list}),/只有導師或幹部/);
+});
+test('cadres can register absence with author and time; ordinary students cannot',()=>{
+  const t=setup('2026-11-02T00:00:00Z');
+  assert.throws(()=>t.c.recordAbsence({key:'student'},{key:'student',date:'2026/11/02'}),/只有/);
+  t.c.recordAbsence({key:'cadre'},{key:'student',date:'2026/11/02',fromP:1,toP:7});
+  const row=t.c.leaveRows()[0];assert.equal(row.type,'曠課');assert.equal(row.by,'cadre');assert.ok(row.t>0);
+  assert.equal(t.c.cleanLeaves('2026/11/02').leaves.student.length,1);
+  assert.throws(()=>t.c.recordAbsence({key:'cadre'},{key:'student',date:'2026/11/02',fromP:1,toP:7}),/已登記/);
+});
+test('teacher removal reduces actual free-card inventory without charging or refunding coins',()=>{
+  const t=setup();t.c.shopState=()=>({ok:true});t.c.adminItemList=()=>[{key:'student',items:[{type:'card',id:'煙火',name:'煙火',n:2}]}];
+  t.eval("getSheet(SHEET_CARDS,HEAD_CARDS).appendRow([new Date(),'student','煙火',2,'贈送'])");
+  t.c.adminRemoveItem({teacher:true},{key:'student',type:'card',id:'煙火',n:1});
+  assert.equal(t.c.heldCards('student').煙火,1);assert.equal(t.spend.length,0);
+  assert.throws(()=>t.c.adminRemoveItem({key:'cadre'},{key:'student',type:'card',id:'煙火'}),/只有導師/);
+});
+test('work selection enforces turn, capacity and locked roles, then persists more than two assignees',()=>{
+  const t=setup();t.c.rankOrder=()=>({order:['cadre','inspector','helper'],label:'第一次段考'});
+  assert.throws(()=>t.c.workPickConfigure({key:'cadre'},{defs:[]}),/只有導師/);
+  t.c.workPickConfigure({teacher:true},{defs:[{id:'in:J06',name:'玻璃',cap:3},{id:'in:DUTY',name:'值日生',cap:4},{id:'in:I1',name:'環保',cap:1}]});
+  assert.equal(t.c.workDefinitions().length,1);
+  t.c.workPickStart({teacher:true},{exam:0});
+  assert.throws(()=>t.c.workPickChoose({key:'helper'},{id:'in:J06'}),/還沒輪到/);
+  for(const key of ['cadre','inspector','helper'])t.c.workPickChoose({key},{id:'in:J06'});
+  assert.equal(t.eval("controlRead('ROSTER_EXTRA_IN',{})").J06.length,3);
+  assert.equal(t.c.workPickView({key:'helper'}).open,false);
+});
+test('daily repeat preference remains per-user and can retain an older announcement',()=>{
+  const t=setup();t.c.getBoard=()=>[{id:'post'}];
+  t.c.boardRepeat({key:'student'},{id:'post',repeat:true});
+  assert.deepEqual([...t.c.boardPrefs({key:'student'}).repeat],['post']);
+  assert.equal(t.c.boardPrefs({key:'cadre'}).repeat.length,0);
+  t.c.boardRepeat({key:'student'},{id:'post',repeat:false});assert.equal(t.c.boardPrefs({key:'student'}).repeat.length,0);
+});
+test('absence supports morning period zero and keeps original author after a cadre cancels',()=>{
+  const t=setup('2026-11-02T00:00:00Z');
+  t.c.recordAbsence({key:'cadre'},{key:'student',date:'2026/11/02',fromP:0,toP:0});
+  const first=t.c.leaveRows()[0];assert.equal(first.toP,0);
+  t.c.cancelLeave({key:'helper'},first.id);
+  const row=t.c.leaveRows()[0];assert.equal(row.by,'cadre');assert.equal(row.cancelBy,'helper');assert.equal(row.status,'已取消');
+  assert.equal(t.c.cleanLeaves('2026/11/02').leaves.student,undefined);
+});
+test('control data chunks preserve a large Chinese roster within script-property size limits',()=>{
+  const t=setup();t.eval(`controlSave('BIG', {data:'同學名單'.repeat(2000)})`);
+  assert.equal(t.eval(`controlRead('BIG',{}).data.length`),8000);
+  assert.ok(Object.values(t.props).every(x=>Buffer.byteLength(x,'utf8')<9000));
+});
+test('teacher removal of an active weather card actually expires the effect',()=>{
+  const t=setup();t.c.shopState=()=>({ok:true});t.c.adminItemList=()=>[{key:'student',items:[{type:'effect',id:'wx1',name:'小太陽卡',n:1}]}];
+  t.eval(`getSheet(SHEET_SPEND,HEAD_SPEND).appendRow([new Date(),'student',5,'小太陽卡','student','2099/01/01','wx1'])`);
+  t.c.adminRemoveItem({teacher:true},{key:'student',type:'effect',id:'wx1'});
+  assert.equal(t.eval(`getSheet(SHEET_SPEND,HEAD_SPEND).getRange(2,6).getValue()`),'1900/01/01');
+  assert.equal(t.eval(`getSheet(SHEET_SPEND,HEAD_SPEND).getRange(2,3).getValue()`),5);
 });

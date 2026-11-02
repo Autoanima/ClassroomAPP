@@ -7,9 +7,10 @@
   const TEST_KEY = 'indoor.board.v1.test';
   let posts = [];
   let loaded = false;
-  let hidden = new Set(), autoView = false;
+  let hidden = new Set(), dailyRepeat = new Set(), autoView = false;
+  const autoPost = p => dailyRepeat.has(p.id) || (!hidden.has(p.id) && p.t && Date.now() - p.t < 864e5);
   async function loadPrefs() {
-    try { const r = await A.api('boardPrefs'); hidden = new Set(r.hidden || []); } catch { hidden = new Set(); }
+    try { const r = await A.api('boardPrefs'); hidden = new Set(r.hidden || []); dailyRepeat = new Set(r.repeat || []); } catch { hidden = new Set(); dailyRepeat = new Set(); }
   }
 
   const canPost = () => A.isStaff();   // 導師＋幹部（用自己的身分證字號登入）
@@ -28,18 +29,18 @@
   }
 
   function html() {
-    let h = A.sheetHead('📌 公布欄', `最近 ${KEEP_DAYS} 天的留言${canPost() ? '・你可以發布' : ''}`);
+    let h = A.sheetHead('📌 公布欄', `最近 ${KEEP_DAYS} 天及已開啟每日重複的留言${canPost() ? '・你可以發布' : ''}`);
     // 發布的地方放在留言的下面
     const compose = canPost() ? `<div class="board-new"><h3 class="board-day">✏️ 發布新的留言</h3><textarea id="boardText" rows="3" maxlength="300" placeholder="例如：國文習作 P.12–15，明天交"></textarea>
         <div class="actions"><button type="button" class="btn btn--primary wide" data-act="boardPost">📌 發布</button></div></div>` : '';
     if (!posts.length) return h + `<p class="muted center">目前沒有留言。</p>` + compose;
     let day = '';
     h += `<div class="board-list">`;
-    posts.filter(p => !autoView || !hidden.has(p.id)).forEach(p => {
+    posts.filter(p => !autoView || autoPost(p)).forEach(p => {
       if (p.date !== day) { day = p.date; h += `<h3 class="board-day">${esc(dayLabel(p.date))}</h3>`; }
       const mine = A.isTeacher() || p.by === myName();
       h += `<div class="board-post"><div class="bp-text">${esc(p.text)}</div>
-        <div class="bp-meta muted small">${esc(p.by)}・${esc(p.time.slice(-5))}${mine ? `<button type="button" class="link-btn" data-act="boardEdit" data-id="${esc(p.id)}">修改</button><button type="button" class="link-btn" data-act="boardDel" data-id="${esc(p.id)}">刪除</button>` : ''}</div><div class="board-pref small"><label><input type="checkbox" data-act="boardPref" data-id="${esc(p.id)}"${hidden.has(p.id) ? ' checked' : ''}> 這週不再自動顯示</label><span class="muted">${hidden.has(p.id) ? '週一恢復顯示；仍可手動查看' : '持續顯示'}</span></div></div>`;
+        <div class="bp-meta muted small">${esc(p.by)}・${esc(p.time.slice(-5))}${mine ? `<button type="button" class="link-btn" data-act="boardEdit" data-id="${esc(p.id)}">修改</button><button type="button" class="link-btn" data-act="boardDel" data-id="${esc(p.id)}">刪除</button>` : ''}</div><div class="board-pref small"><label><input type="checkbox" data-act="boardPref" data-id="${esc(p.id)}"${dailyRepeat.has(p.id) ? ' checked' : ''}> 每日重複出現</label><span class="muted">${dailyRepeat.has(p.id) ? '每天自動顯示' : '新訊息預設只自動顯示一天'}</span></div></div>`;
     });
     return h + `</div>` + compose;
   }
@@ -88,7 +89,12 @@
     const b = e.target;
     if (b.dataset.act !== 'boardPref') return;
     b.disabled = true;
-    try { const r = await A.api('setBoardPref', { id: b.dataset.id, hidden: b.checked }); hidden = new Set(r.hidden || []); const note = b.closest('.board-pref')?.querySelector('.muted'); if (note) note.textContent = b.checked ? '週一恢復顯示；仍可手動查看' : '持續顯示'; toast(b.checked ? '本週不再自動顯示這則公告' : '這則公告將持續顯示'); } catch (err) { b.checked = !b.checked; toast(err.message); }
+    try {
+      const r = await A.api('classControl', { command: { act: 'boardRepeat', id: b.dataset.id, repeat: b.checked } }); dailyRepeat = new Set(r.repeat || []);
+      const note = b.closest('.board-pref')?.querySelector('.muted'); if (note) note.textContent = b.checked ? '每天自動顯示' : '新訊息預設只自動顯示一天';
+      toast(b.checked ? '已開啟每日重複出現' : '已關閉每日重複出現');
+    } catch (err) { b.checked = !b.checked; toast(err.message); }
+
     b.disabled = false;
   });
   $('#boardBtn').addEventListener('click', async () => { if (!loaded) await load(); await loadPrefs(); open(); });
@@ -99,7 +105,7 @@
     await loadPrefs();
     let shown = false;
     try { shown = sessionStorage.getItem('indoor.boardShown') === '1'; } catch { /* ignore */ }
-    if (shown || !posts.some(p => !hidden.has(p.id)) || A.isGuest()) return; // 任課老師預設不打開（可以自己按）
+    if (shown || !posts.some(autoPost) || A.isGuest()) return; // 任課老師預設不打開（可以自己按）
     // 先等飛鴿傳書看完、畫面上沒有別的視窗，再打開公布欄
     await Promise.race([A.mailDone || Promise.resolve(), new Promise(r => setTimeout(r, 5 * 60e3))]);
     for (let i = 0; i < 120 && A.sheetMode(); i++) await new Promise(r => setTimeout(r, 500));

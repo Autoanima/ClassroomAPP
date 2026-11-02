@@ -61,7 +61,7 @@
       return;
     }
     const me = S.me || A.me();
-    const coinTxt = S.unlimited ? '∞' : S.coins;
+    const coinTxt = S.unlimited ? '∞' : Math.round(Number(S.coins) || 0);
     const active = S.inv.filter(x => !x.expired);
     const used = new Set((S.deco || []).map(l => l.inv));
     // 最上面：重新整理（同學剛上架的商品、剛收到的點數，按一下就看得到）
@@ -80,7 +80,7 @@
     h += `<div class="panel shop-me">${top}
       <div class="shop-face"><span class="photo">${A.faceHtml(me)}</span></div>
       <div class="shop-wallet"><div class="coins">💰 <b>${coinTxt}</b> 點</div>
-        <div class="muted small">${S.unlimited ? '導師點數無限，可以試用所有商品' : `加分累計 ${S.earned} 點${S.income ? `（含作品收入 ${S.income} 點）` : ''}・已使用 ${S.spent} 點${S.penalty ? `・扣分扣掉 ${S.penalty} 點` : ''}`}</div>
+        <div class="muted small">${S.unlimited ? '導師點數無限，可以試用所有商品' : `加分累計 ${Math.round(Number(S.earned) || 0)} 點${S.income ? `（含作品收入 ${Math.round(Number(S.income) || 0)} 點）` : ''}・已使用 ${Math.round(Number(S.spent) || 0)} 點${S.penalty ? `・扣分扣掉 ${Math.round(Number(S.penalty) || 0)} 點` : ''}`}</div>
         <button type="button" class="btn btn--primary" data-s="edit"${active.length ? '' : ' disabled'}>🎨 裝扮大頭照</button>
         ${active.length ? '' : '<div class="muted small">先在下面的商店買配件</div>'}</div>
     </div>`;
@@ -176,13 +176,15 @@
       <p class="muted small">「持有道具」＝還沒用或還在生效的特殊道具；「用過」＝用過幾次。</p>
       <div class="admin-wrap"><table class="admin"><thead><tr><th>同學</th><th>加分</th><th>已用</th><th>扣分扣點</th><th>剩餘</th><th>配件</th><th>持有道具</th><th>用過</th></tr></thead><tbody>`;
     S.admin.forEach(r => {
-      h += `<tr><td>${esc(r.key)}</td><td>${r.earned}${r.income ? `<div class="muted small">作品 ${r.income}</div>` : ''}</td><td>${r.spent}</td><td>${r.penalty ? '−' + r.penalty : ''}</td><td><b>${r.coins}</b></td><td>${r.active || ''}</td>
+      h += `<tr><td>${esc(r.key)}</td><td>${Math.round(Number(r.earned) || 0)}${r.income ? `<div class="muted small">作品 ${Math.round(Number(r.income) || 0)}</div>` : ''}</td><td>${Math.round(Number(r.spent) || 0)}</td><td>${r.penalty ? '−' + Math.round(r.penalty) : ''}</td><td><b>${Math.round(Number(r.coins) || 0)}</b></td><td>${r.active || ''}</td>
         <td class="items">${itemChips(r.held)}</td><td class="items muted">${itemChips(r.used)}</td></tr>`;
     });
     // 全班合計
     const sum = key => { const t = {}; S.admin.forEach(r => Object.entries(r[key] || {}).forEach(([n, c]) => { t[n] = (t[n] || 0) + c; })); return t; };
     h += `</tbody><tfoot><tr><td colspan="6"><b>全班合計</b></td><td class="items">${itemChips(sum('held'))}</td><td class="items muted">${itemChips(sum('used'))}</td></tr></tfoot>`;
-    return h + `</table></div></details>`;
+    h += `</table></div></details>`;
+    if (S.adminItems) h += `<details class="panel"><summary><b>🎒 學生道具管理（導師）</b></summary><p class="small">移除不退點，會保留操作紀錄。</p>${S.adminItems.map(r => `<details class="item-owner"><summary>${esc(r.key)}（${r.items.reduce((n,x)=>n+x.n,0)} 件）</summary>${r.items.map(x => `<div class="admin-item"><span>${esc(x.name)} ×${x.n}</span><button class="btn btn--danger" data-s="adminRemoveItem" data-key="${esc(r.key)}" data-type="${x.type}" data-id="${esc(x.id)}" data-name="${esc(x.name)}" data-n="${x.n}">移除</button></div>`).join('') || '<p class="muted">沒有持有道具</p>'}</details>`).join('')}</details>`;
+    return h;
   }
 
   $('#shopRoot').addEventListener('click', async e => {
@@ -194,6 +196,14 @@
       await Promise.all([load(), A.loadAccImages?.().catch(() => {})]);
       A.ensureFaces?.(true); // 大家的大頭照裝飾也一起更新
       toast('✓ 已更新');
+      return;
+    }
+    if (act === 'adminRemoveItem') {
+      const n = Number(b.dataset.n) > 1 ? Number(prompt('要移除幾個？', '1')) : 1;
+      if (!Number.isInteger(n) || n < 1 || n > Number(b.dataset.n)) return toast('請輸入正確數量');
+      if (!await A.ask(`從 ${b.dataset.key} 移除「${b.dataset.name}」×${n}？不退點數，會保留操作紀錄。`, '移除', true)) return;
+      b.disabled = true;
+      try { S = await doing('classControl', { command: { act: 'itemsRemove', key: b.dataset.key, type: b.dataset.type, id: b.dataset.id, n } }); render(); toast('已移除道具'); A.emit('petsReload'); A.emit('coins'); } catch(err) { toast(err.message); b.disabled = false; }
       return;
     }
     if (act === 'buyIncubator') {

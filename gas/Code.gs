@@ -114,13 +114,18 @@ const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記�
 
 // 學生（身分證字號登入）可以用的動作
 const SHOP_OK = { giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
-const STUDENT_OK = Object.assign({ rankOrder: 1, buyIncubator: 1, useIncubator: 1, weeklySelfPoint: 1, boardPrefs: 1, setBoardPref: 1, cleanLeaves: 1, rideLook: 1, rideImage: 1, petRide: 1, buyRide: 1, giftRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
+const STUDENT_OK = Object.assign({ classControl: 1, rankOrder: 1, buyIncubator: 1, useIncubator: 1, weeklySelfPoint: 1, boardPrefs: 1, setBoardPref: 1, cleanLeaves: 1, rideLook: 1, rideImage: 1, petRide: 1, buyRide: 1, giftRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
-const CADRE_OK = Object.assign({ buyIncubator: 1, useIncubator: 1, weeklySelfPoint: 1, boardPrefs: 1, setBoardPref: 1, cleanLeaves: 1, rideLook: 1, rideImage: 1, petRide: 1, buyRide: 1, giftRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, lunchChange: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
+const CADRE_OK = Object.assign({ classControl: 1, buyIncubator: 1, useIncubator: 1, weeklySelfPoint: 1, boardPrefs: 1, setBoardPref: 1, cleanLeaves: 1, rideLook: 1, rideImage: 1, petRide: 1, buyRide: 1, giftRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, lunchChange: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
 // 任課老師（不用密碼）：只能抽籤、看座位表
 const GUEST_OK = { boardPrefs: 1, setBoardPref: 1, cleanLeaves: 1, rideImage: 1, getTimetable: 1, getPets: 1, petImage: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getDrawLog: 1, addDrawLog: 1, rankInfo: 1, getBoard: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, accImages: 1, getDrawFx: 1, drawUsed: 1, getDuty: 1 };
 const CHECKER_OK = { cleanLeaves: 1, notifyCheck: 1, saveRecords: 1, uploadPhoto: 1, getCheckLive: 1, setCheckLive: 1 };
 const MONITOR_OK = { addDrawLog: 1, getDrawFx: 1, drawUsed: 1 };   // 用學生身分登入的班長、副班長：可以抽籤
+
+function installDutyScheduleV2() {
+  if (!ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'dutyTickV2')) ScriptApp.newTrigger('dutyTickV2').timeBased().everyHours(1).create();
+  dutyTickV2();
+}
 
 function doGet() {
   return json({ ok: true, msg: '內掃區檢查 API 運作中' });
@@ -233,6 +238,7 @@ function doPost(e) {
       case 'weeklySelfPoint': return json(weeklySelfPoint(who));
       case 'boardPrefs': return json(boardPrefs(who));
       case 'setBoardPref': return json(setBoardPref(who, String(req.id || ''), !!req.hidden));
+      case 'classControl': return json(classControl(who, req.command || {}));
       case 'shopState': return json(shopState(who));
       case 'accImages': return json(accImages(req.have || {}, req.want));
       case 'buyAcc': return json(buyAcc(who, String(req.acc || '')));
@@ -266,12 +272,12 @@ function doPost(e) {
       case 'getMail': return json({ ok: true, mails: getMail(who) });
       case 'sendMail': return json(sendMail(who, String(req.to || ''), req.text));
       case 'delMail': return json(delMail(who, req.id));
-      case 'getBoard': return json({ ok: true, posts: getBoard() });
+      case 'getBoard': return json({ ok: true, posts: getBoard(who) });
       case 'addPost': return json({ ok: true, posts: addPost(who, req.text) });
       case 'editPost': return json({ ok: true, posts: editPost(who, String(req.id || ''), req.text) });
       case 'delPost': return json({ ok: true, posts: delPost(who, String(req.id || '')) });
-      case 'getDuty': return json({ ok: true, duty: getDuty() });
-      case 'setDuty': return json({ ok: true, duty: setDuty(who, req.list || []) });
+      case 'getDuty': return json({ ok: true, duty: dutyStateV2(who).today });
+      case 'setDuty': return json({ ok: true, duty: dutyChangeV2(who, { act: 'set', list: req.list || [] }).today });
       case 'saveCadres': return json(saveCadres(req.pairs || []));
       case 'giftCard': return json(giftCard(who, String(req.card || ''), String(req.to || '')));
       case 'buyWeather': return json(buyWeather(who, String(req.kind || ''), String(req.to || '')));
@@ -392,11 +398,14 @@ function getRoster() {
     if (/^[IC]\d+$/.test(id)) roster.inspectors[id] = names[0] || '';  // I＝環保股長、C＝其他幹部
     else { roster.jobs[id] = names; if (String(r[1]).trim()) roster.labels[id] = String(r[1]).trim(); }
   });
+  roster.workCaps = Object.fromEntries(workDefinitions().map(d => [d.id, d.cap]));
+  Object.assign(roster.jobs, JSON.parse(PropertiesService.getScriptProperties().getProperty('ROSTER_EXTRA_IN') || '{}'));
   return roster;
 }
 
 function saveRoster(r) {
   return withLock(() => {
+    if (controlRead('WORK_PICK', {}).open) throw new Error('工作選填進行中，請先停止選填再修改人員');
     const sh = getSheet(SHEET_ROSTER, HEAD_ROSTER);
     const labels = r.labels || {};
     const rows = [];
@@ -407,6 +416,7 @@ function saveRoster(r) {
     });
     if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_ROSTER.length).clearContent();
     if (rows.length) sh.getRange(2, 1, rows.length, HEAD_ROSTER.length).setValues(rows);
+    PropertiesService.getScriptProperties().setProperty('ROSTER_EXTRA_IN', JSON.stringify(r.jobs || {}));
     if (r.outdoor) saveOutdoor(r.outdoor);
     return { ok: true, roster: rosterWithOutdoor() };
   });
@@ -454,7 +464,9 @@ function getOutdoor() {
     importOutdoorFromOldApp(true); // 第一次：從舊的外掃 App 匯入
     sh = getSS().getSheetByName(SHEET_OUT);
   }
-  return Object.assign({ name: SHEET_OUT }, readOutdoorRows(sh));
+  const out = Object.assign({ name: SHEET_OUT }, readOutdoorRows(sh));
+  Object.assign(out.jobs, JSON.parse(PropertiesService.getScriptProperties().getProperty('ROSTER_EXTRA_OUT') || '{}'));
+  return out;
 }
 /** 把外掃工作分配寫進工作表：只更新有傳來的代號，其他列原封不動 */
 function writeOutdoorRows(sh, o) {
@@ -472,6 +484,8 @@ function writeOutdoorRows(sh, o) {
   if (rows.length) sh.getRange(2, 1, rows.length, 4).setValues(rows);
 }
 function saveOutdoor(o) {
+  const props = PropertiesService.getScriptProperties(), extra = JSON.parse(props.getProperty('ROSTER_EXTRA_OUT') || '{}');
+  Object.assign(extra, o.jobs || {}); props.setProperty('ROSTER_EXTRA_OUT', JSON.stringify(extra));
   writeOutdoorRows(getSheet(SHEET_OUT, HEAD_ROSTER), o);
 }
 /** 從舊的外掃 App 試算表匯入（第一次自動；選單也可以手動重新匯入，會覆蓋這裡的） */
@@ -1039,6 +1053,7 @@ function shopState(who) {
     inv: inv.filter(x => x.owner === key).map(x => ({ id: x.id, acc: x.acc, name: x.name, exp: x.exp, expired: x.exp < today, note: x.note })),
     deco: (decoRows()[key] || { layers: [] }).layers,
     minus: minusOf(key), swapBan: CONFIG.SWAP_BAN_MINUS, freeSwap: freeSwapCards(key), rankCards: cardRows().filter(x => x.who === key).slice(-5).reverse(),
+    adminItems: who.teacher ? adminItemList() : null,
     held: heldCards(key), giftable: Object.keys(GIFT_CARDS()), rides: ridesOf(spendRows(), key), ridePrice: RIDE_PRICE,
     penalty: c.penalty || 0, penaltyPer: CONFIG.PENALTY_PER, penaltyFrom: CONFIG.PENALTY_FROM,
     incubators: incubatorsOf(key), unlimited: !!who.teacher, income: c.income, sales: who.teacher ? null : salesOf(key, inv), createPrice: CONFIG.CREATE_PRICE,
@@ -2332,12 +2347,13 @@ function sendMail(who, to, text) {
   return { ok: true };
 }
 // ── 公布欄：導師、幹部留言；大家打開 App 會先看到 ──
-function getBoard() {
+function getBoard(who) {
+  const repeated = who ? controlRead('BOARD_REPEAT:' + mailName(who), []) : [];
   const sh = getSS().getSheetByName(SHEET_BOARD);
   if (!sh || sh.getLastRow() < 2) return [];
   const since = Date.now() - BOARD_DAYS * 86400e3;
   return sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_BOARD.length).getValues()
-    .filter(r => r[0] instanceof Date && r[0].getTime() >= since && !String(r[4]) && String(r[1]).trim())
+    .filter(r => r[0] instanceof Date && (r[0].getTime() >= since || repeated.includes(String(r[3]))) && !String(r[4]) && String(r[1]).trim())
     .map(r => ({ id: String(r[3]), t: r[0].getTime(), date: ymd(r[0]), time: Utilities.formatDate(r[0], CONFIG.TIMEZONE, 'yyyy/MM/dd HH:mm'), text: String(r[1]), by: String(r[2]) }))
     .sort((a, b) => b.t - a.t);
 }
@@ -2466,7 +2482,7 @@ function drawFx() {
   return {
     weights: drawWeights(), boost: CONFIG.DRAW_BOOST, boostTimes: CONFIG.DRAW_BOOST_TIMES,
     // 同一人買好幾次：用最新的那張
-    transfers: rows.filter(x => x.use === '抽籤轉移卡' && x.t >= since).map(x => ({ id: x.id, from: x.who, to: x.target, until: ymd(new Date(x.t + CONFIG.TRANSFER_DAYS * 86400e3)), t: x.t })),
+    transfers: rows.filter(x => x.use === '抽籤轉移卡' && x.t >= since && !isUsedNote(x.note)).map(x => ({ id: x.id, from: x.who, to: x.target, until: ymd(new Date(x.t + CONFIG.TRANSFER_DAYS * 86400e3)), t: x.t })),
     sure: rows.filter(x => x.use === '抽籤必中卡' && !isUsedNote(x.note)).map(x => ({ id: x.id, by: x.who, target: x.target, t: x.t })),
   };
 }
@@ -3931,7 +3947,7 @@ function leaveTick() {
 function leaveLatePenalties(rst) {
   const lim = (Number(CONFIG.LEAVE_LATE_DAYS) || 3) * 864e5, per = Number(CONFIG.LEAVE_LATE_PER) || 0.1, now = Date.now(), out = [];
   leaveRows().forEach(x => {
-    if (!x.t || x.t < (rst || 0) || x.type === '公假') return;   // 公假的公差單是選填，不扣分
+    if (!x.t || x.t < (rst || 0) || x.type === '公假' || x.type === '曠課') return;   // 公假的公差單是選填，不扣分
     // 已取消：導師取消的不扣；同學自己取消的，逾期的部分照算（算到取消那一刻），不能用「取消再重新請假」躲掉扣分
     if (x.status === '已取消' && x.cancelBy !== '本人') return;
     const stop = x.cardT || ((x.status === '已登記' || x.status === '退回' || x.status === '假卡上傳錯誤') ? now : x.status === '已取消' ? x.upd : 0);   // 導師直接確認、沒有假卡的：不扣
@@ -4087,13 +4103,14 @@ function editLeave(who, id, r) {
 }
 function cancelLeave(who, id, quiet) {
   const x = leaveRows().find(r => r.id === id);
-  if (!x || (!who.teacher && x.key !== who.key)) throw new Error('找不到這筆請假');
-  if (!who.teacher && x.status === '已確認') throw new Error('導師已經確認了，要取消請直接跟導師說');
+  const absenceManager = x && x.type === '曠課' && canControl(who);
+  if (!x || (!who.teacher && !absenceManager && x.key !== who.key)) throw new Error('找不到這筆請假');
+  if (!who.teacher && !absenceManager && x.status === '已確認') throw new Error('導師已經確認了，要取消請直接跟導師說');
   withLock(() => {
     const sh = leaveSheet();
     sh.getRange(x.row, 10).setValue('已取消'); sh.getRange(x.row, 14).setValue(new Date());
     if (sh.getRange(1, 16).getValue() !== '取消人') sh.getRange(1, 16).setValue('取消人').setFontWeight('bold');
-    sh.getRange(x.row, 16).setValue(who.teacher ? '導師' : '本人');
+    sh.getRange(x.row, 16).setValue(who.teacher ? '導師' : absenceManager ? who.key : '本人');
   });
   // 同學自己取消：通知導師（導師幫同學取消：通知同學）
   if (!who.teacher) botMail([[CONFIG.TEACHER_NAME, '🗑 ' + x.key + ' 取消了請假\n' + leaveText(x) + (x.cards.length ? '\n（原本已上傳假卡 ' + x.cards.length + ' 張）' : '') + '\n紀錄還留在試算表「請假」工作表（狀態：已取消）。\n' + CONFIG.SITE_URL + '#tab=leave']], LEAVE_BOT);
@@ -4880,7 +4897,7 @@ function setupFeatureUpdates() {
 // 每位使用者的公布欄偏好；週一自動恢復顯示，手動開啟公布欄仍可查看。
 function boardPrefs(who) {
   const week = scoreWeek(), key = 'BOARD_PREF:' + mailName(who), p = arenaJson(PropertiesService.getScriptProperties().getProperty(key));
-  return { ok: true, week: week, hidden: p && p.week === week ? p.hidden || [] : [] };
+  return { repeat: controlRead('BOARD_REPEAT:' + mailName(who), []), ok: true, week: week, hidden: p && p.week === week ? p.hidden || [] : [] };
 }
 function setBoardPref(who, id, hidden) {
   if (!getBoard().some(p => p.id === id)) throw new Error('找不到這則公告');
@@ -4914,7 +4931,7 @@ function claimBoxEggs(key) {
 }
 
 // 孵蛋器：買入庫存後，選定自己的待孵／孵化中蛋使用；每次 ×2，最高 100%。
-function incubatorsOf(key) { return Math.max(0, spendRows().filter(r => r.who === key).reduce((n, r) => n + (r.use === '購買孵蛋器' ? 1 : r.use === '使用孵蛋器' ? -1 : 0), 0)); }
+function incubatorsOf(key, rows) { return Math.max(0, (rows || spendRows()).filter(r => r.who === key).reduce((n, r) => n + (r.use === '購買孵蛋器' ? 1 : r.use === '使用孵蛋器' ? -1 : 0), 0)); }
 function buyIncubator(who) {
   withLock(() => {
     if (!who.teacher && coinsOf(who.key).coins < 5) throw new Error('孵蛋器需要 5 點');
@@ -4941,4 +4958,218 @@ function scoringKeys() {
   Object.keys(roster.inspectors || {}).filter(id => /^I\d+$/.test(id)).forEach(id => keys.add(roster.inspectors[id]));
   Object.values(outdoor && outdoor.inspectors || {}).forEach(k => keys.add(k));
   return getStudents().students.filter(k => keys.has(k));
+}
+
+
+// ── 2026/11：值日生、工作選填、道具管理 ──
+const canControl = who => !!(who.teacher || canScoreKey(who.key));
+const controlProps = () => PropertiesService.getScriptProperties();
+const controlRead = (key, fallback) => { try { const p=controlProps(); let x=JSON.parse(p.getProperty(key)||'null'); if(x && x._controlChunks) x=JSON.parse(Array.from({length:x._controlChunks},(_,i)=>p.getProperty(key+':'+i)||'').join('')); return x || fallback; } catch(e) { return fallback; } };
+const controlSave = (key, value) => { const p=controlProps(), text=JSON.stringify(value); if(text.length<=1800) return p.setProperty(key,text); const n=Math.ceil(text.length/1800); for(let i=0;i<n;i++)p.setProperty(key+':'+i,text.slice(i*1800,(i+1)*1800)); return p.setProperty(key,JSON.stringify({_controlChunks:n})); };
+function controlAudit(who, action, target, detail) {
+  getSheet('管理操作紀錄', ['時間', '操作人', '動作', '對象', '內容']).appendRow([new Date(), who.teacher ? CONFIG.TEACHER_NAME : who.key, action, target, String(detail || '')]);
+}
+function classControl(who, c) {
+  if (who.role === 'G') throw new Error('請使用班級帳號');
+  switch (c.act) {
+    case 'itemsRemove': return adminRemoveItem(who, c);
+    case 'absence': return recordAbsence(who, c);
+    case 'absences':
+      if (!canControl(who)) throw new Error('只有導師或幹部可查看曠課登記總表');
+      return { ok:true, rows:leaveRows().filter(x=>x.type==='曠課').slice(-100).reverse().map(x=>({...leavePub(x),cancelBy:x.cancelBy,upd:x.upd})) };
+    case 'boardRepeat': return boardRepeat(who, c);
+    case 'dutyChange': return dutyChangeV2(who, c);
+    case 'jobs': return workPickView(who);
+    case 'jobsConfig': return workPickConfigure(who, c);
+    case 'jobsStart': return workPickStart(who, c);
+    case 'jobsPick': return workPickChoose(who, c);
+    case 'jobsStop':
+      if (!who.teacher) throw new Error('只有導師可以控制工作選填');
+      withLock(() => { const s = controlRead('WORK_PICK', {}); s.open = false; controlSave('WORK_PICK', s); controlAudit(who, '停止工作選填', '', ''); });
+      return workPickView(who);
+    case 'jobsSkip':
+      if (!who.teacher) throw new Error('只有導師可以跳過選填');
+      withLock(() => { const s = controlRead('WORK_PICK', {}); if (!s.open) throw new Error('尚未開放'); const k = s.order[s.turn]; s.order.push(s.order.splice(s.turn, 1)[0]); controlSave('WORK_PICK', s); controlAudit(who, '選填延後', k, '移至最後'); });
+      return workPickView(who);
+    default: return dutyStateV2(who);
+  }
+}
+function recordAbsence(who, c) {
+  if (!canControl(who)) throw new Error('只有導師或幹部可以登記曠課');
+  const key = String(c.key || ''), date = String(c.date || ymd(new Date()));
+  if (getStudents().students.indexOf(key) < 0 || !/^\d{4}\/\d\d\/\d\d$/.test(date)) throw new Error('請選同學與日期');
+  const a = c.fromP == null ? 0 : Number(c.fromP), b = c.toP == null ? 7 : Number(c.toP);
+  if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b > 7 || b < a) throw new Error('請確認曠課節次（早自習為 0，第 1～7 節）');
+  withLock(() => {
+    if (leaveRows().some(x => x.key === key && x.type === '曠課' && x.from === date && x.fromP === a && x.toP === b && x.status !== '已取消')) throw new Error('這段曠課已登記');
+    const now = new Date(), by = who.teacher ? CONFIG.TEACHER_NAME : who.key;
+    leaveSheet().appendRow([Utilities.getUuid().slice(0, 8), now, key, '曠課', date, a, date, b, String(c.note || '').slice(0, 200), '已確認', '', '曠課登記（不需假卡）', by, now, '', '']);
+    controlAudit(who, '登記曠課', key, date + ' 第' + a + '～' + b + '節');
+  });
+  return { ok: true };
+}
+function dutyDateAdd(d, n) { return ymd(new Date(Utilities.parseDate(d, CONFIG.TIMEZONE, 'yyyy/MM/dd').getTime() + n * 864e5)); }
+function dutySchoolDay(d) { return Number(Utilities.formatDate(Utilities.parseDate(d, CONFIG.TIMEZONE, 'yyyy/MM/dd'), CONFIG.TIMEZONE, 'u')) <= 5; }
+function dutyStudentOrder(a, b) { const na = Number((a.match(/\d+/) || [0])[0]), nb = Number((b.match(/\d+/) || [0])[0]); return na - nb || a.localeCompare(b); }
+function dutyTickV2() {
+  return withLock(() => {
+    const today = ymd(new Date()), all = getStudents().students;
+    const s = controlRead('DUTY_AUTO_V2', { last: dutyDateAdd(today, -1), cursor: { 多: 0, 料: 0 }, hold: [], repeat: [], days: {} });
+    const hold = (k, date, reason) => { if (!s.hold.some(x => x.key === k && !x.done && x.expires >= date)) s.hold.push({ id: Utilities.getUuid().slice(0,8), key: k, date, expires: dutyDateAdd(date, 7), reason }); };
+    const assign = (d, row, useRepeat = false) => {
+      const away = cleanLeaves(d).leaves, list = row.list || [];
+      // 今日排好後才登記的請假／曠課，也要補位。
+      row.list = list.filter(k => { if (away[k]) { hold(k, d, away[k].join('、')); return false; } return true; });
+      for (const dept of ['多', '料']) {
+        const pool = all.filter(k => k.startsWith(dept)).sort(dutyStudentOrder);
+        const candidates = useRepeat ? s.repeat.filter(k => k.startsWith(dept)) : [];
+        s.repeat = s.repeat.filter(k => !candidates.includes(k));
+        for (const k of candidates) {
+          if (away[k]) { hold(k, d, away[k].join('、')); continue; }
+          if (!row.list.includes(k) && row.list.filter(x => x.startsWith(dept)).length < 2) row.list.push(k);
+          else if (!row.list.includes(k)) s.repeat.push(k);
+        }
+        for (let attempts = 0; attempts < pool.length && row.list.filter(k => k.startsWith(dept)).length < 2; attempts++) {
+          const pos = (s.cursor[dept] || 0) % Math.max(1, pool.length), k = pool[pos]; s.cursor[dept] = (pos + 1) % Math.max(1, pool.length);
+          if (!k || row.list.includes(k)) continue;
+          if (s.hold.some(x => x.key === k && !x.done && x.expires >= d)) continue;
+          if (away[k]) { hold(k, d, away[k].join('、')); continue; }
+          row.list.push(k);
+        }
+      }
+      row.date = d; row.by = row.by || '系統自動排班'; row.status = row.status || {};
+      return row;
+    };
+    // 不回溯啟用前的日期；停用超過一個月時從最近一個月補排。
+    let d = dutyDateAdd(s.last, 1);
+    if (d < dutyDateAdd(today, -31)) d = dutyDateAdd(today, -31);
+    for (; d <= today; d = dutyDateAdd(d, 1)) {
+      if (dutySchoolDay(d)) {
+        const existing = d === today ? getDuty() : null;
+        s.days[d] = assign(d, existing && existing.list.length === 4 ? { list: existing.list, by: existing.by } : { list: [] }, true);
+      }
+      s.last = d;
+    }
+    if (dutySchoolDay(today) && s.days[today]) s.days[today] = assign(today, s.days[today]);
+    Object.keys(s.days).filter(d => d < dutyDateAdd(today, -10)).forEach(d => delete s.days[d]);
+    s.hold = s.hold.filter(x => x.expires >= dutyDateAdd(today, -7));
+    controlSave('DUTY_AUTO_V2', s);
+    return s;
+  });
+}
+function dutyStateV2(who) {
+  const s = dutyTickV2(), date = ymd(new Date()), today = s.days[date] || { date, list: [], status: {}, by: '非上課日' };
+  return { ok: true, today, hold: s.hold.filter(x => !x.done && x.expires >= date), history: s.days, canEdit: canControl(who), repeat: s.repeat };
+}
+function dutyChangeV2(who, c) {
+  if (!canControl(who)) throw new Error('只有導師或幹部可調整值日生');
+  dutyTickV2();
+  withLock(() => {
+    const s = controlRead('DUTY_AUTO_V2', {}), date = ymd(new Date()), row = s.days[date];
+    if (!row) throw new Error('今天不是排班日');
+    if (c.action === 'bad') {
+      if (!row.list.includes(c.key)) throw new Error('不是今日值日生');
+      row.status[c.key] = '工作未完成，隔日續任';
+      if (!s.repeat.includes(c.key)) s.repeat.push(c.key);
+    } else if (c.action === 'good') {
+      row.status[c.key] = '已完成'; s.repeat = s.repeat.filter(k => k !== c.key);
+    } else {
+      const all = getStudents().students, away = cleanLeaves(date).leaves;
+      const list = (c.list || []).map(String);
+      if (list.length !== 4 || new Set(list).size !== 4 || list.some(k => !all.includes(k))) throw new Error('必須選擇四位不同的同學');
+      if (['多','料'].some(d => list.filter(k => k.startsWith(d)).length !== 2)) throw new Error('每科必須剛好兩位');
+      if (list.some(k => away[k])) throw new Error('今日請假或曠課不能排值日生');
+      row.list = list; s.hold.forEach(x => { if (list.includes(x.key)) x.done = date; });
+      s.repeat = s.repeat.filter(k => !list.includes(k));
+    }
+    row.by = who.teacher ? CONFIG.TEACHER_NAME : who.key;
+    controlSave('DUTY_AUTO_V2', s); controlAudit(who, '調整值日生', c.key || date, JSON.stringify(c));
+  });
+  return dutyStateV2(who);
+}
+// 定時更新讓白板不必重新登入；同時保留讀取時的補排。
+
+function adminItemList() {
+  const students = getStudents().students, spend = spendRows(), cards = cardRows(), inv = invRows(), today = ymd(new Date()), fx = drawFx();
+  return students.map(key => {
+    const items = [];
+    Object.entries(heldCards(key, cards, spend)).forEach(([name, n]) => { if (n > 0) items.push({ type: 'card', id: name, name, n }); });
+    const incubators = incubatorsOf(key, spend); if (incubators) items.push({ type:'incubator',id:'incubator',name:'孵蛋器',n:incubators });
+    inv.filter(x => x.owner === key && x.exp >= today).forEach(x => items.push({type:'acc',id:x.id,name:'配件：'+x.name,n:1}));
+    ridesOf(spend,key).forEach(k => items.push({type:'ride',id:k,name:'交通工具：'+PET_RIDES[k],n:1}));
+    fx.sure.filter(x => x.by === key).forEach(x => items.push({type:'effect',id:x.id,name:'已設定：抽籤必中卡',n:1}));
+    const tr = fx.transfers.filter(x => x.from === key).pop(); if (tr) items.push({type:'effect',id:tr.id,name:'生效中：抽籤轉移卡',n:1});
+    spend.filter(x => x.who === key && ['小太陽卡','小雨傘卡'].includes(x.use) && x.note >= today).forEach(x => items.push({type:'effect',id:x.id,name:'生效中：'+x.use,n:1}));
+    return { key, items };
+  });
+}
+function adminRemoveItem(who, c) {
+  if (!who.teacher) throw new Error('只有導師可以移除道具');
+  if (c.type === 'ride') { rideRemove(who,c.key,c.id); controlAudit(who,'移除道具',c.key,'交通工具 '+c.id); return shopState(who); }
+  withLock(() => {
+    const row = adminItemList().find(x => x.key === c.key), item = row && row.items.find(x => x.type === c.type && x.id === c.id);
+    if (!item) throw new Error('這個道具已不存在，請重新整理');
+    const n = Math.max(1, Math.round(Number(c.n) || 1)); if (n > item.n) throw new Error('移除數量超過持有數量');
+    if (c.type === 'card') getSheet(SHEET_CARDS,HEAD_CARDS).appendRow([new Date(),c.key,c.id,-n,'導師事後移除']);
+    else if (c.type === 'incubator') for(let i=0;i<n;i++) addSpend(c.key,0,'使用孵蛋器','教師移除','教師事後移除');
+    else if (c.type === 'acc') { const x=invRows().find(x=>x.id===c.id); getSheet(SHEET_INV,HEAD_INV).getRange(x.row,8).setValue(dutyDateAdd(ymd(new Date()),-1)); }
+    else if (c.type === 'effect') {
+      const sh=getSheet(SHEET_SPEND,HEAD_SPEND), rows=sh.getRange(2,1,sh.getLastRow()-1,HEAD_SPEND.length).getValues(),i=rows.findIndex(r=>String(r[6])===c.id);
+      if(i<0)throw new Error('找不到道具');sh.getRange(i+2,6).setValue(['小太陽卡','小雨傘卡'].includes(String(rows[i][3])) ? '1900/01/01' : '已使用（導師移除）');
+    } else throw new Error('無法移除此道具');
+    controlAudit(who,'移除道具',c.key,item.name+' ×'+n+'（不退點）');
+  });
+  return shopState(who);
+}
+function workDefinitions() { return controlRead('WORK_DEFS',[]); }
+function workPickConfigure(who,c) {
+  if(!who.teacher)throw new Error('只有導師可以更改各區人數');
+  withLock(()=>{
+    const old=controlRead('WORK_PICK',{});if(old.open)throw new Error('請先停止選填再調整人數');
+    const defs=(c.defs||[]).filter(x=>/^(in|out):J\d+$/.test(x.id)).map(x=>({id:x.id,name:String(x.name).slice(0,90),cap:Math.max(0,Math.min(44,Math.round(Number(x.cap)||0)))}));
+    if(!defs.length || new Set(defs.map(x=>x.id)).size!==defs.length)throw new Error('工作設定不完整');
+    controlSave('WORK_DEFS',defs);controlAudit(who,'調整掃區人數','',JSON.stringify(defs));
+  });return workPickView(who);
+}
+function workPickView(who) {
+  const s=controlRead('WORK_PICK',{open:false,order:[],turn:0,picks:{}});
+  return {ok:true,...s,defs:workDefinitions(),teacher:!!who.teacher,myTurn:!!(s.open&&s.order[s.turn]===who.key)};
+}
+function workPickStart(who,c) {
+  if(!who.teacher)throw new Error('只有導師可以開放工作選填');
+  const rank=rankOrder(who,c.exam),defs=workDefinitions();
+  if(defs.reduce((n,d)=>n+d.cap,0)<rank.order.length)throw new Error('總名額少於學生人數，請先增加人手名額');
+  withLock(()=>{
+    if(controlRead('WORK_PICK',{}).open)throw new Error('選填已經進行中');
+    controlSave('WORK_PICK',{open:true,order:rank.order,turn:0,picks:{},exam:Number(c.exam)||0,label:rank.label,session:Utilities.getUuid(),started:Date.now()});
+    controlAudit(who,'開放工作選填','',rank.label);
+  });return workPickView(who);
+}
+function workPickChoose(who,c) {
+  withLock(()=>{
+    const s=controlRead('WORK_PICK',{}),defs=workDefinitions(),def=defs.find(d=>d.id===c.id);
+    if(!s.open||(!who.teacher&&s.order[s.turn]!==who.key))throw new Error('還沒輪到你選工作');
+    const k=s.order[s.turn];if(!k||!def||!def.cap)throw new Error('這個工作不開放選填');
+    if(Object.values(s.picks).filter(id=>id===c.id).length>=def.cap)throw new Error('這個掃區人數已滿');
+    s.picks[k]=c.id;s.turn++;if(s.turn>=s.order.length)s.open=false;
+    // 全部選完才一次更新工作分配；環保股長與 DUTY 不在可選資料中。
+    if(!s.open){
+      for(const d of defs){
+        const [area,id]=d.id.split(':'),ek=area==='in'?'ROSTER_EXTRA_IN':'ROSTER_EXTRA_OUT',extra=controlRead(ek,{});
+        const chosen=Object.keys(s.picks).filter(k=>s.picks[k]===d.id);extra[id]=chosen;controlSave(ek,extra);
+        const sh=getSheet(area==='in'?SHEET_ROSTER:SHEET_OUT,HEAD_ROSTER),rows=sh.getLastRow()>1?sh.getRange(2,1,sh.getLastRow()-1,4).getValues():[];
+        const i=rows.findIndex(r=>String(r[0])===id);
+        if(i<0)sh.appendRow([id,d.name,chosen[0]||'',chosen[1]||'']);else sh.getRange(i+2,3,1,2).setValues([[chosen[0]||'',chosen[1]||'']]);
+      }
+    }
+    controlSave('WORK_PICK',s);controlAudit(who,'選取工作',k,def.name);
+  });return workPickView(who);
+}
+
+function boardRepeat(who, c) {
+  withLock(() => {
+    if(!getBoard(who).some(p=>p.id===String(c.id)))throw new Error('找不到這則公告');
+    const key='BOARD_REPEAT:'+mailName(who), ids=controlRead(key,[]).filter(id=>id!==c.id);if(c.repeat)ids.push(c.id);controlSave(key,ids);
+    controlAudit(who,'公告每日重複',c.id,c.repeat?'開啟':'關閉');
+  });return boardPrefs(who);
 }

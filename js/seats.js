@@ -197,6 +197,7 @@
           <div class="bn-sub">切換畫面就會恢復原本的座位。<span class="draft-btns"><button type="button" class="btn btn--primary" data-tr="commit">💾 存成預設</button><button type="button" class="btn" data-tr="discard">↺ 取消變動</button></span></div></div>`;
       }
     }
+    h += `<button type="button" class="btn whiteboard-toggle" data-tr="whiteboard">${A.isWhiteboard?.() ? '↩ 離開白板全畫面' : '⛶ 白板全畫面（完整座位表）'}</button>`;
     const ls = A.leaveState?.();
     if (ls) {
       const keys = Object.keys(ls.leaves), date = A.fmtDate(new Date()).slice(5);
@@ -314,6 +315,7 @@
   $('#seatTop').addEventListener('click', e => {
     const tr = e.target.closest('[data-tr]');
     if (tr) {
+      if (tr.dataset.tr === 'whiteboard') { A.setWhiteboard(!A.isWhiteboard()); renderAll(); return; }
       if (tr.dataset.tr === 'refreshLeaves') return A.loadLeaves(null, true);
       if (tr.dataset.tr === 'shop') return A.showTab('shop');
       if (tr.dataset.tr === 'commit') return commitDraft(tr);
@@ -1375,6 +1377,7 @@
     const res = await Promise.all([loadChart().catch(() => false), Date.now() - facesLoaded > 10 * 60e3 ? loadFaces().then(c => { facesLoaded = Date.now(); return c; }).catch(() => false) : false]);
     if (res.some(Boolean)) A.emit('faces');
   });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && A.isWhiteboard?.()) { A.setWhiteboard(false); renderAll(); } });
   A.on('leaves', () => { if (A.currentTab() === 'seats') renderAll(); });
   A.tabHooks.seats = () => {
     A.loadLeaves?.(null, true);

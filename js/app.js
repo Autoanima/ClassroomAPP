@@ -84,6 +84,7 @@
   settings.gasUrl ||= CFG.gasUrl || '';
   const saveSettings = () => store.set(LS.settings, settings);
   const ui = Object.assign({ view: 'student', tab: 'clean', area: 'in', zoom: {}, mapInfo: true }, store.get(LS.ui, {}));   // mapInfo：地圖上預設顯示「不好」的負責人和說明
+  ui.whiteboard = false;
   const saveUi = () => store.set(LS.ui, ui);
   // role：staff＝導師（統一密碼）／cadre＝幹部（自己的身分證字號）／student＝學生（身分證字號，只能選位）
   const isStudent = () => settings.role === 'student';
@@ -236,14 +237,16 @@
   function applyRoster(r) {
     // outdoor：外掃區的工作分配（沒連結時 null）
     const next = { jobs: r?.jobs || {}, inspectors: r?.inspectors || {}, labels: r?.labels || {}, outdoor: r && 'outdoor' in r ? r.outdoor : roster?.outdoor ?? null };
+    next.workCaps = r?.workCaps || {};
     next.courseHelpers = r?.courseHelpers || {};
     if (r?.cadres) { next.cadres = r.cadres; next.inspectors = { ...next.inspectors, ...slotsFromCadres(r.cadres) }; }
     const changed = JSON.stringify(next) !== JSON.stringify(roster);
     roster = next;
     store.set(LS.roster, roster);
     // 工作內容以試算表「工作分配」裡寫的為準（沒寫就用內建的）
-    D.jobs.forEach(j => { j.defTitle ??= j.title; j.title = roster.labels?.[j.id] || j.defTitle; });
+    D.jobs.forEach(j => { j.defTitle ??= j.title; j.title = roster.labels?.[j.id] || j.defTitle; if (!j.fixed && roster.workCaps['in:' + j.id] != null) j.slots = roster.workCaps['in:' + j.id]; });
     D.items.forEach(it => { it.owners = jobOwners(it.job); if (it.area === 'in') it.where = jobById[it.job]?.title || ''; });
+    (D.outdoor?.jobs || []).forEach(j => { if (roster.workCaps['out:' + j.id] != null) j.slots = roster.workCaps['out:' + j.id]; });
     OUT_ITEMS.forEach(it => { it.owners = (roster.outdoor?.jobs?.[it.job] || []).filter(Boolean); });
     return changed;
   }
@@ -491,7 +494,7 @@
     // 緊縮排列時預設「剛好塞進畫面寬度」
     // 座位圖：永遠剛好塞進畫面，放大縮小只改大頭照（座位排列不變）
     const want = m.mode === 'seats' ? fit : ui.zoom[name] ?? (isCompact(m.mode) ? fit : Math.max(fit, MIN_U[name] || fit));
-    const u = Math.max(fit, want);
+    const u = m.mode === 'seats' && ui.whiteboard ? Math.min(fit, Math.max(.05, (m.wrap.clientHeight - 60) / H)) : Math.max(fit, want);
     m.u = u;
     m.el.style.width = Math.floor(W * u) + 'px';
     m.el.style.height = Math.floor(H * u) + 'px';
@@ -616,13 +619,14 @@
   paintCompact();
 
   // ── 分頁 ──
-  const TABS = ['points', 'clean', 'seats', 'lunch', 'leave', 'tt', 'hw', 'shop', 'fund', 'invest', 'arena', 'draw', 'line', 'jobs', 'pboard', 'pet'];
+  const TABS = ['points', 'clean', 'seats', 'lunch', 'leave', 'tt', 'hw', 'shop', 'fund', 'invest', 'arena', 'draw', 'line', 'jobs', 'pboard', 'pet', 'duty'];
   const tabHooks = {};
-  const allowedTabs = () => (isGuest() ? ['draw', 'seats', 'tt'] : isStudent() ? [...(canPoints() ? ['points'] : []), 'seats', 'clean', 'draw', 'shop', 'invest', 'arena', 'line', 'jobs', 'lunch', 'leave', 'tt', 'hw', 'fund', 'pboard', 'pet']
+  const allowedTabs = () => (isGuest() ? ['draw', 'seats', 'tt'] : isStudent() ? [...(canPoints() ? ['points'] : []), 'seats', 'clean', 'draw', 'shop', 'invest', 'arena', 'line', 'jobs', 'lunch', 'leave', 'tt', 'hw', 'fund', 'pboard', 'pet', 'duty']
     : TABS.filter(t => (t === 'points' ? canPoints() : true)));
   const isViewer = () => !isChecker(); // 不能檢查的人（學生、一般幹部）：掃地地圖只能看
   function showTab(name) {
     if (!allowedTabs().includes(name)) name = allowedTabs()[0];
+    if (name !== 'seats') { ui.whiteboard = false; document.body.classList.remove('whiteboard-mode'); }
     ui.tab = name; saveUi();
     TABS.forEach(t => {
       $(`#tab-${t}`).hidden = t !== name;
@@ -1533,7 +1537,7 @@
   let duty = null;
   // 修改工作分配：導師、班長、副班長、環保股長（衛生股長）
   const canRoster = () => isTeacher() || (isCadre() && jobsOf(settings.me || '').roles.some(r => /^(副?班長|環保|衛生)/.test(r)));
-  const canDuty = () => isTeacher() || jobsOf(settings.me || '').roles.some(r => /^副?班長$/.test(r));
+  const canDuty = () => isTeacher() || canPoints();
   const shortName = k => parseKeyLite(k).name || k;
   function parseKeyLite(k) { const m = String(k || '').match(/^(\D*?)(\d+)(.*)$/); return m ? { name: m[3] } : { name: String(k || '') }; }
   // 科別：多→多媒科、料→資料科（其他就用名單上的字）
@@ -1560,25 +1564,7 @@
     try { const r = await api('getDuty'); duty = r.duty; } catch { /* 讀不到就先不顯示 */ }
     paintDuty();
   }
-  $('#dutyChip').addEventListener('click', () => {
-    const has = hasDuty();
-    if (!canDuty()) return toast(has ? `今日值日生：${duty.list.join('、')}` : '今天還沒有登記值日生');
-    if (!students().length) { loadStudents().catch(() => {}); return toast('讀取名單中，請再按一次'); }
-    const cur = has ? duty.list : [];
-    let h = sheetHead('🧹 今日值日生', `${fmtDateW(new Date())}｜每科 2 位，班長、副班長登記`);
-    dutyDepts().forEach(d => {
-      const mine = students().filter(k => deptOf(k) === d);
-      const picked = cur.filter(k => deptOf(k) === d);
-      h += `<h3>${esc(DEPT_NAME[d] || d)}科</h3><div class="duty-pick">`;
-      [0, 1].forEach(i => {
-        h += `<select data-duty="${esc(d)}" aria-label="${esc(DEPT_NAME[d] || d)}科值日生 ${i + 1}"><option value="">— 值日生 ${i + 1} —</option>${mine.map(k => `<option value="${esc(k)}"${k === picked[i] ? ' selected' : ''}>${esc(k)}</option>`).join('')}</select>`;
-      });
-      h += `</div>`;
-    });
-    h += `${has && duty.by ? `<p class="muted small">目前由 ${esc(duty.by)} 登記</p>` : ''}
-      <div class="actions"><button type="button" class="btn btn--primary wide" data-act="dutyOk">儲存</button></div>`;
-    openSheet({ kind: 'duty' }, h);
-  });
+  $('#dutyChip').addEventListener('click', () => showTab('duty'));
   sheetHandlers.duty = async (act, b) => {
     if (act !== 'dutyOk') return;
     const list = [...document.querySelectorAll('[data-duty]')].map(s => s.value).filter(Boolean);
@@ -1816,7 +1802,8 @@
       h += `</div>${roster?.cadres ? `<p class="muted small">名單存在試算表「${esc(roster.cadreSource || '幹部名單')}」工作表。</p>` : ''}
         ${isTeacher() ? `<div class="actions"><button type="button" class="btn btn--primary wide" id="editCadres">✏️ 修改幹部名單</button></div>` : '<p class="muted small">只有導師可以修改幹部名單。</p>'}</details>`;
     }
-    root.innerHTML = h;
+    root.innerHTML = `<div id="jobPickRoot"></div>` + h;
+    App.renderWorkPick?.();
     $('#editRoster')?.addEventListener('click', openRosterEditor);
     $('#editCadres')?.addEventListener('click', openCadreEditor);
     root.querySelectorAll('.jobs-fold').forEach(d => d.addEventListener('toggle', () => {
@@ -2651,6 +2638,10 @@
   const App = window.App = {
     D, TEST, SFX, $, esc, pad2, toast, ask, store, api, copyText, fmtDate, fmtTime, fmtDateW,
     loadImage, drawTo, toBlob, blobToBase64,
+    updateDuty(x) { duty = x; paintDuty(); },
+    async reloadWorkRoster() { const r = await api('getRoster'); applyRoster(r.roster); renderMap('clean'); if (ui.tab === 'jobs') renderJobs(); },
+    isWhiteboard: () => !!ui.whiteboard,
+    setWhiteboard(on) { ui.whiteboard = !!on; document.body.classList.toggle('whiteboard-mode', !!on); requestAnimationFrame(() => sizeMap('seats')); },
     canPoints, onLeave, leaveState, loadLeaves, isStudent, isStaff, isTeacher, isGuest, isChecker, jobsOf, roster: () => roster, me: () => settings.me, userName: () => settings.inspector,
     students, loadStudents, studentList: () => studentList, className: () => className() || studentList?.className || '',
     DEMO_STUDENTS,

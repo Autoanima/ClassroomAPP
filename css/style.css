@@ -2458,3 +2458,31 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 
 .pet-batch-fx.got { animation-duration: 1.6s; }
 .pet-batch-fx.egg { animation-duration: 1.5s; }
+
+/* 一批孵化結果：先看名單，再同時播放原本的各種角色動畫。 */
+.pet-result-list { max-height: 48vh; overflow-y: auto; text-align: left; padding-left: 22px; }
+.pet-result-list li { margin: 8px 0; }
+.pet-fx.hatch-party { transform: none; position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 30; }
+.seat-hatch { position: absolute; width: 0; height: 0; overflow: visible; }
+.seat-hatch > small { position: absolute; top: 28px; left: -60px; width: 120px; text-align: center; color: #fff; background: #202228d9; border-radius: 5px; font-size: 11px; padding: 2px; }
+.seat-hatch .pet-fx.gone-fx { left: 0; top: 0; }
+.seat-hatch .pet-fx.egg-hatch { left: 0; top: 0; }
+
+.admin-item, .absence-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.item-owner { margin: 10px 0; }
+.control-list { list-style: none; padding: 0; }
+.control-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.job-cap-grid, .work-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.job-cap-grid label, .work-option { display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; }
+.job-cap-grid input { width: 90px; }
+.attendance-form { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.attendance-form input[type=number] { width: 65px; }
+.whiteboard-mode #tab-seats { position: fixed !important; height: 100dvh; width: 100vw; max-width: none; inset: 0; z-index: 56; background: var(--bg); display: grid !important; grid-template-columns: minmax(0,1fr) min(300px,26vw); grid-template-rows: auto minmax(0,1fr); gap: 6px; padding: 6px; }
+.whiteboard-mode #seatTop { grid-column: 1 / -1; grid-row: 1; margin: 0; }
+.whiteboard-mode #seatTop .seat-leave-status { display: none; }
+.whiteboard-mode #tab-seats > .map-wrap { grid-column: 1; grid-row: 2; min-height: 0; width: 100%; height: 100%; margin: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; padding-bottom: 54px; }
+.whiteboard-mode #tab-seats > .map-tools { position: fixed; left: 8px; bottom: 6px; z-index: 58; }
+.whiteboard-mode #seatPanel { grid-column: 2; grid-row: 2; overflow: auto; min-height: 0; }
+.whiteboard-mode #seatPanel .panel { margin: 6px 0; padding: 8px; }
+.whiteboard-mode .swapbar { z-index: 59; }
+.whiteboard-mode .pet-layer, .whiteboard-mode #petLayer { pointer-events: none; }

@@ -614,24 +614,42 @@
       });
     });
   }
-  // 同一輪的失敗只確認一次，並共用一段簡短動畫。
+  // 同一輪的結果只確認一次，在各自座位同時播放完整動畫。
   async function playGoneBatch(list, at) {
-    const owners = new Set(list.map(x => x.owner));
-    markSeenMany('gone', list.map(x => x.id)); markSeenMany('egg', list.map(x => x.id));
-    await notice('🥚', `<h3>🥚 這次有 ${list.length} 顆蛋沒有孵出寵物</h3><p>來自 ${owners.size} 位同學，已合併顯示。</p><p class="muted small">個別結果可以到「寵物」查看。</p>`, '知道了');
+    const results = list.map(x => { const t = x.revealSuccess ? { what: '✅ 成功孵出寵物', act: petName(x) } : goneText(x); return `<li><b>${esc(nm(x.owner))}</b>：${esc(t.what)}<span class="muted small">・${esc(t.act)}</span></li>`; }).join('');
+    await notice('🥚', `<h3>🥚 ${list.length} 顆蛋的孵化結果</h3><ul class="pet-result-list">${results}</ul><p class="small">按確定後，大家的蛋會在座位表上一起孵化！</p>`, '確定，一起看動畫');
+    markSeenMany('gone', list.filter(x => !x.revealSuccess).map(x => x.id));
+    markSeenMany('hatch', list.filter(x => x.revealSuccess).map(x => x.id)); markSeenMany('egg', list.map(x => x.id));
     if (A.currentTab() !== 'seats') return;
     geo = geometry(); if (!geo) return;
-    const el = fx(`<span class="pet-batch-icon">🥚💨</span><b>${list.length} 顆未孵出寵物</b>`, 'pet-batch-fx', geo.board.x, geo.board.y);
+    const counts = new Map();
+    const html = list.map(x => {
+      const base = seatCenter(x.owner) || at;
+      const index = counts.get(x.owner) || 0; counts.set(x.owner, index + 1);
+      // 同一位同學的多顆蛋在座位附近錯開，整班同時播放。
+      const dx = index ? Math.cos(index * 2.4) * Math.min(30, 8 + index * 3) : 0;
+      const dy = index ? Math.sin(index * 2.4) * Math.min(24, 6 + index * 2) : 0;
+      const pos = `left:${base.x + dx}px;top:${base.y + dy}px`;
+      if (x.revealSuccess) return `<div class="seat-hatch" style="${pos}" data-owner="${esc(x.owner)}"><div class="pet-fx egg-hatch"><span class="hatch-egg">${EGG}</span><span class="hatch-pet">${look(x)}</span></div><small>🎉 ${esc(petName(x))}</small></div>`;
+      const { g, what } = goneText(x), help = goneHelp(x.gone);
+      return `<div class="seat-hatch" style="${pos}" data-owner="${esc(x.owner)}"><div class="pet-fx gone-fx"><span class="g-egg">${EGG}</span>${help ? `<span class="g-help h-${g[1]}">${help}</span>` : ''}${g[1] === 'ufo' ? '<span class="g-beam"></span>' : ''}<span class="g-actor a-${g[1]}">${goneArt(x.gone)}</span></div><small>${esc(what)}</small></div>`;
+    }).join('');
+    const el = fx(html, 'hatch-party', 0, 0);
     try { await wait(7800); } finally { el.remove(); }
+    // 動畫一起播放，成功的祝賀訊息仍逐隻顯示。
+    for (const x of list.filter(x => x.revealSuccess)) {
+      if (A.currentTab() !== 'seats') break;
+      await notice(look(x), `<h3>🎉 成功孵出寵物！</h3><p><b>${esc(nm(x.owner))}</b> 得到了 <b>${esc(petName(x))}</b>。</p><p class="small">到「寵物」可以取名字、上傳外觀。</p>`, '太好了！');
+    }
   }
   const markSeenMany = (k, ids) => { seen[k] = [...new Set([...seen[k], ...ids])].slice(-5000); store.set('indoor.pets.seen', seen); };
   const markSeen = (k, id) => markSeenMany(k, [id]);
   function groupPetEvents(todo) {
     const groups = new Map(), out = [];
     for (const [kind, x] of todo) {
-      if (kind === 'hatch') { out.push([kind, x]); continue; }
-      if (!groups.has(kind)) { const list = []; groups.set(kind, list); out.push([kind, list]); }
-      groups.get(kind).push(x);
+      const group = kind === 'hatch' || kind === 'gone' ? 'reveal' : kind;
+      if (!groups.has(group)) { const list = []; groups.set(group, list); out.push([group, list]); }
+      groups.get(group).push(group === 'reveal' ? { ...x, revealSuccess: kind === 'hatch' } : x);
     }
     return out;
   }
@@ -676,7 +694,7 @@
         geo = geometry();
         if (!geo) break;
         const to = geo.board;
-        if (kind === 'gone') {
+        if (kind === 'reveal') {
           await playGoneBatch(x, to);
         } else if (kind === 'got' || kind === 'egg' || kind === 'dead') {
           const label = kind === 'got' ? `收到 ${x.length} 顆寵物蛋` : kind === 'egg' ? `${x.length} 顆蛋開始孵化` : `${x.length} 隻寵物出去覓食了`;
@@ -686,12 +704,6 @@
           const duration = kind === 'got' ? 1600 : kind === 'egg' ? 1500 : 7800;
           banner(label + '・詳細資料請到「寵物」查看', duration);
           try { await wait(duration); } finally { e.remove(); }
-        } else if (kind === 'hatch') {
-          await notice(look(x), `<h3>🎉 太幸運了！</h3><p><b>${esc(nm(x.owner))}</b> 的寵物蛋<b>真的孵出寵物</b>了！</p><p class="muted small">未使用孵蛋器時約 1/10 的機會。${x.owner === A.me() ? '到「🐾 寵物」可以幫牠取名字、上傳外觀。' : ''}</p>`, '確定，看牠出來');
-          const e = fx(`<span class="hatch-egg">${EGG}</span><span class="hatch-pet">${look(x)}</span>`, 'egg-hatch', to.x, to.y);
-          banner(`🎉 太幸運了！<b>${esc(nm(x.owner))}</b> 的寵物蛋<b>真的孵出寵物</b>了（未使用孵蛋器時約 1/10 的機會）！${x.owner === A.me() ? '<br><span class="muted small">到「🐾 寵物」可以上傳牠的外觀、取名字。</span>' : ''}`, 5000);
-          await wait(2400); e.remove();
-          markSeen('hatch', x.id);
         }
         paintMap(true);
       }

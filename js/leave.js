@@ -34,12 +34,13 @@
     return one(x.fromP, 7) + one(1, x.toP) + Math.max(0, days - 1) * 7;
   }
 
+  A.refreshLeave = () => load();
   function render() {
     const root = $('#leaveRoot');
     if (!root) return;
     if (!L) { root.innerHTML = `<div class="panel"><p class="muted">讀取中…</p></div>`; return; }
     L.rows.sort((a, b) => byKey(a.key, b.key));
-    let h = rulesHtml();
+    let h = `<div id="absenceControl"></div>` + rulesHtml();
     if (!isT()) h += formHtml();
     // 導師：總表（可以確認、退回）；班長、副班長：自己的請假＋唯讀的總表；其他同學：自己的請假
     if (!isT()) h += mineHtml();
@@ -48,6 +49,7 @@
     if (isT() || L.monitor) h += teacherHtml(!isT());
     h += `<div id="calZoomHost">${addD ? addHtml() : zoomHtml()}</div>`;
     root.innerHTML = h;
+    A.renderAbsences?.();
   }
   // 請假規則：預設收起來；導師可以編輯
   // 預設的請假規則（學校的「學生請假注意事項」）；導師在 App 裡改過就用改過的
@@ -117,6 +119,7 @@
   const flowText = x => (isGong(x) ? '填寫公差單 → 導師簽名 → 教官簽名' : '家長簽名 → 導師簽名 → 教官室等處室簽核');
   // 一筆請假：進度（已登記 → 已上傳假卡 → 已確認）＋動作
   function itemHtml(x, teacher, ro) {
+    if (x.type === '曠課') return `<div class="lv-item"><div class="lv-top"><b>🚫 曠課紀錄</b><span>${esc(nm(x.key))}・${esc(when(x))}</span></div><p class="small">登記人：${esc(x.by || '—')}・${esc(x.time || '')}</p>${x.note ? `<p class="small">${esc(x.note)}</p>` : ''}<p class="muted small">出缺席紀錄，不需上傳假卡。</p></div>`;
     // 四個步驟：APP 登記 → 家長簽名 → 導師簽名 → 其他處室簽名；上傳假卡＝紙本全部簽完（四步都完成）
     const back = x.status === '退回' || x.status === '假卡上傳錯誤', idx = back || x.status === '已登記' ? 0 : 3;
     const flow = `<ol class="lv-flow">${FLOW[isGong(x) ? 'gong' : 'normal'].map((t, i) => `<li class="${i <= idx ? 'done' : i === idx + 1 ? 'next' : ''}"><span class="n">${i <= idx ? '✓' : i + 1}</span><span class="t">${t}</span></li>`).join('')}</ol>`;
@@ -166,7 +169,7 @@
   function groupHtml(xs, teacher, ro) {
     const x0 = xs[0], ids = xs.map(x => x.id).join(','), allOk = xs.every(x => x.status === '已確認');
     const left = xs.filter(x => x.status !== '已確認');
-    const mark = x => (x.status === '已確認' ? '✓ ' : x.status === '已上傳假卡' ? '📷 ' : x.status === '退回' ? '↩ ' : '');
+    const mark = x => (x.type === '曠課' ? '🚫 ' : x.status === '已確認' ? '✓ ' : x.status === '已上傳假卡' ? '📷 ' : x.status === '退回' ? '↩ ' : '');
     const notes = [...new Set(xs.map(x => x.note).filter(Boolean))];
     const flow = `<ol class="lv-flow">${FLOW.gong.map((t, i) => `<li class="${allOk || i === 0 ? 'done' : i === 1 ? 'next' : ''}"><span class="n">${allOk || i === 0 ? '✓' : i + 1}</span><span class="t">${t}</span></li>`).join('')}</ol>`;
     const nCard = xs.reduce((t, x) => t + (x.cards?.length || x.nCards || 0), 0);

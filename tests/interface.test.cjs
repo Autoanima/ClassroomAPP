@@ -7,7 +7,7 @@ const read=f=>fs.readFileSync(path.join(__dirname,'../js/',f),'utf8');
 const esc=s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
 
 test('announcement controls persist hide/show preference and auto-open omits hidden posts',async()=>{
-  const events={}, bodyEvents={}, buttons={}, pref=new Set(['p1']);
+  const events={}, bodyEvents={}, buttons={}, pref=new Set(['p1']), repeat=new Set();
   let html='';
   const A={
     $:id=>buttons[id] ||= {addEventListener:(ev,fn)=>{buttons[id][ev]=fn;}},
@@ -17,21 +17,21 @@ test('announcement controls persist hide/show preference and auto-open omits hid
     sheetBody:{addEventListener:(ev,fn)=>bodyEvents[ev]=fn},
     openSheet:(mode,s)=>{html=s;},on:(ev,fn)=>events[ev]=fn,
     api:async(action,p)=>{
-      if(action==='getBoard')return {posts:[{id:'p1',date:'2026/10/23',time:'2026/10/23 12:00',text:'隱藏公告',by:'導師'},{id:'p2',date:'2026/10/23',time:'2026/10/23 13:00',text:'持續公告',by:'導師'}]};
-      if(action==='setBoardPref')p.hidden?pref.add(p.id):pref.delete(p.id);
-      return {hidden:[...pref]};
+      if(action==='getBoard')return {posts:[{id:'p1',t:Date.now()-2*864e5,date:'2026/10/23',time:'2026/10/23 12:00',text:'隱藏公告',by:'導師'},{id:'p2',t:Date.now(),date:'2026/10/23',time:'2026/10/23 13:00',text:'持續公告',by:'導師'}]};
+      if(action==='classControl'){const c=p.command;c.repeat?repeat.add(c.id):repeat.delete(c.id);}
+      return {hidden:[...pref],repeat:[...repeat]};
     },
   };
   vm.runInNewContext(read('board.js'),{window:{App:A},document:{addEventListener(){}},sessionStorage:{getItem:()=>null,setItem(){}},setTimeout(){},console});
   await events.start();
   assert.ok(html.includes('持續公告'));assert.ok(!html.includes('隱藏公告'));
   await buttons['#boardBtn'].click();
-  assert.ok(html.includes('隱藏公告'));assert.ok(html.includes('data-id="p1" checked'));
+  assert.ok(html.includes('隱藏公告'));assert.ok(html.includes('每日重複出現'));
   const note={textContent:''}, checkbox={dataset:{act:'boardPref',id:'p1'},checked:false,closest:()=>({querySelector:()=>note})};
   await bodyEvents.change({target:checkbox});
-  assert.equal(pref.has('p1'),false);assert.equal(note.textContent,'持續顯示');
+  assert.equal(repeat.has('p1'),false);assert.match(note.textContent,/只自動顯示一天/);
   checkbox.checked=true;await bodyEvents.change({target:checkbox});
-  assert.equal(pref.has('p1'),true);assert.match(note.textContent,/週一恢復/);
+  assert.equal(repeat.has('p1'),true);assert.match(note.textContent,/每天自動顯示/);
 });
 
 test('seat leave type fills the portrait above the name and is safely escaped',()=>{
@@ -83,11 +83,11 @@ test('many failed hatches show one message/animation; each successful hatch stay
   const seen={got:[],egg:[],hatch:[],dead:[],gone:[]};
   const pets=[0,1].map(i=>({id:'ok'+i,owner:'student',status:'寵物',hatch:Date.now()}));
   const c=vm.createContext({seen,P:{pets,gone:Array.from({length:150},(_,i)=>({id:'gone'+i,owner:'student',hatch:Date.now()}))},playing:false,geo:null,
-    A:{currentTab:()=> 'seats',isGuest:()=>false,me:()=> 'student'},store:{set(){}},esc,nm:x=>x,look:()=>'',EGG:'🥚',
-    ensureLayer:()=>true,geometry:()=>({board:{x:0,y:0}}),notice:async()=>{messages++;},fx:()=>{animations++;return {remove(){}};},wait:async()=>{},banner(){},paintMap(){},remindWait(){}});
+    A:{currentTab:()=> 'seats',isGuest:()=>false,me:()=> 'student'},store:{set(){}},esc,nm:x=>x,look:()=>'',petName:x=>x.owner,EGG:'🥚',goneText:x=>({g:['🐦','fly'],what:'一隻小鳥',act:'飛走'}),goneHelp:()=>'',goneArt:()=>'<svg>bird</svg>',
+    ensureLayer:()=>true,geometry:()=>({board:{x:0,y:0}}),seatCenter:()=>({x:100,y:200}),notice:async()=>{messages++;},fx:(html,cls)=>{animations++;assert.match(html,/class="seat-hatch"/);assert.match(html,/left:100px;top:200px/);assert.equal(cls,'hatch-party');return {remove(){}};},wait:async()=>{},banner(){},paintMap(){},remindWait(){}});
   vm.runInContext(grouping+events,c);await c.events();
-  assert.equal(messages,3);assert.equal(animations,3);assert.equal(seen.gone.length,150);
-  await c.events();assert.equal(messages,3);assert.equal(animations,3);
+  assert.equal(messages,3);assert.equal(animations,1);assert.equal(seen.gone.length,150);
+  await c.events();assert.equal(messages,3);assert.equal(animations,1);
 });
 test('student seat panels keep calculation and order visible during selection and swapping',()=>{
   const s=read('seats.js'),fn=s.slice(s.indexOf('  function renderPanel()'),s.indexOf('  function legendHtml()'));
