@@ -421,3 +421,26 @@ test('exam top ten receive five usable incubators each once, separately from pri
   delete t.props['EXAM_INCUBATOR_2026-8_0'];t.c.grantRankCards(true);assert.equal(sh.rows.length,51);
   R.latest=1;R.label='第二次段考';R.cuts[1]=Date.parse('2026-11-01T00:00:00Z');R.per[1]={deptRank,rank};t.c.grantRankCards(true);assert.equal(t.c.incubatorsOf(keys[11]),10);
 });
+
+test('selling owned cards and incubators pays half once and never alters grades',()=>{
+ const t=setup();vm.runInContext(source.slice(source.indexOf('function spendRows()'),source.indexOf('/** 竊盜卡：')),t.c);
+ t.c.catalog=()=>[];t.c.petRows=()=>[];t.c.shopState=()=>({ok:true});t.c.packsFor=()=>[];t.c.investAwardsFor=()=>[];
+ const cs=t.eval('getSheet(SHEET_CARDS,HEAD_CARDS)');cs.appendRow([new t.Date(),'student','交換位置卡',1,'段考獎勵']);
+ t.eval("addSpend('student',0,'轉入孵蛋器','','段考獎勵')");
+ assert.throws(()=>t.c.sellItem({key:'helper'},'card','交換位置卡'),/已沒有/);
+ t.c.sellItem({key:'student'},'card','交換位置卡');assert.equal(t.c.freeSwapCards('student'),0);assert.equal(t.c.coinsOf('student').coins,50);
+ assert.throws(()=>t.c.sellItem({key:'student'},'card','交換位置卡'),/已沒有/);
+ t.c.sellItem({key:'student'},'incubator','incubator');assert.equal(t.c.incubatorsOf('student'),0);assert.equal(t.c.coinsOf('student').coins,52.5);assert.equal(t.eval('pointsSheet().getLastRow()'),1);
+ assert.throws(()=>t.c.sellItem({key:'student',role:'G'},'card','交換位置卡'),/只有本班/);
+});
+
+test('selling accessories preserves purchase history and removes wear; rides can be bought again',()=>{
+ const t=setup();vm.runInContext(source.slice(source.indexOf('function spendRows()'),source.indexOf('/** 竊盜卡：')),t.c);
+ t.c.catalog=()=>[{id:'acc1',price:12}];t.c.petRows=()=>[{id:'pet1',owner:'student'}];t.c.shopState=()=>({ok:true});
+ const inv=t.eval('getSheet(SHEET_INV,HEAD_INV)');inv.appendRow(['inv1','student','acc1','配件',12,'student','2026/10/20','2026/10/30','']);
+ t.c.sellItem({key:'student'},'acc','inv1');assert.equal(t.c.invRows()[0].owner,'');assert.equal(t.c.invRows()[0].price,12);assert.equal(t.c.invRows()[0].buyer,'student');assert.throws(()=>t.c.stealAcc({key:'cadre'},'inv1'),/找不到/);assert.throws(()=>t.c.sellItem({key:'student'},'acc','inv1'),/已沒有/);
+ t.eval("addSpend('student',0,'寵物交通工具','car','收到贈送')");t.props.PET_RIDE=JSON.stringify({pet1:{v:'car'},other:{v:'car'}});
+ t.c.sellItem({key:'student'},'ride','car');assert.equal(t.c.ridesOf(t.c.spendRows(),'student').length,0);assert.equal(JSON.parse(t.props.PET_RIDE).pet1,undefined);assert.ok(JSON.parse(t.props.PET_RIDE).other);
+ t.eval("addSpend('student',10,'寵物交通工具','car','重買')");assert.deepEqual(Array.from(t.c.ridesOf(t.c.spendRows(),'student')),['car']);
+ assert.equal(t.c.spendRows().filter(x=>x.use==='賣出道具').reduce((n,x)=>n-x.points,0),11);
+});

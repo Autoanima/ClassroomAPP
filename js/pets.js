@@ -1067,7 +1067,7 @@
     }
     const spBoost = store.get('indoor.shopspend.v1.test', []), boosts = {};
     spBoost.filter(r => r.use === '使用孵蛋器').forEach(r => { boosts[r.target] = (boosts[r.target] || 0) + 1; });
-    const inventory = () => spBoost.filter(r => r.who === me).reduce((n, r) => n + (['購買孵蛋器','轉入孵蛋器'].includes(r.use)?1:['使用孵蛋器','轉出孵蛋器'].includes(r.use)?-1:0), 0);
+    const inventory = () => spBoost.filter(r => r.who === me).reduce((n, r) => n + (['購買孵蛋器','轉入孵蛋器'].includes(r.use)?1:['使用孵蛋器','轉出孵蛋器'].includes(r.use)||(r.use==='賣出道具'&&r.target==='incubator:incubator')?-1:0), 0);
     if (action === 'useIncubator') {
       const egg = all.find(x => x.id === p.id && x.owner === me && ['待孵', '蛋'].includes(x.status));
       if (!egg || (egg.status === '蛋' && now >= egg.hatch)) throw new Error('只能對自己尚未揭曉的蛋使用');

@@ -222,7 +222,13 @@
     await load();
     if (!canMake) return toast(isMaker() ? '你這週已經放過禮物盒了，下週再來' : '只有導師、班長、副班長可以放禮物盒');
     made = null;
-    let h = A.sheetHead('🎁 放一個禮物盒', '每週一次；大家打開「座位」時會看到它從天而降、爆開，並隨機得到獎品，每人另獲 3 點與一顆寵物蛋（滿額保留待領）');
+    let h = A.sheetHead('🎁 放一個禮物盒', '導師、班長、副班長每人每週可放 1 盒。上傳圖片後，禮物盒會出現在教室正中間；開啟「座位」時會播放驚喜動畫。');
+    h += `<div class="panel"><h3>🎁 每盒可以獲得什麼？</h3><ul class="small">
+      <li><b>固定獎勵：3 點＋1 顆寵物蛋。</b>點數可在商店使用，不計入學業加分。</li>
+      <li><b>隨機獎勵：另抽 1 項。</b>煙火、小太陽卡、小雨傘卡或裝扮配件。</li>
+      <li>學生與幹部首次開啟每個禮物盒時領獎；同一盒重複開啟只能再看圖片，不會重複領取。</li>
+      <li>寵物蛋容量滿時，蛋會保留待領；已有空間後可再領取，不會因此失去獎勵。</li>
+    </ul></div>`;
     h += `<label class="create-pick gb-pick"><input type="file" id="gbFile" accept="image/*" hidden><span id="gbPrev" class="create-prev">＋<br><span class="small">選一張圖片</span></span></label>
       <p class="muted small" id="gbInfo">圖片會自動壓縮，方便網路傳送。</p>
       <div class="actions"><button type="button" class="btn btn--primary wide" data-act="gbOk">🎁 放到教室正中間</button></div>`;

@@ -3,7 +3,7 @@
 (() => {
   const A = window.App, D = A.D;
   const { $, esc, toast, store } = A;
-  A.rideInventory=(rows,key,rv={})=>{const owned=new Set();rows.filter(x=>x.who===key).forEach(x=>{if(x.use==='寵物交通工具'&&x.t>(rv[key+'|'+x.target]||0))owned.add(x.target);if(x.use==='轉送交通工具')owned.delete(x.target);});return [...owned];};
+  A.rideInventory=(rows,key,rv={})=>{const owned=new Set();rows.filter(x=>x.who===key).forEach(x=>{if(x.use==='寵物交通工具'&&x.t>(rv[key+'|'+x.target]||0))owned.add(x.target);if(x.use==='轉送交通工具')owned.delete(x.target);if(x.use==='賣出道具'&&x.target.startsWith('ride:'))owned.delete(x.target.slice(5));});return [...owned];};
   const K = { inv: 'indoor.shopinv.v1.test', deco: 'indoor.shopdeco.v1.test', spend: 'indoor.shopspend.v1.test', seenFx: 'indoor.fxseen.v1' + A.SFX };
   let S = null;          // 雲端回傳的商店狀態
   let loading = false;
@@ -24,6 +24,15 @@
     return A.api(action, p).finally(() => done?.());
   }
 
+  function saleItems(st) {
+    if(st.sellable)return st.sellable;
+    const prices={交換位置卡:st.swapPrice||100,竊盜卡:st.stealPrice||10,煙火:st.fireworkPrice||1,小太陽卡:st.weatherPrice||5,小雨傘卡:st.weatherPrice||5,抽籤轉移卡:st.transferPrice||20,抽籤必中卡:st.surePrice||30},items=[];
+    const add=(type,id,name,n,price)=>{if(n>0)items.push({type,id,name,n,price,refund:Math.round(price*50)/100});};
+    Object.entries(st.held||{}).forEach(([id,n])=>{if(prices[id]!=null)add('card',id,id,n,prices[id]);});
+    add('incubator','incubator','孵蛋器',st.incubators,5);
+    (st.inv||[]).filter(x=>!x.expired).forEach(x=>add('acc',x.id,x.name,1,Number(st.catalog.find(a=>a.id===x.acc)?.price??x.price??0)));
+    (st.rides||[]).forEach(id=>add('ride',id,A.petRides?.[id]?.name||id,1,st.ridePrice||10));return items;
+  }
   // 上次的商店內容記在這台手機：打開商店先立刻顯示，再到雲端更新
   const CACHE = 'indoor.shopcache.v1' + A.SFX;
   const who = () => A.isTeacher() ? '導師' : A.me() || '';
@@ -126,6 +135,8 @@
         <button type="button" class="btn${can ? ' btn--primary' : ''}" data-s="buy" data-acc="${esc(a.id)}"${can ? '' : ' disabled'}>💰 ${a.price} 點</button></div>`;
     });
     h += `</div></div>`;
+    const sellable=saleItems(S);
+    h += `<details class="panel"><summary><b>💰 賣出我的道具</b>（${sellable.reduce((n,x)=>n+x.n,0)} 件）</summary><p class="small muted">持有的卡片、孵蛋器、有效配件與寵物交通工具，都可按目前商店定價的半價賣出，免費獲得的也適用。每次賣出 1 件，返還點數可用於商店，不計入班級加分。已使用的效果及過期配件不列入庫存。</p>${sellable.map(x=>`<div class="admin-item"><span>${esc(x.name)} ×${x.n}<small class="muted">（原價 ${x.price} 點）</small></span><button type="button" class="btn" data-s="sellItem" data-type="${esc(x.type)}" data-id="${esc(x.id)}">賣出 1 件・得 ${x.refund} 點</button></div>`).join('')||'<p class="muted">目前沒有可賣出的持有道具。</p>'}</details>`;
     // 特殊道具放在商店最下面；可以送人的道具多一個「🎁 送人」按鈕；手上有卡（別人送的、段考獎勵）就免費用
     const held = S.held || {};
     const sp = (key, card, cls, ico, title, desc, price, can, extra = '') => {
@@ -145,7 +156,7 @@
       ${sp('rain', '小雨傘卡', 'wx', '☂️', '小雨傘卡', `放在一位同學的座位上方，維持 ${S.weatherDays || 5} 天`, `💰 ${S.weatherPrice || 5} 點`, S.coins >= (S.weatherPrice || 5))}
       ${sp('transfer', '抽籤轉移卡', 'drawc', '🔄', '抽籤轉移卡', `設定一位替身：${S.transferDays || 10} 天內抽籤抽到你，會立刻換成替身上場（次數不限）`, `💰 ${S.transferPrice || 20} 點`, S.coins >= (S.transferPrice || 20))}
       ${sp('sure', '抽籤必中卡', 'drawc', '🎯', '抽籤必中卡', '指定一位同學：下一次抽籤，第一位一定會變成他（只有一次）', `💰 ${S.surePrice || 30} 點`, S.coins >= (S.surePrice || 30))}
-      ${A.isGiftBoxMaker?.() ? sp('giftbox', '禮物盒', 'gbox', '🎁', '禮物盒（導師、班長、副班長專屬）', '每週一次：上傳一張圖片變成驚喜盒，放在教室正中間；大家打開會隨機得到煙火、小太陽卡或小雨傘卡', '每週 1 個', true) : ''}
+      ${A.isGiftBoxMaker?.() ? sp('giftbox', '禮物盒', 'gbox', '🎁', '禮物盒（導師、班長、副班長專屬）', '導師、班長、副班長每人每週可放 1 盒。<br>學生與幹部首次開啟每盒：固定獲得 3 點＋1 顆寵物蛋，另隨機獲得煙火、小太陽卡、小雨傘卡或裝扮配件其中 1 項。<br>同一盒只領一次；蛋容量滿時保留待領。', '每週 1 個', true) : ''}
       ${sp('mail', '信紙', 'mail', '🕊', '信紙（飛鴿傳書）', '寫一封信給同學或導師，對方下次打開 App 就會看到，3 天後自動消失', '免費', true)}
       ${sp('create', '創造卡', 'create', '🎨', '創造卡', '上傳自己畫的 PNG 變成新商品；別人買了，點數算給你', '免費建立', true)}
     </div></div>`;
@@ -198,6 +209,12 @@
       A.ensureFaces?.(true); // 大家的大頭照裝飾也一起更新
       toast('✓ 已更新');
       return;
+    }
+    if (act === 'sellItem') {
+      const item=saleItems(S).find(x=>x.type===b.dataset.type&&x.id===b.dataset.id);if(!item)return;
+      if(!await A.ask(`賣出「${item.name}」1 件，獲得 ${item.refund} 點？\n賣出後自己不再持有，已穿戴的配件或交通工具會卸下。`,'確認賣出'))return;
+      b.disabled=true;
+      try{S=await doing('sellItem',{type:item.type,id:item.id});render();A.ensureFaces?.(true);A.emit('petsReload');A.emit('coins');toast(`已賣出，獲得 ${item.refund} 點`);}catch(err){toast(err.message);b.disabled=false;}return;
     }
     if (act === 'adminRemoveItem') {
       const n = Number(b.dataset.n) > 1 ? Number(prompt('要移除幾個？', '1')) : 1;
@@ -857,14 +874,14 @@
     const spend = store.get(K.spend, []);
     const spent2 = spent + spend.filter(x => x.who === me).reduce((t, x) => t + x.points, 0);
     const others = {};
-    inv2.filter(x => x.owner !== me && x.exp >= today).forEach(x => { (others[x.owner] ||= []).push(x); });
+    inv2.filter(x => x.owner && x.owner !== me && x.exp >= today).forEach(x => { (others[x.owner] ||= []).push(x); });
     return {
-      incubators: spend.filter(x => x.who === me).reduce((n, x) => n + (['購買孵蛋器','轉入孵蛋器'].includes(x.use)?1:['使用孵蛋器','轉出孵蛋器'].includes(x.use)?-1:0), 0), ok: true, me, today, ...(() => { const minus = pts.filter(r => r.student === me && r.points < 0).reduce((t, r) => t - r.points, 0); const pen = Math.min(Math.max(0, earned - spent2), Math.floor(minus / 2)); return { coins: earned - spent2 - pen, penalty: pen, penaltyPer: 2, penaltyFrom: '2026/09/26' }; })(), earned, spent: spent2, catalog: list, stealPrice: 10, fireworkPrice: 1, others,
+      incubators: spend.filter(x => x.who === me).reduce((n, x) => n + (['購買孵蛋器','轉入孵蛋器'].includes(x.use)?1:['使用孵蛋器','轉出孵蛋器'].includes(x.use)||(x.use==='賣出道具'&&x.target==='incubator:incubator')?-1:0), 0), ok: true, me, today, ...(() => { const minus = pts.filter(r => r.student === me && r.points < 0).reduce((t, r) => t - r.points, 0); const pen = Math.min(Math.max(0, earned - spent2), Math.floor(minus / 2)); return { coins: earned - spent2 - pen, penalty: pen, penaltyPer: 2, penaltyFrom: '2026/09/26' }; })(), earned, spent: spent2, catalog: list, stealPrice: 10, fireworkPrice: 1, others,
       stolen: spend.filter(x => x.use === '竊盜卡' && x.target === me).map(x => ({ time: x.time, thief: x.who, name: x.note })),
       minus: pts.filter(r => r.student === me && r.points < 0).reduce((t, r) => t - r.points, 0), swapBan: 10,
       transferPrice: 20, surePrice: 30, transferDays: 10, weatherPrice: 5, weatherDays: 5,
       giftable: ['孵蛋器','抽籤轉移卡','交換位置卡', '竊盜卡', '抽籤必中卡', '煙火', '小太陽卡', '小雨傘卡'],
-      held: (() => { const h = {}; store.get('indoor.testcards.v1.test', []).filter(x => x.who === me).forEach(x => { h[x.card] = (h[x.card] || 0) + x.n; }); spend.filter(x => x.who === me && x.points === 0 && h[x.use]).forEach(x => { h[x.use]--; }); Object.keys(h).forEach(k => { if (h[k] <= 0) delete h[k]; }); return h; })(),
+      held: (() => { const h = {}; store.get('indoor.testcards.v1.test', []).filter(x => x.who === me).forEach(x => { h[x.card] = (h[x.card] || 0) + x.n; }); spend.filter(x => x.who === me && x.points === 0 && h[x.use]).forEach(x => { h[x.use]--; }); spend.filter(x=>x.who===me&&x.use==='賣出道具'&&x.target.startsWith('card:')).forEach(x=>{const id=x.target.slice(5);h[id]=(h[id]||0)-1;}); Object.keys(h).forEach(k => { if (h[k] <= 0) delete h[k]; }); return h; })(),
       rankCards: store.get('indoor.testcards.v1.test', []).filter(x => x.who === me).slice(-5).reverse(),
       myDraw: (() => {
         const sp = spend, since = Date.now() - 10 * 86400e3;
@@ -882,6 +899,13 @@
   }
   A.testSeatApi = async (action, p = {}) => {
     const me = A.isTeacher() ? D.teacherLabel : A.me(), today = ymd(new Date());
+    if(action==='sellItem'){
+      const st=await testState(),item=saleItems(st).find(x=>x.type===p.type&&x.id===p.id);if(!item)throw Error('你已沒有這個道具，請重新整理');
+      store.set(K.spend,[...store.get(K.spend,[]),{who:me,points:-item.refund,use:'賣出道具',target:item.type+':'+item.id,note:item.name,t:Date.now()}]);
+      if(item.type==='acc')store.set(K.inv,store.get(K.inv,[]).map(x=>x.id===item.id?{...x,owner:''}:x));
+      if(item.type==='ride'){const rm=store.get('indoor.petride.v1.test',{}),mine=store.get('indoor.pets.v1.test',[]).filter(x=>x.owner===me).map(x=>x.id);Object.keys(rm).forEach(k=>{if(mine.includes(k)&&rm[k].v===item.id)delete rm[k];});store.set('indoor.petride.v1.test',rm);}
+      return testState();
+    }
     if (action === 'buyIncubator') {
       const st = await testState(); if (!A.isTeacher() && st.coins < 5) throw new Error('孵蛋器需要 5 點');
       store.set(K.spend, [...store.get(K.spend, []), { who: me, points: A.isTeacher() ? 0 : 5, use: '購買孵蛋器', target: '', t: Date.now(), note: '' }]); return testState();

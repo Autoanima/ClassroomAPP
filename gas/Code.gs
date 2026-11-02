@@ -241,6 +241,7 @@ function doPost(e) {
       case 'setBoardPref': return json(setBoardPref(who, String(req.id || ''), !!req.hidden));
       case 'classControl': return json(classControl(who, req.command || {}));
       case 'shopState': return json(shopState(who));
+      case 'sellItem': return json(sellItem(who,req.type,req.id));
       case 'accImages': return json(accImages(req.have || {}, req.want));
       case 'buyAcc': return json(buyAcc(who, String(req.acc || '')));
       case 'giftAcc': return json(giftAcc(who, String(req.inv || ''), String(req.to || '')));
@@ -934,8 +935,9 @@ function daysLater(n) {
 function invRows() {
   const sh = getSheet(SHEET_INV, HEAD_INV);
   const n = sh.getLastRow() - 1;
+  const sold=new Set(spendRows().filter(x=>x.use==='賣出道具').map(x=>x.target));
   return n > 0 ? sh.getRange(2, 1, n, HEAD_INV.length).getDisplayValues().map((r, i) => ({
-    row: i + 2, id: r[0], owner: r[1], acc: r[2], name: r[3], price: Number(r[4]) || 0, buyer: r[5], time: r[6], exp: r[7], note: r[8],
+    row: i + 2, id: r[0], owner: sold.has('acc:'+r[0])?'':r[1], acc: r[2], name: r[3], price: Number(r[4]) || 0, buyer: r[5], time: r[6], exp: r[7], note: r[8],
   })) : [];
 }
 const UNLIMITED = 999999; // 導師的點數（無限，方便試用商店）
@@ -975,9 +977,9 @@ function coinsOf(key, inv) {
   packs.forEach(x => ev.push([timeOf(x.date), 0, x.points]));
   const invAw = investAwardsFor(key);
   invAw.forEach(x => ev.push([x.date.getTime(), 0, x.points]));
-  let spent = 0;
+  let spent = 0, resale = 0;
   inv.filter(x => x.buyer === key).forEach(x => { spent += x.price; ev.push([timeOf(x.time), 1, x.price]); });
-  spendRows().filter(x => x.who === key).forEach(x => { spent += x.points; ev.push([x.t, 1, x.points]); });
+  spendRows().filter(x => x.who === key).forEach(x => { if(x.use==='賣出道具'){resale-=x.points;ev.push([x.t,0,-x.points]);}else{spent += x.points; ev.push([x.t, 1, x.points]);} });
   boxBonusRows().filter(x => x.key === key).forEach(x => ev.push([x.t, 0, x.points]));
   ev.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   let coins = 0, acc = 0, penalty = 0;
@@ -995,7 +997,7 @@ function coinsOf(key, inv) {
   const bonus = boxBonusRows().filter(x => x.key === key);
   const giftPoints = bonus.reduce((n, x) => n + x.points, 0);
   const red = packs.reduce((t, x) => t + x.points, 0), invest = invAw.reduce((t, x) => t + x.points, 0);
-  return { earned: earned + sales.income + red + invest + giftPoints, giftPoints: giftPoints, spent: spent, coins: coins, income: sales.income, red: red, invest: invest, penalty: penalty, minus: minus };
+  return { earned: earned + sales.income + red + invest + giftPoints + resale, resale:resale, giftPoints: giftPoints, spent: spent, coins: coins, income: sales.income, red: red, invest: invest, penalty: penalty, minus: minus };
 }
 function decoRows() {
   const sh = getSheet(SHEET_DECO, HEAD_DECO);
@@ -1036,7 +1038,7 @@ function shopState(who) {
   try { students = getStudents().students; classmates = students.filter(k => k !== key); } catch (e) { /* 沒有名單 */ }
   // 可以偷的：別人身上還有效的配件；被偷紀錄：最近 14 天
   const others = {};
-  inv.filter(x => x.owner !== key && x.exp >= today).forEach(x => { (others[x.owner] = others[x.owner] || []).push({ id: x.id, acc: x.acc, name: x.name, exp: x.exp }); });
+  inv.filter(x => x.owner && x.owner !== key && x.exp >= today).forEach(x => { (others[x.owner] = others[x.owner] || []).push({ id: x.id, acc: x.acc, name: x.name, exp: x.exp }); });
   const since = Date.now() - 14 * 86400e3;
   const stolen = spendRows().filter(x => x.use === '竊盜卡' && x.target === key && x.t >= since).map(x => ({ time: x.time, thief: x.who, name: x.note }));
   return {
@@ -1049,7 +1051,7 @@ function shopState(who) {
     deco: (decoRows()[key] || { layers: [] }).layers,
     minus: minusOf(key), swapBan: CONFIG.SWAP_BAN_MINUS, freeSwap: freeSwapCards(key), rankCards: cardRows().filter(x => x.who === key).slice(-5).reverse(),
     adminItems: who.teacher ? adminItemList() : null,
-    held: heldCards(key), giftable: Object.keys(GIFT_CARDS()), rides: ridesOf(spendRows(), key), ridePrice: RIDE_PRICE,
+    held: heldCards(key), sellable:sellableItems(key), giftable: Object.keys(GIFT_CARDS()), rides: ridesOf(spendRows(), key), ridePrice: RIDE_PRICE,
     penalty: c.penalty || 0, penaltyPer: CONFIG.PENALTY_PER, penaltyFrom: CONFIG.PENALTY_FROM,
     incubators: incubatorsOf(key), unlimited: !!who.teacher, income: c.income, sales: who.teacher ? null : salesOf(key, inv), createPrice: CONFIG.CREATE_PRICE,
     // 導師：全班點數一覽
@@ -1109,7 +1111,7 @@ function addSpend(who, points, use, target, note) {
 function stealAcc(who, invId) {
   withLock(() => {
     const x = invRows().find(r => r.id === invId);
-    if (!x || x.owner === who.key) throw new Error('找不到這個配件');
+    if (!x || !x.owner || x.owner === who.key) throw new Error('找不到這個配件');
     if (x.exp < ymd(new Date())) throw new Error('這個配件已經過期了');
     const pay = payCard(who, '竊盜卡', CONFIG.STEAL_PRICE);
     const sh = getSheet(SHEET_INV, HEAD_INV);
@@ -2002,7 +2004,8 @@ const RIDE_PRICE = 10;
 const RIDE_ROUTES = { car: ['cw', 'ccw'], ring: ['cw', 'ccw'], boat: ['h', 'v'], rocket: ['x', 'v'], ufo: ['cw', 'ccw', 'warp'], worm: ['lr', 'rl'] };
 function ridesOf(rows,key) {
   const rv=rideRevoked(),owned=new Set();
-  rows.filter(x=>x.who===key&&PET_RIDES[x.target]).forEach(x=>{
+  rows.filter(x=>x.who===key).forEach(x=>{
+    if(x.use==='賣出道具'&&x.target.indexOf('ride:')===0)owned.delete(x.target.slice(5));
     if(x.use==='寵物交通工具'&&x.t>(rv[key+'|'+x.target]||0))owned.add(x.target);
     if(x.use==='轉送交通工具')owned.delete(x.target);
   });return [...owned];
@@ -2559,6 +2562,7 @@ function heldCards(key, cards, spend) {
   const out = {};
   (cards || cardRows()).filter(x => x.who === key).forEach(x => { out[x.card] = (out[x.card] || 0) + x.n; });
   (spend || spendRows()).filter(x => x.who === key && x.points === 0 && out[x.use]).forEach(x => { out[x.use]--; });
+  (spend || spendRows()).filter(x=>x.who===key&&x.use==='賣出道具'&&x.target.indexOf('card:')===0).forEach(x=>{const k=x.target.slice(5);out[k]=(out[k]||0)-1;});
   Object.keys(out).forEach(k => { if (out[k] <= 0) delete out[k]; });
   return out;
 }
@@ -4963,7 +4967,7 @@ function claimBoxEggs(key) {
 }
 
 // 孵蛋器：買入庫存後，選定自己的待孵／孵化中蛋使用；每次 ×2，最高 100%。
-function incubatorsOf(key, rows) { return Math.max(0, (rows || spendRows()).filter(r => r.who === key).reduce((n, r) => n + (['購買孵蛋器','轉入孵蛋器'].includes(r.use)?1:['使用孵蛋器','轉出孵蛋器'].includes(r.use)?-1:0), 0)); }
+function incubatorsOf(key, rows) { return Math.max(0, (rows || spendRows()).filter(r => r.who === key).reduce((n, r) => n + (['購買孵蛋器','轉入孵蛋器'].includes(r.use)?1:['使用孵蛋器','轉出孵蛋器'].includes(r.use)||(r.use==='賣出道具'&&r.target==='incubator:incubator')?-1:0), 0)); }
 function buyIncubator(who) {
   withLock(() => {
     if (!who.teacher && coinsOf(who.key).coins < 5) throw new Error('孵蛋器需要 5 點');
@@ -5121,6 +5125,31 @@ function dutyChangeV2(who, c) {
 }
 // 定時更新讓白板不必重新登入；同時保留讀取時的補排。
 
+/** 僅列本人仍持有的可用庫存；免費獲得的物品也依商店定價半價出售。 */
+function sellableItems(key) {
+  const items=[], prices=GIFT_CARDS(), spend=spendRows(), today=ymd(new Date());
+  const add=(type,id,name,n,price)=>{if(n>0&&Number.isFinite(price)&&price>=0)items.push({type,id,name,n,price,refund:Math.round(price*50)/100});};
+  Object.entries(heldCards(key,cardRows(),spend)).forEach(([id,n])=>{if(id!=='孵蛋器'&&prices[id]!=null)add('card',id,id,n,Number(prices[id]));});
+  add('incubator','incubator','孵蛋器',incubatorsOf(key,spend),5);
+  const cat=catalog();
+  invRows().filter(x=>x.owner===key&&x.exp>=today).forEach(x=>{const a=cat.find(a=>a.id===x.acc);add('acc',x.id,x.name,1,a?Number(a.price):Number(x.price));});
+  ridesOf(spend,key).forEach(id=>add('ride',id,PET_RIDES[id],1,RIDE_PRICE));
+  return items;
+}
+function sellItem(who,type,id) {
+  if(who.role==='G'||(!who.teacher&&getStudents().students.indexOf(who.key)<0))throw new Error('只有本班成員可以賣出自己的道具');
+  withLock(()=>{
+    const item=sellableItems(who.key).find(x=>x.type===String(type)&&x.id===String(id));
+    if(!item)throw new Error('你已沒有這個道具，請重新整理');
+    // 一筆交易同時記錄庫存減少與點數收入，避免部分寫入造成重複領點。
+    addSpend(who.key,-item.refund,'賣出道具',item.type+':'+item.id,item.name+' ×1，原價 '+item.price+' 點，半價 '+item.refund+' 點');
+    if(item.type==='ride'){
+      const rm=rideMap(),mine=petRows().filter(x=>x.owner===who.key).map(x=>x.id);
+      Object.keys(rm).forEach(k=>{if(mine.includes(k)&&rm[k].v===item.id)delete rm[k];});
+      PropertiesService.getScriptProperties().setProperty('PET_RIDE',JSON.stringify(rm));
+    }
+  });return shopState(who);
+}
 function adminItemList() {
   const students = getStudents().students, spend = spendRows(), cards = cardRows(), inv = invRows(), today = ymd(new Date()), fx = drawFx();
   return students.map(key => {
