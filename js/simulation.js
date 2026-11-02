@@ -3,6 +3,12 @@
 (() => {
   const A=window.App;if(!A.SIM)return;
   const bar=document.querySelector('.test-banner');
+  if(A.SIM==='seats'){
+    bar.innerHTML='<b>🧪 現場選位模擬・獨立示範資料</b><button id="simReset">重置模擬</button><button id="simExit">結束模擬</button>';
+    document.querySelector('#simReset').onclick=async()=>{if(!await A.ask('清除本分頁的現場選位示範進度？','重置模擬'))return;Object.keys(sessionStorage).filter(k=>k.startsWith('classroom.sim.')).forEach(k=>sessionStorage.removeItem(k));location.reload();};
+    document.querySelector('#simExit').onclick=()=>location.href=location.pathname;
+    const h=document.createElement('p');h.className='panel sim-help';h.textContent='導師選擇段考順序 → 開始現場選位 → 開啟白板全畫面 → 點空位安排目前同學。右側可查看完整順序與已選名單。';bar.after(h);return;
+  }
   bar.innerHTML=`<b>🧪 ${A.SIM==='jobs'?'依序選工作':'線上選位'}模擬・獨立示範資料</b><label>目前身分 <select id="simUser"><option value="${A.esc(A.D.teacherLabel)}">導師</option>${A.DEMO_STUDENTS.map(k=>`<option value="${A.esc(k)}">學生 ${A.esc(k)}</option>`).join('')}</select></label><button id="simCurrent">扮演目前輪到的同學</button><button id="simTeacher">回到導師</button><button id="simReset">重置模擬</button><button id="simExit">結束模擬</button>`;
   document.querySelector('#simUser').value=A.isTeacher()?A.D.teacherLabel:A.me();
   document.querySelector('#simUser').onchange=e=>A.simulateUser(e.target.value);

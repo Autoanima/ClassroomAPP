@@ -38,7 +38,7 @@
 
   // ── 時間軸：每一項一條，從開始到截止；直線＝現在；條裡面的深色＝已交的比例 ──
   const hasMissing = x => x.forMe ? !x.myDone : Number(x.n || 0) < Number(x.total || 0);
-  const trackedHomework = (x, now) => hasMissing(x) || x.end >= now - 7 * 86400e3;
+  const trackedHomework = (x, now) => !x.previousTerm && (hasMissing(x) || x.end >= now - 7 * 86400e3);
   function timelineHtml(items) {
     const now = Date.now();
     const list = items.filter(x => trackedHomework(x, now));
@@ -66,6 +66,7 @@
       <p class="muted small">長條＝開始收～截止；深色＝已交的比例；紅色＝已截止但還有人沒交。點一項可以看名單。</p></div>`;
   }
   function cardHtml(x) {
+    if(x.previousTerm)return `<div class="panel hw-card"><b>${esc(x.name)}</b><p class="muted small">前學期項目・新學期已解除扣分，原繳交紀錄保留。已交 ${x.n}／${x.total} 人。</p>${x.people?`<button class="btn" data-hw="open" data-id="${esc(x.id)}">查看原紀錄</button>`:''}</div>`;
     const st = stage(x), tag = STAGE[st], miss = x.total - x.n;
     const complete = x.forMe ? !!x.myDone : !miss;
     let h = `<div class="panel hw-card${complete ? ' complete' : ''}" data-st="${complete ? 'done' : st}"><div class="hw-head"><b>${esc(x.name)}</b><span class="hw-tag ${tag[1]}">${tag[0]}</span></div>
@@ -86,6 +87,9 @@
     }
     return h + '</div>';
   }
+  function termFooter() {
+    return `<div class="panel hw-term"><h3>📖 繳交扣分與新學期</h3><p>截止後只要仍未繳交，就會持續每天扣 ${LATE_PER} 分（不足一天以一天計），不會因截止超過一週或一個月而停止。補交後停止增加，已產生的遲交扣分仍保留。</p><p>新學期開始時，由導師按「新學期重新計算」：解除既有項目的繳交扣分，舊項目移入前學期紀錄；原繳交紀錄保留。之後新增的項目重新開始計算。此操作只處理繳交功能。</p>${H?.termResetAt?`<p class="muted small">上次重算：${fmt(H.termResetAt)}</p>`:''}${A.isTeacher()?'<button class="btn btn--danger" data-hw="newTerm">新學期重新計算</button>':''}</div>`;
+  }
   function render() {
     const root = $('#hwRoot');
     if (!root) return;
@@ -93,12 +97,12 @@
     let h = `<div class="panel hw-top"><div><b>📥 各項作業與繳交資料追蹤</b><div class="muted small">${H.manager ? '設定繳交項目、勾選誰交了、把還沒交的名單傳到 LINE 或發站內信提醒。' : '這裡可以看到要交的東西和你交了沒。'}</div></div>
       ${H.manager ? '<button type="button" class="btn btn--primary" data-hw="new">＋ 新增繳交項目</button>' : ''}</div>`;
     const items = H.items || [];
-    if (!items.length) { root.innerHTML = h + `<div class="panel"><p class="muted">目前沒有繳交項目。</p></div>`; return; }
+    if (!items.length) { root.innerHTML = h + `<div class="panel"><p class="muted">目前沒有繳交項目。</p></div>` + termFooter(); return; }
     h += timelineHtml(items);
     const now = Date.now(), active = items.filter(x => trackedHomework(x, now)), old = items.filter(x => !trackedHomework(x, now));
     h += active.map(cardHtml).join('');
-    if (old.length) h += `<details class="panel"><summary><b>已繳齊且截止超過一週的項目（${old.length}）</b></summary>${old.map(cardHtml).join('')}</details>`;
-    root.innerHTML = h;
+    if (old.length) h += `<details class="panel"><summary><b>歷史項目／前學期紀錄（${old.length}）</b></summary>${old.map(cardHtml).join('')}</details>`;
+    root.innerHTML = h + termFooter();
   }
 
   // ── 新增／編輯 ──
@@ -163,7 +167,7 @@
   function tickHtml() {
     const x = H.items.find(y => y.id === tick.id);
     if (!x) return '';
-    const st = stage(x), people = x.people.slice().sort(byKey);
+    const st = x.previousTerm?'archived':stage(x), people = x.people.slice().sort(byKey);
     const isDone = k => (k in tick.pending ? tick.pending[k] : !!x.done[k]);
     const n = people.filter(isDone).length, f = tick.filter;
     const show = people.filter(k => f === 'all' || (f === 'no' ? !isDone(k) : isDone(k)));
@@ -171,7 +175,7 @@
     h += `<div class="hw-tickbar"><b>已交 ${n}／${people.length}</b>${st === 'late' && n < people.length ? `<b class="hw-red">逾期未交 ${people.length - n} 人</b>` : ''}</div>
       <div class="lv-views">${[['all', '全部'], ['no', '還沒交'], ['yes', '已交']].map(([k, t]) => `<button type="button" data-act="hwF" data-v="${k}" aria-pressed="${f === k}">${t}</button>`).join('')}</div>
       <div class="hw-grid">${show.map(k => {
-        const d = isDone(k), t = x.done[k], late = !d && st === 'late', lateDone = d && t && t > x.end;
+        const d = isDone(k), t = x.done[k], late = !d && st === 'late', lateDone = !x.previousTerm && d && t && t > x.end;
         return `<button type="button" class="hw-nm${d ? ' done' : ''}${late ? ' late' : ''}" data-act="hwTog" data-k="${esc(k)}"><b>${esc(A.parseKey(k).name || k)}</b><span>${esc(A.parseKey(k).code || '')}${d ? (lateDone ? `・遲交${lateDays(x, t)}天 ${minus(lateDays(x, t))}` : '・✓') : late ? `・逾期${lateDays(x)}天 ${minus(lateDays(x))}` : ''}</span></button>`;
       }).join('') || '<p class="muted small">沒有人。</p>'}</div>
       <p class="muted small">點名字就可以切換「交了／沒交」，會自動儲存。</p>`;
@@ -218,6 +222,7 @@
     if (!b || b.disabled) return;
     const act = b.dataset.hw, x = H?.items.find(y => y.id === b.dataset.id);
     if (act === 'new') return openEdit(null);
+    if(act==='newTerm'){if(!A.isTeacher())return; if(!await A.ask('開始新學期重新計算？既有繳交項目的扣分將解除、停止繼續扣分；原繳交紀錄會保留。新項目重新計算。','確認新學期重算',true))return;b.disabled=true;try{H=await A.api('resetHomeworkTerm');render();toast('已開始新學期，舊項目扣分已解除');}catch(e){toast(e.message);b.disabled=false;}return;}
     if (!x) return;
     if (act === 'open') { if (x.people) openTick(x.id, stage(x) === 'late' ? 'no' : 'all'); return; }
     if (act === 'edit') return openEdit(x);
@@ -244,12 +249,13 @@
   // ── 測試模式：存在這台裝置 ──
   const prevTest = A.testSeatApi;
   A.testSeatApi = async (action, p = {}) => {
-    if (!['getHomework', 'saveHomework', 'delHomework', 'markHomework', 'remindHomework'].includes(action)) return prevTest ? prevTest(action, p) : null;
+    if (!['getHomework', 'resetHomeworkTerm', 'saveHomework', 'delHomework', 'markHomework', 'remindHomework'].includes(action)) return prevTest ? prevTest(action, p) : null;
     const KEY = 'indoor.hw.v1.test', all = store.get(KEY, []);
     const T = A.D.teacherLabel || '導師', me = A.isTeacher() ? T : A.me();
     const mgr = A.isTeacher() || A.isStaff() || A.jobsOf(me || '').roles.length > 0;
     const find = id => all.find(x => x.id === id);
     const targets = (t, list) => A.students().filter(k => (t === 'custom' ? (list || []).includes(k) : t === 'data' ? /^料/.test(k) : t === 'mm' ? /^多/.test(k) : true));
+    if(action==='resetHomeworkTerm'){if(!A.isTeacher())throw new Error('只有導師可以重算');all.forEach(x=>x.previousTerm=true);store.set(KEY+'.term',Date.now());}
     if (action === 'saveHomework') {
       const it = p.item;
       const list = it.target === 'custom' ? it.list : [];
@@ -266,6 +272,6 @@
       if (!people.includes(me)) return null;
       const { done, ...rest } = base; return { ...rest, forMe: true, myDone: done[me] || 0 };
     }).filter(Boolean).sort((a, b) => a.end - b.end);
-    return { ok: true, items, manager: mgr, me, now: Date.now(), ver: 2 };
+    return { ok: true, items, manager: mgr,canReset:A.isTeacher(),termResetAt:store.get(KEY+'.term',0),me, now: Date.now(), ver: 3 };
   };
 })();

@@ -3,6 +3,7 @@
   const A = window.App, { $, esc, toast } = A;
   const canEdit = () => A.isTeacher() || A.canPoints();
   const call = command => A.api('classControl', { command });
+  let jobsWhiteboard=false;
   let duty = null, jobs = null, absenceRows = [], dutyBusy = false, jobsBusy = false;
   const options = (keys, selected) => `<option value="">請選擇</option>${keys.map(k => `<option value="${esc(k)}"${k === selected ? ' selected' : ''}>${esc(k)}</option>`).join('')}`;
   const error = (root, err, retry) => { root.innerHTML = `<div class="panel"><p class="hw-red">${esc(err.message)}</p><button class="btn" data-cc="${retry}">重新讀取</button></div>`; };
@@ -52,7 +53,10 @@
   A.renderWorkPick = () => {
     const root = $('#jobPickRoot'); if (!root || !A.started()) return;
     if (!jobs) { root.innerHTML = '<div class="panel">讀取工作選填中…</div>'; loadJobs(); return; }
-    let h = `<div class="panel"><h2>🙋 依序選工作</h2><p>依選座位的段考班名次輪流選填。環保股長職位不變，外掃兩位檢查人員可選填替換；紙容器、塑膠餐盒、廚餘固定由值日生負責。</p><button class="btn" data-cc="jobsReload">重新整理進度</button>`;
+    root.classList.toggle('work-whiteboard',jobsWhiteboard);
+    document.body.classList.toggle('work-whiteboard-open',jobsWhiteboard);
+    let h = `<div class="panel work-session"><h2>🙋 依序選工作</h2><p>依選座位的段考班名次輪流選填。環保股長職位不變，外掃兩位檢查人員可選填替換；紙容器、塑膠餐盒、廚餘固定由值日生負責。</p><button class="btn" data-cc="jobsReload">重新整理進度</button>`;
+    h+=`<button class="btn work-screen-toggle" data-cc="jobsWhiteboard">${jobsWhiteboard?'↩ 離開選工作白板':'⛶ 選工作白板全畫面'}</button>`;
     if (jobs.teacher && !A.SIM) h += '<a class="btn" href="?simulate=jobs" target="_blank" rel="noopener">🧪 模擬依序選工作</a>';
     if (jobs.teacher) {
       h += `<div id="jobCapacitySaved">${capacityHtml(jobs.defs.length?jobs.defs:defaultDefs(),jobs.capacity?.required ?? A.students().length,!!jobs.defs.length,jobs.capacity?.fixed || 0)}</div>`;
@@ -60,14 +64,16 @@
       h += `<div class="actions"><select id="jobPickExam">${['第一次','第二次','第三次'].map((x,i)=>`<option value="${i}">${x}段考順序</option>`).join('')}</select><button class="btn btn--primary" data-cc="jobsStart"${jobs.open ? ' disabled' : ''}>開放新一輪選填</button><button class="btn" data-cc="jobsSkip"${jobs.open ? '' : ' disabled'}>目前同學延後</button><button class="btn" data-cc="jobsStop"${jobs.open ? '' : ' disabled'}>停止選填</button></div>`;
     }
     const current = jobs.order?.[jobs.turn];
-    h += `<p><b>${jobs.open ? `目前輪到：${esc(current || '')}` : jobs.order?.length ? '本輪已結束／停止' : '尚未開放'}</b>${jobs.myTurn ? '・輪到你了，請選擇下方工作！' : ''}</p><div class="work-options">`;
+    h += `<p><b>${jobs.open ? `目前輪到：${esc(current || '')}` : jobs.order?.length ? '本輪已結束／停止' : '尚未開放'}</b>${jobs.myTurn ? '・輪到你了，請選擇下方工作！' : ''}</p><div class="work-session-layout"><div class="work-options">`;
     for (const d of jobs.defs) {
       const picked = Object.keys(jobs.picks || {}).filter(k => jobs.picks[k] === d.id), available = d.cap - picked.length;
       h += `<div class="work-option"><b>${esc(d.name)}</b><span>${picked.length}／${d.cap} 人</span><small>${picked.map(esc).join('、') || '尚無人選'}</small><button class="btn btn--primary" data-cc="jobsPick" data-id="${d.id}"${jobs.open && (jobs.myTurn || jobs.teacher) && available > 0 ? '' : ' disabled'}>${jobs.teacher ? '幫目前同學選這項' : '選這項工作'}</button></div>`;
     }
-    h += `</div><details><summary>完整選填順序</summary><ol>${(jobs.order || []).map((k,i) => `<li>${esc(k)}${i === jobs.turn && jobs.open ? ' ← 目前' : ''}${jobs.picks?.[k] ? ' ✓' : ''}</li>`).join('')}</ol></details></div>`;
+    h += `</div><aside class="work-queue"><h3>完整選填順序（${jobs.order?.length||0} 人）</h3><ol style="--queue-rows:${Math.max(1,Math.ceil((jobs.order?.length||0)/2))}">${(jobs.order||[]).map((k,i)=>`<li class="${jobs.picks?.[k]?'done':i===jobs.turn&&jobs.open?'cur':''}" title="${esc(k)}${jobs.picks?.[k]?'・'+esc(jobs.defs.find(d=>d.id===jobs.picks[k])?.name||'已選'):''}"><span>${i+1}. ${esc(k)}</span><b>${jobs.picks?.[k]?'✓':i===jobs.turn&&jobs.open?'◀':''}</b></li>`).join('')||'<li>尚未開放選填</li>'}</ol><p class="small">◀ 目前輪到　✓ 已選完</p></aside></div></div>`;
     root.innerHTML = h;
   };
+  A.endWorkWhiteboard=()=>{jobsWhiteboard=false;document.body.classList.remove('work-whiteboard-open');$('#jobPickRoot')?.classList.remove('work-whiteboard');};
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&jobsWhiteboard){A.endWorkWhiteboard();A.renderWorkPick();}});
   document.addEventListener('input',e=>{
     if(!e.target.matches('[data-job-cap]'))return;
     const defs=[...document.querySelectorAll('[data-job-cap]')].map(el=>({id:el.dataset.jobCap,cap:Number(el.value)}));
@@ -77,6 +83,7 @@
   document.addEventListener('click', async e => {
     const b = e.target.closest('[data-cc]'); if (!b || b.disabled) return;
     const act = b.dataset.cc;
+    if(act==='jobsWhiteboard'){jobsWhiteboard=!jobsWhiteboard;A.renderWorkPick();return;}
     if (act === 'dutyReload') return loadDuty();
     if (act === 'jobsReload') { await loadJobs(); return reloadWorkRoster(); }
     if (act === 'dutyRestore') {

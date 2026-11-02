@@ -816,7 +816,7 @@ table.admin th:first-child, table.admin td:first-child { text-align: left; }
 #drawRoot.present { position: fixed; inset: 0; z-index: 57; background: var(--bg); overflow: auto; padding: calc(env(safe-area-inset-top) + 12px) 12px calc(env(safe-area-inset-bottom) + 12px); display: flex; flex-direction: column; }
 #drawRoot.present .draw { flex: 1; display: flex; flex-direction: column; margin: 0; }
 #drawRoot.present .stage { flex: 1; min-height: 55vh; }
-#drawRoot.present .draw-roster, #drawRoot.present h3, #drawRoot.present .hist { display: none; }
+#drawRoot.present .draw-roster, #drawRoot.present h3, #drawRoot.present .draw-history { display: none; }
 #drawRoot.present .dcard .face { width: min(30vh, 38vw); height: min(30vh, 38vw); }
 #drawRoot.present .dname { font-size: min(7vh, 9vw); }
 body.presenting .compass, body.presenting .swapbar { display: none; }
@@ -928,7 +928,7 @@ code.url { display: inline-block; margin: 2px 0; }
 /* ── 抽籤 ── */
 .draw { margin: 8px 16px 0; background: var(--bg); }
 .draw:fullscreen { margin: 0; padding: 24px; display: flex; flex-direction: column; justify-content: center; }
-.draw:fullscreen .draw-roster, .draw:fullscreen h3, .draw:fullscreen .hist { display: none; }
+.draw:fullscreen .draw-roster, .draw:fullscreen h3, .draw:fullscreen .draw-history { display: none; }
 .stage {
   min-height: 260px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
   display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 18px; padding: 20px;
@@ -2490,3 +2490,71 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .test-banner:has(#simUser) { flex-wrap: wrap; gap: 8px; }
 .test-banner #simUser { max-width: 180px; }
 .sim-help { margin: 8px 12px; font-size: 13px; }
+
+/* 現場工作選填：固定右欄輪序，電子白板一次看完。 */
+.work-session-layout { display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,30%);gap:12px;align-items:start; }
+.work-queue { position:sticky;top:90px;border:1px solid var(--line);border-radius:10px;padding:8px;background:var(--surface);min-width:0; }
+.work-queue h3 { margin:0 0 6px;font-size:15px; }
+.work-queue ol { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));list-style:none;margin:0;padding:0;gap:3px; }
+.work-queue li { display:flex;gap:4px;justify-content:space-between;align-items:center;padding:4px;border-radius:4px;font-size:12px;min-width:0; }
+.work-queue li span { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.work-queue li.cur,.order li.cur { background:var(--accent);color:#fff;font-weight:800; }
+.work-queue li.done { background:#40a06025;color:#40aa65; }
+.work-whiteboard-open { overflow:hidden; }
+#jobPickRoot.work-whiteboard { position:fixed;inset:0;z-index:70;height:100dvh;background:var(--bg);padding:8px;overflow:hidden; }
+.work-whiteboard > .work-session { height:100%;margin:0;padding:8px;display:flex;flex-direction:column;gap:5px;overflow:hidden; }
+.work-whiteboard .work-session>h2 { font-size:18px;margin:0; }
+.work-whiteboard .work-session>p:first-of-type,.work-whiteboard #jobCapacitySaved,.work-whiteboard .job-config,.work-whiteboard a[href*="simulate"] { display:none; }
+.work-whiteboard .work-session>.actions { margin:0;gap:4px; }
+.work-whiteboard .work-session>.actions .btn { padding:4px 8px;font-size:12px; }
+.work-whiteboard .work-session>p { margin:0;font-size:16px; }
+.work-whiteboard .work-screen-toggle { position:absolute;right:20px;top:12px;font-size:12px;padding:5px 10px; }
+.work-whiteboard .work-session-layout { flex:1;min-height:0;grid-template-columns:minmax(0,1fr) min(350px,30vw);align-items:stretch; }
+.work-whiteboard .work-options { height:100%;min-height:0;grid-template-columns:repeat(5,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:5px; }
+.work-whiteboard .work-option { min-height:0;min-width:0;overflow:hidden;padding:5px;gap:2px;justify-content:space-between;font-size:11px;line-height:1.1; }
+.work-whiteboard .work-option>b { display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
+.work-whiteboard .work-option small { white-space:nowrap;text-overflow:ellipsis;overflow:hidden;font-size:10px; }
+.work-whiteboard .work-option .btn { padding:4px 2px;font-size:11px;min-height:23px; }
+.work-whiteboard .work-queue { position:static;min-height:0;display:flex;flex-direction:column;overflow:hidden;padding:5px; }
+.work-whiteboard .work-queue ol { flex:1;min-height:0;grid-template-rows:repeat(var(--queue-rows),minmax(0,1fr));grid-auto-flow:row; }
+.work-whiteboard .work-queue li { min-height:0;padding:2px;font-size:11px; }
+.work-whiteboard .work-queue p { margin:4px 0 0;font-size:10px; }
+/* 現場選位白板：右側保持完整名單與目前進度。 */
+.whiteboard-mode #tab-seats { grid-template-columns:minmax(0,1fr) min(360px,32vw); }
+.whiteboard-mode #seatPanel { overflow:hidden; }
+.whiteboard-mode #seatPanel>.panel:has(.order-box) { height:calc(100% - 12px);display:flex;flex-direction:column;gap:4px;overflow:hidden; }
+.whiteboard-mode #seatPanel .order-box { flex:1;min-height:0;overflow:hidden;margin:0; }
+.whiteboard-mode #seatPanel .order-box>summary { pointer-events:none;font-size:12px; }
+.whiteboard-mode #seatPanel .order-box>.order { height:calc(100% - 24px);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(var(--queue-rows),minmax(0,1fr));gap:2px;margin:0;padding:0;overflow:hidden; }
+.whiteboard-mode #seatPanel .order li { display:grid;grid-template-columns:17px minmax(0,1fr) 24px;gap:2px;padding:2px;font-size:10px;min-height:0;overflow:hidden; }
+.whiteboard-mode #seatPanel .order li>span:nth-child(3),.whiteboard-mode .order .rk-why { display:none; }
+.whiteboard-mode #seatPanel .order .who { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.whiteboard-mode #seatPanel .order .st { font-size:9px; }
+.whiteboard-mode #seatPanel .panel-row { font-size:10px;padding:0; }
+.whiteboard-mode #seatPanel .actions { margin:0;gap:3px; }
+.whiteboard-mode #seatPanel .actions .btn { padding:4px;font-size:10px; }
+.live-current { display:flex;flex-direction:column;gap:3px;background:var(--accent);color:white;border-radius:6px;padding:6px;font-size:14px; }
+/* 抽籤紀錄不共用掃地紀錄的 .hist inline-flex 樣式。 */
+.draw-history { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));list-style:none;gap:10px;margin:8px 0;padding:0; }
+.draw-history>li { min-width:0;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface); }
+.draw-history-meta { display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted);margin-bottom:7px; }
+.draw-history-meta>span,.draw-history-meta>time { white-space:nowrap; }
+.draw-history-names { display:flex;flex-wrap:wrap;gap:5px; }
+.draw-history-name { white-space:nowrap;display:inline-block;background:var(--line);border-radius:6px;padding:5px 8px;font-size:15px;font-weight:700; }
+@media(max-width:760px) { .work-session-layout { grid-template-columns:minmax(0,1fr); }.work-queue { position:static; }.work-whiteboard .work-options { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+
+.work-whiteboard .work-session>[data-cc="jobsReload"] { position:absolute;right:180px;top:12px;font-size:12px;padding:5px 10px;width:auto; }
+.work-whiteboard .work-session>.actions { display:flex;flex-wrap:nowrap;align-items:center; }
+.work-whiteboard .work-session>.actions select { width:180px;padding:5px;font-size:12px; }
+.work-whiteboard .work-option { font-size:13px;line-height:1.15; }
+.work-whiteboard .work-option>b { -webkit-line-clamp:3; }
+.work-whiteboard .work-option .btn { font-size:12px;min-height:25px; }
+.work-whiteboard .work-queue li { font-size:12px; }
+
+.whiteboard-mode .swapbar { display:none!important; }
+.whiteboard-mode #seatPanel .panel-row { display:none; }
+.whiteboard-mode #seatPanel .order-box { position:relative; }
+.whiteboard-mode #seatPanel .order-box>.order { position:absolute;inset:24px 0 0;height:auto;max-height:none; }
+.whiteboard-mode #seatPanel .order li { font-size:12px; }
+
+.whiteboard-mode #seatPanel .order li { grid-template-columns:17px minmax(0,1fr) 32px; }

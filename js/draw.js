@@ -252,7 +252,7 @@
   function histHtml() {
     if (!log.length) return '';
     return `<div class="hist-head"><h3>抽籤紀錄</h3><span class="muted small">全班都看得到・保留 ${KEEP_DAYS} 天</span>${A.isTeacher() ? '<button type="button" class="link-btn" data-d="clearHist">清空紀錄</button>' : ''}</div>
-      <ol class="hist">${log.map(x => `<li><span class="muted small">${esc(x.t)}・${esc(x.by)}</span> ${x.k.map(esc).join('、')}${x.fx?.length ? `<div class="hist-fx">${x.fx.map(f => `<div>${esc(f)}</div>`).join('')}</div>` : ''}</li>`).join('')}</ol>`;
+      <ol class="draw-history">${log.map(x => `<li><div class="draw-history-meta"><time>${esc(x.t)}</time><span>${esc(x.by)}</span></div><div class="draw-history-names">${x.k.map(k=>`<span class="draw-history-name">${esc(k)}</span>`).join('')}</div>${x.fx?.length ? `<div class="hist-fx">${x.fx.map(f => `<div>${esc(f)}</div>`).join('')}</div>` : ''}</li>`).join('')}</ol>`;
   }
 
   async function go() {

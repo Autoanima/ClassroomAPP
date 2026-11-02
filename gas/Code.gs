@@ -159,6 +159,7 @@ function doPost(e) {
       case 'ping': return json(ping());
       case 'getRoster': return json({ ok: true, roster: rosterWithOutdoor(), grade: PropertiesService.getScriptProperties().getProperty('CLASS_GRADE') || '' });
       case 'getLeave': return json(getLeave(who));
+      case 'resetHomeworkTerm': return json(resetHomeworkTerm(who));
       case 'getHomework': return json(getHomework(who));
       case 'saveHomework': return json(saveHomework(who, req.item || {}));
       case 'delHomework': return json(delHomework(who, req.id));
@@ -303,14 +304,8 @@ function doPost(e) {
       case 'investCancel': return json(investCancel(who, String(req.id || '')));
       case 'uploadFace': return json(uploadFace(req.code, req.data));
       case 'setFaceFolder': return json(setFaceFolder(req.url));
-      case 'selState': return json(selState(req.v));
-      case 'selLoad': return json(selLoad(req));
-      case 'selCmd': return json(selCmd(req.cmd));
-      case 'selAssign': return json(selTeacher(S => SelEngine.assign(S, String(req.key || ''), String(req.seat || ''), Date.now())));
-      case 'selBlock': return json(selTeacher(S => SelEngine.block(S, String(req.seat || ''))));
-      case 'stuState': return json(stuState(who.key, req.v));
-      case 'stuWish': return json(stuMutate(who.key, S => SelEngine.setWishes(S, who.key, req.wishes || [])));
-      case 'stuPick': return json(stuMutate(who.key, (S, now) => SelEngine.pick(S, who.key, String(req.seat || ''), now)));
+      case 'selState': case 'selLoad': case 'selCmd': case 'selAssign': case 'selBlock':
+      case 'stuState': case 'stuWish': case 'stuPick': throw new Error('線上選位已移除，請使用現場選位。');
       default: return json({ ok: false, error: '未知的動作：' + req.action });
     }
   } catch (err) {
@@ -1665,15 +1660,23 @@ function hwTargets(target, students, list) {
 }
 function getHomework(who) {
   const mgr = canHw(who), me = who.teacher ? '' : who.key, students = getStudents().students;
-  const since = Date.now() - 30 * 86400e3;   // 截止超過 30 天的就不顯示
-  const items = hwRows().filter(x => x.end >= since).map(x => {
+  const prior=new Set(controlRead('HW_PRIOR_ITEMS',[]));
+  const items = hwRows().map(x => {
     const people = hwTargets(x.target, students, x.list);
-    const base = { id: x.id, name: x.name, by: x.by, to: x.to, start: x.start, end: x.end, target: x.target, note: x.note, total: people.length, n: people.filter(k => x.done[k]).length, mine: x.by === (who.teacher ? CONFIG.TEACHER_NAME : who.key) || !!who.teacher };
+    const base = { previousTerm:prior.has(x.id),id: x.id, name: x.name, by: x.by, to: x.to, start: x.start, end: x.end, target: x.target, note: x.note, total: people.length, n: people.filter(k => x.done[k]).length, mine: x.by === (who.teacher ? CONFIG.TEACHER_NAME : who.key) || !!who.teacher };
     if (mgr) return Object.assign(base, { people: people, done: x.done, list: x.list });
     if (people.indexOf(me) < 0) return null;
     return Object.assign(base, { forMe: true, myDone: x.done[me] || 0 });
   }).filter(Boolean).sort((a, b) => a.end - b.end);
-  return { ok: true, items: items, manager: mgr, me: me, now: Date.now(), ver: 2 };   // ver 2：支援「交給誰」「指定同學」
+  return { ok: true, items: items, manager: mgr, canReset:!!who.teacher, termResetAt:Number(PropertiesService.getScriptProperties().getProperty('HW_TERM_RESET_AT')||0), me: me, now: Date.now(), ver: 3 };   // ver 2：支援「交給誰」「指定同學」
+}
+function resetHomeworkTerm(who) {
+  if(!who.teacher)throw new Error('只有導師可以啟動新學期重新計算');
+  withLock(()=>{
+    const prior=new Set(controlRead('HW_PRIOR_ITEMS',[]));hwRows().forEach(x=>prior.add(x.id));
+    controlSave('HW_PRIOR_ITEMS',[...prior]);PropertiesService.getScriptProperties().setProperty('HW_TERM_RESET_AT',String(Date.now()));
+    controlAudit(who,'繳交新學期重新計算','','前學期 '+prior.size+' 個項目解除扣分，紀錄保留');
+  });return getHomework(who);
 }
 function saveHomework(who, it) {
   if (!canHw(who)) throw new Error('只有導師和幹部可以設定繳交項目');
@@ -1726,11 +1729,12 @@ function markHomework(who, id, changes) {
   });
   return getHomework(who);
 }
-/** 逾期扣分：截止後還沒交（或晚交），每一天（不滿一天算一天）扣 HW_LATE_PER 分；從「重置扣分統計」之後截止的項目才算 */
+/** 逾期扣分：截止後還沒交（或晚交），每一天（不滿一天算一天）扣 HW_LATE_PER 分；持續計算到繳交為止；只有繳交新學期重算才解除舊項目 */
 function hwLatePenalties(rst) {
   const per = Number(CONFIG.HW_LATE_PER) || 0.2, students = getStudents().students, now = Date.now(), out = [];
+  const prior=new Set(controlRead('HW_PRIOR_ITEMS',[]));
   hwRows().forEach(x => {
-    if (!x.end || x.end > now || x.end < (rst || 0)) return;
+    if (!x.end || x.end > now || prior.has(x.id)) return;
     hwTargets(x.target, students, x.list).forEach(k => {
       const stop = x.done[k] || now, days = Math.ceil((stop - x.end) / 864e5);
       if (days <= 0) return;

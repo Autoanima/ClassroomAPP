@@ -158,3 +158,20 @@ test('swap gift dialog permits an owned card with zero points and rejects no inv
  c.openCardGift('交換位置卡','🔀');assert.match(html,/不扣點數/);assert.ok(!html.includes('100'));assert.ok(!html.includes(' disabled'));
  S.held={};c.openCardGift('交換位置卡','🔀');assert.match(html,/你沒有可轉送/);assert.match(html,/ disabled/);
 });
+
+
+test('duty chip uses department and seat number without student names',()=>{
+ const s=read('app.js'),button={};const c=vm.createContext({$:()=>button,hasDuty:()=>true,duty:{list:['多01同學甲','料26同學乙']},deptOf:k=>k[0],parseKey:k=>({code:k.slice(0,3)}),DEPT_NAME:{多:'多媒科',料:'資料科'}});
+ vm.runInContext(s.slice(s.indexOf('  function paintDuty()'),s.indexOf('  async function loadDuty()')),c);button.classList={toggle(){}};c.paintDuty();assert.match(button.textContent,/資料科：26/);assert.match(button.textContent,/多媒科：01/);assert.ok(!button.textContent.includes('同學'));
+});
+
+test('draw history separates metadata from unbroken result names',()=>{
+ const s=read('draw.js');const c=vm.createContext({log:[{t:'11/02 11:57',by:'料10測試姓名',k:['多04長姓名測試','料25同學乙'],fx:[]}],esc,KEEP_DAYS:30,A:{isTeacher:()=>false}});
+ vm.runInContext(s.slice(s.indexOf('  function histHtml()'),s.indexOf('  async function go()')),c);const html=c.histHtml();assert.match(html,/class="draw-history"/);assert.equal((html.match(/class="draw-history-name"/g)||[]).length,2);assert.match(html,/draw-history-meta/);
+});
+
+
+test('live seat choice commits its chart and advances the current student',()=>{
+ const src=read('seats.js');let committed=false;const c=vm.createContext({liveRunning:()=>true,live:{order:['a','b'],idx:0,hist:[],started:true},chart:{},showSeatInfo(){},toast(){},popSeats:new Set(),saveLive(){},saveChart:(quiet,commit)=>committed=commit});
+ vm.runInContext(src.slice(src.indexOf('  function liveSeat(id)'),src.indexOf('  async function liveAction')),c);c.liveSeat('A1');assert.equal(c.chart.A1,'a');assert.equal(c.live.idx,1);assert.equal(c.live.hist[0].k,'a');assert.equal(committed,true);
+});

@@ -19,7 +19,8 @@
   const dirty = () => !sameSeats(chart, saved);
   let faces = store.get(K.faces, {});   // 座號（料05）→ { t, d }
   let sel = null, selSkew = 0;          // 選位狀態（老師：完整；學生：只含自己的資料）
-  let sub = store.get(K.sub, A.SIM === 'seats' ? 'sel' : 'chart');  // 老師看「座位表」「現場選位」或「線上選位」
+  let sub = store.get(K.sub, A.SIM === 'seats' ? 'live' : 'chart');  // 老師看「座位表」「現場選位」或「線上選位」
+  if(sub==='sel')sub='chart';
   let live = store.get(K.live, null);   // 現場選位：{ source, order, idx, hist, started, miss, absent }
   let picked = null;                    // 座位表點選：{ seat } 或 { key }（還沒有座位的同學）
   let highlight = new Set(), popSeats = new Set();
@@ -31,7 +32,7 @@
   const cur = () => chart;
   const canLive = () => A.isTeacher() || (!A.isStudent() && A.jobsOf(A.me() || '').roles.some(r => /^副?班長$/.test(r)));
   const selLive = () => !!sel && ['ready', 'open', 'paused'].includes(sel.status);
-  const inSel = () => trialOn() ? false : (A.isStudent() ? !!sel && (selLive() || (sel.status === 'done' && !sel.applied)) : sub === 'sel' && !!sel && sel.status !== 'idle');
+  const inSel = () => false; // 線上選位已移除，僅保留現場選位。
   const takenOf = () => (!sel || sel.status === 'idle' ? {} : sel.taken || SelEngine.taken(sel));
   const seatById = Object.fromEntries(D.seats.map(s => [s.id, s]));
   const seatName = id => (seatById[id] ? `第${seatById[id].col}排第${seatById[id].row}個` : id);
@@ -188,7 +189,6 @@
       if (!A.isGuest()) h += `<div class="subsw" role="tablist">
         <button type="button" data-sub="chart" aria-selected="${sub === 'chart'}">📋 座位表</button>
         ${canLive() ? `<button type="button" data-sub="live" aria-selected="${sub === 'live'}">🎯 現場選位${live?.started && live.idx < live.order.length ? '<span class="live-dot"></span>' : ''}</button>` : ''}
-        <button type="button" data-sub="sel" aria-selected="${sub === 'sel'}">🗳 線上選位${selLive() ? '<span class="live-dot" title="選位進行中"></span>' : ''}</button>
         <button type="button" data-sub="swap" aria-selected="${sub === 'swap'}">🔁 交換位置</button>
         ${whiteboardButton}
       </div>`;
@@ -342,13 +342,13 @@
   // ── 下方面板 ──
   function renderPanel() {
     const root = $('#seatPanel');
-    const shared = rankExplainHtml() + rankReadHtml();
+    const shared = A.isWhiteboard?.()&&sub==='live'?'':rankExplainHtml() + rankReadHtml();
     if (sub === 'swap' && !A.isTeacher()) { root.innerHTML = shared; return; }
     if (A.isStudent()) { root.innerHTML = legendHtml() + shared; return; }
     if (sub === 'chart') { root.innerHTML = chartViewPanel() + shared; return; }
     if (sub === 'swap') { root.innerHTML = chartPanel() + shared; return; }
     if (sub === 'live') { root.innerHTML = livePanel() + shared; return; }
-    root.innerHTML = selPanel() + shared;
+    root.innerHTML = chartViewPanel() + shared;
   }
   function legendHtml() {
     if (!inSel()) return `<p class="muted small center">可以按上方的「學生視角／老師視角」切換方向。</p>`;
@@ -375,7 +375,7 @@
         <li><b>依綜合分數排出班名次</b>（高的在前面）。</li>
       </ol>
       <p class="small"><b>期間怎麼分？</b>第一次段考的班名次算「開學～第一次段考排名公布」這段時間的加扣分；公布之後的加扣分，算到第二次段考；第二次公布後，再算到第三次。</p>
-      <p class="small"><b>用在哪裡？</b>線上選位、現場選位的順序，以及前五名的免費交換位置卡。</p>
+      <p class="small"><b>用在哪裡？</b>現場選位、依序選工作的順序，以及前五名的免費交換位置卡。</p>
       ${rankInfo?.url ? `<div class="actions"><a class="btn wide" href="${esc(rankInfo.url)}" target="_blank" rel="noopener">📄 查看班名次試算表（唯讀）</a></div>` : '<p class="muted small">班名次試算表會在導師公布段考排名後出現。</p>'}
     </details>`;
   }
@@ -680,6 +680,7 @@
       return h + `</div>`;
     }
     const done = L.started && L.idx >= L.order.length;
+    if(L.started)h+=`<div class="live-current"><b>${done?'全部選完':'目前輪到：'+esc(L.order[L.idx])}</b><small>已選 ${L.idx}／${L.order.length} 人</small></div>`;
     h += `<div class="panel-row small muted">名單：${esc(L.source)}｜共 ${L.order.length} 人</div>`;
     if (L.miss?.length) h += `<div class="panel-row small warn-text">⚠ 名單中對不到同學的列：${L.miss.map(esc).join('、')}</div>`;
     if (L.absent?.length) h += `<div class="panel-row small warn-text">⚠ 不在名單中的同學（最後請在座位表手動安排）：${L.absent.map(esc).join('、')}</div>`;
@@ -695,12 +696,12 @@
       h += `<div class="banner ok"><div class="bn-main">🎉 全部選完了！座位表已儲存</div></div>
         <div class="actions"><button type="button" class="btn" data-lv="undo">↶ 復原上一位</button><button type="button" class="btn btn--primary" data-lv="finish">回到座位表</button></div>`;
     }
-    h += `<details class="order-box"${L.started ? '' : ' open'}><summary>順序名單</summary><ol class="order">`;
+    h += `<details class="order-box" open><summary>順序名單</summary><ol class="order" style="--queue-rows:${Math.ceil(L.order.length/2)}">`;
     L.order.forEach((k, i) => {
-      const seat = L.started ? seatOf(k) : '';
+      const seat = L.started ? (L.hist.find(h=>h.k===k)?.seat || '') : '';
       const cur = L.started && i === L.idx;
       const d = L.detail?.[k];
-      h += `<li class="${cur ? 'cur' : ''}${seat ? ' done' : ''}"><span class="pos">${i + 1}</span><span class="who">${esc(k)}${d ? `<small class="rk-why">科排 ${d.dr}（${d.pct}%）${d.bonus ? `・加扣分 ${d.bonus > 0 ? '+' : ''}${d.bonus}` : ''}</small>` : ''}</span><span></span><span class="st">${seat || (cur ? '⏳ 選位中' : '')}</span></li>`;
+      h += `<li class="${cur ? 'cur' : ''}${seat ? ' done' : ''}"><span class="pos">${i + 1}</span><span class="who">${esc(k)}${d ? `<small class="rk-why">科排 ${d.dr}（${d.pct}%）${d.bonus ? `・加扣分 ${d.bonus > 0 ? '+' : ''}${d.bonus}` : ''}</small>` : ''}</span><span></span><span class="st">${seat?'✓ '+seat:cur?'◀':''}</span></li>`;
     });
     return h + `</ol></details></div>`;
   }
@@ -716,7 +717,7 @@
     popSeats.add(id);
     saveLive();
     if (live.idx >= live.order.length) toast('🎉 全部選完了！');
-    saveChart(true);
+    saveChart(true, true);
   }
   async function liveAction(act, el) {
     if (act === 'undo') {
@@ -724,7 +725,7 @@
       if (!last) return;
       delete chart[last.seat];
       live.idx--;
-      saveLive(); saveChart(true);
+      saveLive(); saveChart(true, true);
     } else if (act === 'skip') {
       live.order.push(live.order.splice(live.idx, 1)[0]);
       saveLive(); renderAll();
@@ -734,7 +735,7 @@
       store.set(K.backup, chart);
       chart = {};
       Object.assign(live, { started: true, idx: 0, hist: [] });
-      saveLive(); saveChart(true);
+      saveLive(); saveChart(true, true);
     } else if (act === 'stop') {
       if (!await A.ask('結束現場選位？已選好的座位會保留。', '結束')) return;
       live = null; store.del(K.live); sub = 'chart'; store.set(K.sub, sub); renderAll();
@@ -1290,16 +1291,11 @@
     toast('🔔 輪到你了！請選座位');
   }
 
-  async function loadSel(force) {
-    if (A.isGuest()) return false; // 任課老師只看座位表
-    const r = await A.api(A.isStudent() ? 'stuState' : 'selState', { v: force ? 0 : sel?.v || 0 });
-    if (savingWishes) return false; // 志願還在儲存，先不要蓋掉
-    return applySel(r);
-  }
+  async function loadSel(force) { return false; } // 不再讀取或啟動線上選位
   async function loadChart() {
     const r = await A.api('getSeats');
     if (r.defaults) { savedDef = r.defaults; store.set(K.def, savedDef); }
-    const next = r.seats || {};
+    const next = A.isTeacher()&&live?.started ? Object.fromEntries((live.hist||[]).map(h=>[h.seat,h.k])) : r.seats || {};
     const wasDirty = dirty();
     const changed = !sameSeats(next, saved);
     saved = { ...next }; store.set(K.chart, next);

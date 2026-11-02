@@ -85,6 +85,7 @@
   // role：staff（老師、環保股長，用密碼）／student（學生，用身分證字號登入選位）
   let settings = Object.assign({ gasUrl: '', token: '', inspector: '', role: '', sid: '', me: '' }, store.get(LS.settings, {}));
   if (SIM && !settings.role) Object.assign(settings, { role: 'staff', inspector: D.teacherLabel, token: 'test' });
+  if(SIM==='seats')Object.assign(settings,{role:'staff',inspector:D.teacherLabel,token:'test',me:'',sid:''});
   settings.gasUrl ||= CFG.gasUrl || '';
   const saveSettings = () => store.set(LS.settings, settings);
   const ui = Object.assign({ view: 'student', tab: SIM || 'clean', area: 'in', zoom: {}, mapInfo: true }, store.get(LS.ui, {}));   // mapInfo：地圖上預設顯示「不好」的負責人和說明
@@ -631,6 +632,7 @@
   function showTab(name) {
     if (!allowedTabs().includes(name)) name = allowedTabs()[0];
     if (name !== 'seats') { ui.whiteboard = false; document.body.classList.remove('whiteboard-mode'); }
+    if(name!=='jobs')App.endWorkWhiteboard?.();
     ui.tab = name; saveUi();
     TABS.forEach(t => {
       $(`#tab-${t}`).hidden = t !== name;
@@ -1558,7 +1560,7 @@
     b.hidden = !has && !canDuty();
     if (has) {
       const by = {};
-      duty.list.forEach(k => { (by[deptOf(k)] ||= []).push(shortName(k)); });
+      duty.list.forEach(k => { (by[deptOf(k)] ||= []).push((parseKey(k).code || '').replace(/^\D+/, '') || '？'); });
       b.textContent = '🧹 今日值日生｜' + Object.keys(by).sort((x, y) => (x === '料' ? -1 : y === '料' ? 1 : 0)).map(d => `${DEPT_NAME[d] || d}：${by[d].join('、')}`).join('　');
     } else b.textContent = '＋ 登記今日值日生';
     b.classList.toggle('empty', !has);

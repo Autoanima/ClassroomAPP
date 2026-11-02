@@ -372,3 +372,12 @@ test('vehicle transfer moves ownership, unmounts sender pets and rejects duplica
 test('missing leave card reminders go only to students, never the teacher',()=>{
  const t=setup();const sh=seedLeave(t,'已登記');sh.getRange(2,15).setValue('');t.c.leaveTick();assert.equal(t.mails.length,1);assert.equal(t.mails[0].to,'student');t.c.leaveTick();assert.equal(t.mails.length,1);
 });
+
+
+test('homework never ages out and only teacher term reset releases old penalties without deleting records',()=>{
+ const t=setup();const all=[{id:'old',name:'舊未交',start:Date.now()-100*864e5,end:Date.parse('2026-08-01T08:00:00Z'),t:1,target:'all',done:{},by:'導師',to:'導師',list:[]}];t.c.hwRows=()=>all;
+ const before=t.c.getHomework({teacher:true});assert.equal(before.items.length,1);assert.equal(before.items[0].previousTerm,false);assert.ok(t.c.hwLatePenalties(Date.now()).length>0);
+ assert.throws(()=>t.c.resetHomeworkTerm({key:'cadre',role:'C'}),/只有導師/);
+ const result=t.c.resetHomeworkTerm({teacher:true});assert.equal(result.items[0].previousTerm,true);assert.equal(all.length,1);assert.deepEqual(all[0].done,{});assert.equal(t.c.hwLatePenalties(0).length,0);
+ all.push({...all[0],id:'new',name:'新作業'});assert.ok(t.c.hwLatePenalties(0).every(x=>x.name==='新作業'));assert.equal(t.c.getHomework({teacher:true}).items.find(x=>x.id==='new').previousTerm,false);
+});
