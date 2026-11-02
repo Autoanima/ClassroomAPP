@@ -2602,15 +2602,30 @@ function grantRankCards(force) {
     const year=date[1]>=8?date[0]:date[1]>=2?date[0]:date[0]-1, month=date[1]>=8||date[1]===1?8:2;
     const term=year+'-'+month, marker='段考獎勵・'+term+'・'+R.label;
     const props=PropertiesService.getScriptProperties(), flag='RANK_AWARD_'+term+'_'+R.latest;
+    const ranks=R.per[R.latest].deptRank, students=new Set(getStudents().students);
+    if(!['多','料'].every(d=>R.list.some(p=>p.dept===d&&ranks[p.key]>=1)))return;
+    // 孵蛋器獎勵與交換位置卡分開記錄，舊版已發卡也不會漏掉新增的孵蛋器獎勵。
+    const hatchFlag='EXAM_INCUBATOR_'+term+'_'+R.latest, hatchNote=marker+'・班名次前十名孵蛋器';
+    if(!props.getProperty(hatchFlag)){
+      const winners=R.list.filter(p=>students.has(p.key)&&R.per[R.latest].rank?.[p.key]>=1&&R.per[R.latest].rank[p.key]<=10);
+      if(winners.length){
+        const spend=getSheet(SHEET_SPEND,HEAD_SPEND), n=spend.getLastRow()-1;
+        const exists=n>0&&spend.getRange(2,6,n,1).getValues().some(r=>String(r[0])===hatchNote);
+        if(!exists){
+          const now=new Date(), rows=[];
+          winners.forEach(p=>{for(let i=0;i<5;i++)rows.push([now,p.key,0,'轉入孵蛋器','段考獎勵',hatchNote,Utilities.getUuid().slice(0,8)]);});
+          spend.getRange(spend.getLastRow()+1,1,rows.length,HEAD_SPEND.length).setValues(rows);
+        }
+        props.setProperty(hatchFlag,'done');
+      }
+    }
     if(props.getProperty(flag))return;
     // 承接舊版已發出的獎勵，升級不會替同一次段考再次發卡，也不追回舊卡。
     const termStart=year+'/'+String(month).padStart(2,'0')+'/01', termEnd=month===8?(year+1)+'/02/01':year+'/08/01';
     const awarded=cardRows().some(x=>x.card==='交換位置卡'&&x.n>0&&(x.from.indexOf(marker)===0||
       (x.from.indexOf('扣分統計・'+R.label+' 第')===0&&x.time>=termStart&&x.time<termEnd)));
     if(awarded){props.setProperty(flag,'legacy');return;}
-    const ranks=R.per[R.latest].deptRank, students=new Set(getStudents().students);
     const top=R.list.filter(p=>students.has(p.key)&&ranks[p.key]>=1&&ranks[p.key]<=CONFIG.RANK_CARD_LIMITS[p.dept]);
-    if(!['多','料'].every(d=>R.list.some(p=>p.dept===d&&ranks[p.key]>=1)))return;
     if(!top.length)return;
     const sh = getSheet(SHEET_CARDS, HEAD_CARDS);
     const now = new Date();
@@ -3747,7 +3762,7 @@ function showExamRank() {
     '　期間：第一次段考＝開學～第一次按「段考排名」的時間；第二次＝那之後～第二次段考第一次按「段考排名」；第三次以此類推。' + periodText(R.cuts),
     '④ 總名次：把已經有成績的各次段考百分比平均，再由小到大排。',
     '例子：多媒某同學 70 分，是多媒第 1 名（18 人，5.6%）；資料某同學 90 分，是資料第 2 名（26 人，7.7%）→ 多媒這位同學排在前面，因為他在自己科裡的表現比較前面。',
-    '用途：現場選位與依序選工作依班名次排序。段考獎勵另依科內名次：多媒科前 2 名、資料科前 3 名，每人 1 張交換位置卡；每學期每次段考只發一次，更新排名不重發。',
+    '用途：現場選位與依序選工作依班名次排序。段考獎勵另依科內名次：多媒科前 2 名、資料科前 3 名，每人 1 張交換位置卡；另依該次班名次，前 10 名每人 5 個孵蛋器，兩種獎勵可兼得；每學期每次段考各發一次，更新排名不重發。',
     '成績填在「扣分統計」的 I～K 欄；B8 可以選填「分數」（越高越好）或「科排名」（成績單上的科內名次）。',
   ].join('\n');
   sh.getRange(2, 1, 1, head.length).merge().setWrap(true).setVerticalAlignment('top').setFontColor('#3d4250').setBackground('#f6f7fb');

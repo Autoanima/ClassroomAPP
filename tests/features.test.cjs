@@ -407,3 +407,17 @@ test('legacy exam awards are retained and do not trigger another award on upgrad
   const sh=t.eval('getSheet(SHEET_CARDS, HEAD_CARDS)');sh.appendRow([new t.Date('2026-09-25T00:00:00Z'),'多01甲','交換位置卡',2,'扣分統計・第一次段考 第 1 名']);
   t.c.grantRankCards(true);assert.equal(sh.rows.length,2);assert.equal(sh.rows[1][3],2);
 });
+
+test('exam top ten receive five usable incubators each once, separately from prior card awards',()=>{
+  const t=setup(), keys=Array.from({length:12},(_,i)=>(i<6?'多':'料')+String(i+1).padStart(2,'0')+'生');
+  const deptRank=Object.fromEntries(keys.map((k,i)=>[k,i%6+1])), rank=Object.fromEntries(keys.map((k,i)=>[k,12-i]));
+  const R={latest:0,label:'第一次段考',cuts:[Date.parse('2026-10-01T00:00:00Z')],list:keys.map(key=>({key,dept:key[0]})),per:[{deptRank,rank}]};
+  t.c.examRanks=()=>R;t.c.getStudents=()=>({students:keys});
+  t.props['RANK_AWARD_2026-8_0']='already sent cards';
+  t.c.grantRankCards(true);const sh=t.sheets['點數使用'];assert.equal(sh.rows.length,51);assert.equal(t.sheets['道具卡'],undefined);
+  vm.runInContext(source.slice(source.indexOf('function spendRows()'),source.indexOf('function addSpend(')),t.c);
+  keys.forEach((k,i)=>assert.equal(t.c.incubatorsOf(k),i>=2?5:0));assert.ok(sh.rows.slice(1).every(r=>r[2]===0));
+  rank[keys[0]]=1;t.c.grantRankCards(true);assert.equal(sh.rows.length,51);
+  delete t.props['EXAM_INCUBATOR_2026-8_0'];t.c.grantRankCards(true);assert.equal(sh.rows.length,51);
+  R.latest=1;R.label='第二次段考';R.cuts[1]=Date.parse('2026-11-01T00:00:00Z');R.per[1]={deptRank,rank};t.c.grantRankCards(true);assert.equal(t.c.incubatorsOf(keys[11]),10);
+});
