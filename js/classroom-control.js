@@ -47,6 +47,7 @@
     const root = $('#jobPickRoot'); if (!root || !A.started()) return;
     if (!jobs) { root.innerHTML = '<div class="panel">讀取工作選填中…</div>'; loadJobs(); return; }
     let h = `<div class="panel"><h2>🙋 依序選工作</h2><p>依選座位的段考班名次輪流選填。環保股長職位不變；紙容器、塑膠餐盒、廚餘固定由值日生負責。</p><button class="btn" data-cc="jobsReload">重新整理進度</button>`;
+    if (jobs.teacher && !A.SIM) h += '<a class="btn" href="?simulate=jobs" target="_blank" rel="noopener">🧪 模擬依序選工作</a>';
     if (jobs.teacher) {
       h += `<details class="job-config"><summary>導師設定各掃區人數</summary><p>先停止選填再更改；每位同學一個工作，總名額須足夠全班。</p><div class="job-cap-grid">${defaultDefs().map(d => `<label>${esc(d.name)}<input type="number" min="0" max="44" data-job-cap="${d.id}" data-name="${esc(d.name)}" value="${d.cap}"${jobs.open ? ' disabled' : ''}></label>`).join('')}</div><button class="btn" data-cc="jobsConfig"${jobs.open ? ' disabled' : ''}>儲存人數設定</button></details>`;
       h += `<div class="actions"><select id="jobPickExam">${['第一次','第二次','第三次'].map((x,i)=>`<option value="${i}">${x}段考順序</option>`).join('')}</select><button class="btn btn--primary" data-cc="jobsStart"${jobs.open ? ' disabled' : ''}>開放新一輪選填</button><button class="btn" data-cc="jobsSkip"${jobs.open ? '' : ' disabled'}>目前同學延後</button><button class="btn" data-cc="jobsStop"${jobs.open ? '' : ' disabled'}>停止選填</button></div>`;
@@ -140,14 +141,15 @@
     }
     if(c.act?.startsWith('jobs')) {
       const s=state.jobs;
-      if(c.act==='jobsConfig'){if(!A.isTeacher())throw new Error('只有導師可設定');s.defs=c.defs;}
-      if(c.act==='jobsStart'){if(!A.isTeacher())throw new Error('只有導師可開放');const r=await A.testSeatApi('rankOrder',{exam:c.exam});s.order=r.order;s.turn=0;s.picks={};s.open=true;}
-      if(c.act==='jobsStop')s.open=false;
-      if(c.act==='jobsSkip'&&s.open)s.order.push(s.order.splice(s.turn,1)[0]);
+      if(!s.defs.length) { s.defs=defaultDefs();const missing=A.students().length-s.defs.reduce((n,d)=>n+d.cap,0);if(A.SIM&&missing>0&&s.defs.length)(s.defs.find(d=>/玻璃/.test(d.name))||s.defs[0]).cap+=missing; }
+      if(c.act==='jobsConfig'){if(!A.isTeacher())throw new Error('只有導師可設定');if(s.open)throw new Error('請先停止選填');s.defs=c.defs.filter(d=>/^(in|out):J\d+$/.test(d.id)).map(d=>({...d,cap:Math.max(0,Math.min(44,Math.floor(Number(d.cap)||0)))}));}
+      if(c.act==='jobsStart'){if(!A.isTeacher())throw new Error('只有導師可開放');if(s.open)throw new Error('請先停止本輪選填');if(s.defs.reduce((n,d)=>n+d.cap,0)<A.students().length)throw new Error('總名額不足，請先調整各掃區人數');const r=await A.testSeatApi('rankOrder',{exam:c.exam});s.order=r.order;s.turn=0;s.picks={};s.open=true;}
+      if(c.act==='jobsStop'){if(!A.isTeacher())throw new Error('只有導師可停止');s.open=false;}
+      if(c.act==='jobsSkip'&&s.open){if(!A.isTeacher())throw new Error('只有導師可延後');s.order.push(s.order.splice(s.turn,1)[0]);}
       if(c.act==='jobsPick'){
         if(!s.open||(!A.isTeacher()&&s.order[s.turn]!==me))throw new Error('還沒輪到你');
         const d=s.defs.find(x=>x.id===c.id);if(!d||Object.values(s.picks).filter(x=>x===c.id).length>=d.cap)throw new Error('人數已滿');
-        s.picks[s.order[s.turn++]]=c.id;if(s.turn>=s.order.length)s.open=false;
+        s.picks[s.order[s.turn++]]=c.id;if(s.turn>=s.order.length){s.open=false;const roster=JSON.parse(JSON.stringify(A.roster()));for(const d of s.defs){const keys=Object.keys(s.picks).filter(k=>s.picks[k]===d.id),parts=d.id.split(':');if(parts[0]==='in')roster.jobs[parts[1]]=keys;else if(roster.outdoor)roster.outdoor.jobs[parts[1]]=keys;}A.store.set('indoor.demoroster.v1.test',roster);}
       }
       save();return {ok:true,...s,teacher:A.isTeacher(),myTurn:s.open&&s.order[s.turn]===me};
     }

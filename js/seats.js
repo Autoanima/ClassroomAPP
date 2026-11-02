@@ -19,7 +19,7 @@
   const dirty = () => !sameSeats(chart, saved);
   let faces = store.get(K.faces, {});   // 座號（料05）→ { t, d }
   let sel = null, selSkew = 0;          // 選位狀態（老師：完整；學生：只含自己的資料）
-  let sub = store.get(K.sub, 'chart');  // 老師看「座位表」「現場選位」或「線上選位」
+  let sub = store.get(K.sub, A.SIM === 'seats' ? 'sel' : 'chart');  // 老師看「座位表」「現場選位」或「線上選位」
   let live = store.get(K.live, null);   // 現場選位：{ source, order, idx, hist, started, miss, absent }
   let picked = null;                    // 座位表點選：{ seat } 或 { key }（還沒有座位的同學）
   let highlight = new Set(), popSeats = new Set();
@@ -126,8 +126,8 @@
     const { code, name } = parseKey(k);
     // 小太陽（左上角）、小雨傘（右上角）：放在這位同學座位的上方，不會蓋到別人
     const today = A.fmtDate(new Date());
-    const wx = weather.filter(w => w.to === k && w.exp >= today);
-    const wxHtml = ['sun', 'rain'].filter(t => wx.some(w => w.kind === t)).map(t => `<span class="wx wx-${t}" title="${esc(wx.filter(w => w.kind === t).map(w => w.by).join('、'))}">${t === 'sun' ? '☀️' : '☂️'}</span>`).join('');
+    const wx = weather.filter(w => w.to === k && /^\d{4}\/\d{2}\/\d{2}$/.test(w.exp) && w.exp >= today);
+    const wxHtml = ['sun', 'rain'].filter(t => wx.some(w => w.kind === t)).map(t => `<span class="wx wx-${t}" data-wx-exp="${esc(wx.filter(w => w.kind === t).map(w => w.exp).sort().pop())}" title="${esc(wx.filter(w => w.kind === t).map(w => `${w.by}・有效至 ${w.exp}`).join('、'))}">${t === 'sun' ? '☀️' : '☂️'}</span>`).join('');
     // 大頭照滿版，底下兩行小字：組別 座號／姓名
     // 擂台賽：皇冠／昏頭放在名字右邊（不蓋到大頭照；一天）
     const leaves = A.onLeave?.(k);
@@ -173,11 +173,13 @@
   function renderTop() {
     const root = $('#seatTop');
     let h = '';
+    const whiteboardButton = `<button type="button" data-tr="whiteboard">${A.isWhiteboard?.() ? '↩ 離開白板' : '⛶ 白板全畫面'}</button>`;
     if (A.isStudent()) {
       if (!['chart', 'swap'].includes(sub)) sub = 'chart';
       h += `<div class="subsw" role="tablist">
         <button type="button" data-sub="chart" aria-selected="${sub === 'chart'}">📋 座位表${selLive() ? '<span class="live-dot" title="選位進行中"></span>' : ''}</button>
         <button type="button" data-sub="swap" aria-selected="${sub === 'swap'}">🔁 交換位置</button>
+        ${whiteboardButton}
       </div>`;
       h += sub === 'swap' ? swapBanner() : studentBanner();
     } else {
@@ -188,6 +190,7 @@
         ${canLive() ? `<button type="button" data-sub="live" aria-selected="${sub === 'live'}">🎯 現場選位${live?.started && live.idx < live.order.length ? '<span class="live-dot"></span>' : ''}</button>` : ''}
         <button type="button" data-sub="sel" aria-selected="${sub === 'sel'}">🗳 線上選位${selLive() ? '<span class="live-dot" title="選位進行中"></span>' : ''}</button>
         <button type="button" data-sub="swap" aria-selected="${sub === 'swap'}">🔁 交換位置</button>
+        ${whiteboardButton}
       </div>`;
       if (sub === 'swap') h += A.isTeacher() ? `<p class="muted small tip">💡 點一個座位、再點另一個座位，兩人就互換；點空位就是搬過去。</p>` : swapBanner();
       if (sub === 'sel' && sel && sel.status !== 'idle') h += teacherBanner();
@@ -197,7 +200,7 @@
           <div class="bn-sub">切換畫面就會恢復原本的座位。<span class="draft-btns"><button type="button" class="btn btn--primary" data-tr="commit">💾 存成預設</button><button type="button" class="btn" data-tr="discard">↺ 取消變動</button></span></div></div>`;
       }
     }
-    h += `<button type="button" class="btn whiteboard-toggle" data-tr="whiteboard">${A.isWhiteboard?.() ? '↩ 離開白板全畫面' : '⛶ 白板全畫面（完整座位表）'}</button>`;
+    if (A.isGuest()) h += whiteboardButton;
     const ls = A.leaveState?.();
     if (ls) {
       const keys = Object.keys(ls.leaves), date = A.fmtDate(new Date()).slice(5);
@@ -897,6 +900,7 @@
       return `<div class="panel">${orderHtml(false)}</div>`;
     }
     let h = `<div class="panel">`;
+    if (A.isTeacher() && !A.SIM) h += '<a class="link-btn small" href="?simulate=seats" target="_blank" rel="noopener">🧪 模擬線上選位</a>';
     if (!S || S.status === 'idle') {
       h += `<h3>線上選位</h3>
         <p class="small">依段考名次排順序，同學用自己的身分證字號登入後選位。學生登入網址：<br><code class="url">${esc(studentUrl())}</code>
@@ -1360,6 +1364,8 @@
   // 倒數計時
   let tickPolled = false;
   setInterval(() => {
+    const today = A.fmtDate(new Date());
+    document.querySelectorAll('#tab-seats .wx[data-wx-exp]').forEach(el => { if (el.dataset.wxExp < today) el.remove(); });
     const els = document.querySelectorAll('#tab-seats .cd');
     els.forEach(el => {
       const left = Math.max(0, Math.ceil((+el.dataset.dl - (Date.now() + selSkew)) / 1000));
@@ -1437,7 +1443,7 @@
 
   // ── 測試模式：在手機上模擬雲端的選位（使用示範名單） ──
   const TEST_ME = '料05鄒○軒';
-  const botsOn = () => store.get(K.bots, true);
+  const botsOn = () => store.get(K.bots, !A.SIM);
   function runBots(S, now) {
     if (!botsOn()) return;
     for (let n = 0; n < 60 && S.status === 'open' && S.waiting && S.waiting !== TEST_ME && now - S.turnAt >= 1500; n++) {

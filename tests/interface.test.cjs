@@ -69,7 +69,7 @@ test('entering seats can bypass stale leave cache and match old seat names by de
 test('seat header distinguishes no leave from a failed request',()=>{
   const source=read('seats.js'),fn=source.slice(source.indexOf('  function renderTop() {'),source.indexOf('  // 非導師的交換位置：試用提示'));
   const root={innerHTML:''};let state={date:'2026/10/23',leaves:{},loading:false,error:''};
-  const c=vm.createContext({esc,$:()=>root,sub:'chart',selLive:()=>false,studentBanner:()=>'',A:{isStudent:()=>true,fmtDate:()=> '2026/10/23',leaveState:()=>state}});
+  const c=vm.createContext({esc,$:()=>root,sub:'chart',selLive:()=>false,studentBanner:()=>'',A:{isStudent:()=>true,isGuest:()=>false,isTeacher:()=>false,fmtDate:()=> '2026/10/23',leaveState:()=>state}});
   vm.runInContext(fn,c);c.renderTop();assert.match(root.innerHTML,/0 位/);
   state={...state,error:'請更新後端部署'};c.renderTop();assert.match(root.innerHTML,/讀取失敗/);assert.match(root.innerHTML,/請更新後端部署/);
   state={...state,error:'',leaves:{'料01同學':['病假 第1節']}};c.renderTop();
@@ -94,4 +94,38 @@ test('student seat panels keep calculation and order visible during selection an
   const root={innerHTML:''},c=vm.createContext({$:()=>root,sub:'chart',A:{isTeacher:()=>false,isStudent:()=>true},rankExplainHtml:()=> '計分方式',rankReadHtml:()=> '全班排序',legendHtml:()=> '圖例'});
   vm.runInContext(fn,c);c.renderPanel();assert.match(root.innerHTML,/計分方式全班排序/);
   c.sub='swap';c.renderPanel();assert.match(root.innerHTML,/計分方式全班排序/);
+});
+
+
+test('seat weather hides expired or malformed cached dates and shows expiry',()=>{
+  const source=read('seats.js');
+  const fn=source.slice(source.indexOf('  function seatHtml(s) {'),source.indexOf('  function seatClass(s) {'));
+  const c=vm.createContext({esc,inSel:()=>false,cur:()=>({A1:'student'}),parseKey:()=>({code:'料01',name:'同學'}),faceHtml:()=>'',weather:[{to:'student',kind:'sun',by:'A',exp:'2026/11/01'},{to:'student',kind:'sun',by:'A',exp:'Wed Oct 28 2026'},{to:'student',kind:'rain',by:'B',exp:'2026/11/02'}],A:{fmtDate:()=> '2026/11/02',onLeave:()=>null,arenaLost:()=>false}});
+  vm.runInContext(fn,c);const html=c.seatHtml({id:'A1'});
+  assert.ok(!html.includes('wx-sun'));assert.match(html,/wx-rain/);assert.match(html,/data-wx-exp="2026\/11\/02"/);assert.match(html,/有效至 2026\/11\/02/);
+});
+
+
+test('simulation storage stays in the tab and never touches production login or data',()=>{
+  const s=read('app.js'), values=new Map(), calls=[];
+  const local={getItem:()=>null,setItem:()=>{throw Error('production storage write');},removeItem:()=>{throw Error('production deletion');}};
+  const session={getItem:k=>values.get(k),setItem:(k,v)=>{calls.push(k);values.set(k,v);},removeItem:k=>values.delete(k)};
+  const c=vm.createContext({URLSearchParams,location:{search:'?simulate=jobs'},localStorage:local,sessionStorage:session,LS_MODE:'indoor.mode.v1'});
+  vm.runInContext(s.slice(s.indexOf('  const SIM ='),s.indexOf('  const LS ='))+s.slice(s.indexOf('  const store ='),s.indexOf('  const idb ='))+';store.set("indoor.settings.v1",{role:"student"});globalThis.result={test:TEST,sim:SIM,data:store.get("indoor.settings.v1",null)};',c);
+  assert.equal(c.result.test,true);assert.equal(c.result.sim,'jobs');assert.equal(c.result.data.role,'student');assert.deepEqual(calls,['classroom.sim.indoor.settings.v1']);
+});
+
+
+test('job simulation enforces capacity and turn and applies only its demo roster',async()=>{
+  const s=read('classroom-control.js'),data={},students=['s1','s2'],roster={jobs:{J01:['old']}};let teacher=true,me='s1';
+  const A={D:{teacherLabel:'導師'},students:()=>students,roster:()=>roster,isTeacher:()=>teacher,me:()=>me,store:{get:(k,d)=>data[k]||d,set:(k,v)=>data[k]=v},testSeatApi:async(a)=>a==='rankOrder'?{order:students}:null};
+  const c=vm.createContext({A,defaultDefs:()=>[{id:'in:J01',name:'工作',cap:1}],canEdit:()=>teacher,console});
+  vm.runInContext(s.slice(s.indexOf('  const previousTest ='),s.lastIndexOf('})();')),c);
+  const call=command=>A.testSeatApi('classControl',{command});
+  A.fmtDate=()=> '2026/11/02';
+  await assert.rejects(call({act:'jobsStart'}),/總名額不足/);
+  await call({act:'jobsConfig',defs:[{id:'in:J01',name:'工作',cap:2}]});await call({act:'jobsStart',exam:0});
+  teacher=false;me='s2';await assert.rejects(call({act:'jobsPick',id:'in:J01'}),/還沒輪到/);
+  me='s1';await call({act:'jobsPick',id:'in:J01'});assert.equal(data['indoor.demoroster.v1.test'],undefined);
+  me='s2';const r=await call({act:'jobsPick',id:'in:J01'});assert.equal(r.open,false);assert.deepEqual(Array.from(data['indoor.demoroster.v1.test'].jobs.J01),students);assert.deepEqual(roster.jobs.J01,['old']);
 });

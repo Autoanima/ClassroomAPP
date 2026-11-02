@@ -2486,3 +2486,7 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .whiteboard-mode #seatPanel .panel { margin: 6px 0; padding: 8px; }
 .whiteboard-mode .swapbar { z-index: 59; }
 .whiteboard-mode .pet-layer, .whiteboard-mode #petLayer { pointer-events: none; }
+
+.test-banner:has(#simUser) { flex-wrap: wrap; gap: 8px; }
+.test-banner #simUser { max-width: 180px; }
+.sim-help { margin: 8px 12px; font-size: 13px; }

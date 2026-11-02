@@ -1103,7 +1103,7 @@ function spendRows() {
   const n = sh.getLastRow() - 1;
   return n > 0 ? sh.getRange(2, 1, n, HEAD_SPEND.length).getValues().map(r => ({
     t: r[0] instanceof Date ? r[0].getTime() : 0, time: r[0] instanceof Date ? Utilities.formatDate(r[0], CONFIG.TIMEZONE, 'MM/dd HH:mm') : String(r[0]),
-    who: String(r[1]), points: Number(r[2]) || 0, use: String(r[3]), target: String(r[4]), note: String(r[5]), id: String(r[6]),
+    who: String(r[1]), points: Number(r[2]) || 0, use: String(r[3]), target: String(r[4]), note: r[5] instanceof Date ? ymd(r[5]) : String(r[5]), id: String(r[6]),
   })) : [];
 }
 function addSpend(who, points, use, target, note) {
@@ -2451,7 +2451,7 @@ function buyWeather(who, kind, to) {
 /** 還有效的小太陽、小雨傘：[{ kind, to, by, exp }] */
 function weatherList() {
   const today = ymd(new Date());
-  return spendRows().filter(x => (x.use === WEATHER.sun || x.use === WEATHER.rain) && x.note >= today)
+  return spendRows().filter(x => (x.use === WEATHER.sun || x.use === WEATHER.rain) && /^\d{4}\/\d{2}\/\d{2}$/.test(x.note) && x.note >= today)
     .map(x => ({ kind: x.use === WEATHER.sun ? 'sun' : 'rain', to: x.target, by: x.who, exp: x.note }));
 }
 // ── 抽籤轉移卡／抽籤必中卡：記在「點數使用」；抽籤畫面（導師、幹部）讀取後套用 ──

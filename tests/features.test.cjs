@@ -295,3 +295,17 @@ test('teacher removal of an active weather card actually expires the effect',()=
   assert.equal(t.eval(`getSheet(SHEET_SPEND,HEAD_SPEND).getRange(2,6).getValue()`),'1900/01/01');
   assert.equal(t.eval(`getSheet(SHEET_SPEND,HEAD_SPEND).getRange(2,3).getValue()`),5);
 });
+
+
+test('weather expiry normalizes Sheets Date cells and rejects malformed expiry',()=>{
+  const t=setup('2026-11-02T08:00:00Z');
+  // Restore the real parser, which Sheets uses for date-formatted notes.
+  vm.runInContext(source.slice(source.indexOf('function spendRows()'),source.indexOf('function addSpend(')),t.c);
+  const sh=t.eval('getSheet(SHEET_SPEND, HEAD_SPEND)');
+  sh.appendRow([new t.Date(),'student',5,'小太陽卡','student',new t.Date('2026-10-30T04:00:00Z'),'expired']);
+  sh.appendRow([new t.Date(),'student',5,'小雨傘卡','student',new t.Date('2026-11-02T04:00:00Z'),'today']);
+  sh.appendRow([new t.Date(),'student',5,'小太陽卡','student','not a date','invalid']);
+  assert.equal(t.eval('spendRows()[0].note'),'2026/10/30');
+  assert.equal(t.c.weatherList().length,1);assert.equal(t.c.weatherList()[0].kind,'rain');
+  t.setTime('2026-11-02T16:00:00Z');assert.equal(t.c.weatherList().length,0);
+});

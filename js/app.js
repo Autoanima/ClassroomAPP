@@ -14,8 +14,11 @@
   const BADGE = { good: '✓', flaw: '△', bad: '✕', absent: '缺', partial: '…' };
   // 測試模式：密碼輸入 test。使用示範名單，資料另外存放，不會寫入雲端
   const LS_MODE = 'indoor.mode.v1';
-  const TEST = (() => { try { return localStorage.getItem(LS_MODE) === 'test'; } catch { return false; } })();
-  const SFX = TEST ? '.test' : '';
+  const SIM = ['seats', 'jobs'].includes(new URLSearchParams(location.search).get('simulate')) ? new URLSearchParams(location.search).get('simulate') : '';
+  const TEST = !!SIM || (() => { try { return localStorage.getItem(LS_MODE) === 'test'; } catch { return false; } })();
+  const SFX = SIM ? '.sim' : TEST ? '.test' : '';
+  const storage = SIM ? sessionStorage : localStorage;
+  const storageKey = k => SIM ? 'classroom.sim.' + k : k;
   const LS = {
     state: 'indoor.state.v1' + SFX, settings: 'indoor.settings.v1' + SFX, queue: 'indoor.queue.v1' + SFX,
     roster: 'indoor.roster.v1' + SFX, students: 'indoor.students.v1' + SFX, ui: 'indoor.ui.v1',
@@ -50,9 +53,9 @@
 
   // ── 儲存 ──
   const store = {
-    get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
-    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
-    del(k) { try { localStorage.removeItem(k); } catch { /* ignore */ } },
+    get(k, d) { try { const v = storage.getItem(storageKey(k)); return v ? JSON.parse(v) : d; } catch { return d; } },
+    set(k, v) { try { storage.setItem(storageKey(k), JSON.stringify(v)); return true; } catch { return false; } },
+    del(k) { try { storage.removeItem(storageKey(k)); } catch { /* ignore */ } },
   };
   const idb = (() => {
     let dbp;
@@ -81,9 +84,10 @@
 
   // role：staff（老師、環保股長，用密碼）／student（學生，用身分證字號登入選位）
   let settings = Object.assign({ gasUrl: '', token: '', inspector: '', role: '', sid: '', me: '' }, store.get(LS.settings, {}));
+  if (SIM && !settings.role) Object.assign(settings, { role: 'staff', inspector: D.teacherLabel, token: 'test' });
   settings.gasUrl ||= CFG.gasUrl || '';
   const saveSettings = () => store.set(LS.settings, settings);
-  const ui = Object.assign({ view: 'student', tab: 'clean', area: 'in', zoom: {}, mapInfo: true }, store.get(LS.ui, {}));   // mapInfo：地圖上預設顯示「不好」的負責人和說明
+  const ui = Object.assign({ view: 'student', tab: SIM || 'clean', area: 'in', zoom: {}, mapInfo: true }, store.get(LS.ui, {}));   // mapInfo：地圖上預設顯示「不好」的負責人和說明
   ui.whiteboard = false;
   const saveUi = () => store.set(LS.ui, ui);
   // role：staff＝導師（統一密碼）／cadre＝幹部（自己的身分證字號）／student＝學生（身分證字號，只能選位）
@@ -2265,6 +2269,7 @@
   };
   // 只有測試模式可以直接選使用人；正式使用時幹部要用自己的身分證字號登入
   function setUser(name) {
+    if (SIM && name !== D.teacherLabel) { Object.assign(settings, {role:'student',token:'',inspector:'',me:name,sid:'test'}); saveSettings(); return; }
     if (name === D.teacherLabel) Object.assign(settings, { role: 'staff', inspector: name, me: '', sid: '' });
     else {
       const cadre = userList().some(u => u.value === name);
@@ -2615,6 +2620,7 @@
 
   // ── 測試模式 ──
   function exitTest() {
+    if (SIM) { location.href = location.pathname; return; }
     try {
       localStorage.removeItem(LS_MODE);
       Object.keys(localStorage).filter(k => k.endsWith('.test')).forEach(k => localStorage.removeItem(k));
@@ -2636,7 +2642,7 @@
   setInterval(() => { if (started && !document.hidden && ['clean', 'seats'].includes(ui.tab)) loadLeaves(() => { if (ui.tab === 'clean') { renderArea(); refresh(); } }); }, 60e3);
   const listeners = {};
   const App = window.App = {
-    D, TEST, SFX, $, esc, pad2, toast, ask, store, api, copyText, fmtDate, fmtTime, fmtDateW,
+    D, TEST, SIM, SFX, $, esc, pad2, toast, ask, store, api, copyText, fmtDate, fmtTime, fmtDateW,
     loadImage, drawTo, toBlob, blobToBase64,
     updateDuty(x) { duty = x; paintDuty(); },
     async reloadWorkRoster() { const r = await api('getRoster'); applyRoster(r.roster); renderMap('clean'); if (ui.tab === 'jobs') renderJobs(); },
@@ -2647,6 +2653,7 @@
     DEMO_STUDENTS,
     mountMap, renderMap, sizeMap, maps, flipOn,
     openSheet, closeSheet, sheetHead, sheetHandlers, changeHandlers, sheetMode: () => sheetMode, sheetBody,
+    simulateUser: SIM ? name => { setUser(name); ui.tab = SIM; saveUi(); location.reload(); } : null,
     tabHooks, showTab, currentTab: () => ui.tab, started: () => started,
     prefetch: {}, addPrefetch(tab, fn) { (App.prefetch[tab] ||= []).push(fn); },
     on(ev, fn) { (listeners[ev] ||= []).push(fn); },
@@ -2675,7 +2682,7 @@
     let msg = '';
     try { msg = sessionStorage.getItem('indoor.relogin') || ''; sessionStorage.removeItem('indoor.relogin'); } catch { /* ignore */ }
     if ((isStudent() && settings.sid && settings.me) || (isGuest() && settings.sid)) {
-      if (roster) applyRoster(roster);
+      if (TEST) applyRoster(demoRoster()); else if (roster) applyRoster(roster);
       start();
       syncRoster();
       return;

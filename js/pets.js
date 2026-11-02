@@ -675,7 +675,7 @@
     return el;
   }
   async function events() {
-    if (playing || !P || A.currentTab() !== 'seats' || A.isGuest()) return;
+    if (A.SIM || playing || !P || A.currentTab() !== 'seats' || A.isGuest()) return;
     if (!ensureLayer()) return;
     geo = geometry(); if (!geo) return;
     const recent = t => Date.now() - t < 2 * 864e5;   // 換手機時，太久以前的就不重播
