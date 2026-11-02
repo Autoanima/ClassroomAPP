@@ -381,3 +381,29 @@ test('homework never ages out and only teacher term reset releases old penalties
  const result=t.c.resetHomeworkTerm({teacher:true});assert.equal(result.items[0].previousTerm,true);assert.equal(all.length,1);assert.deepEqual(all[0].done,{});assert.equal(t.c.hwLatePenalties(0).length,0);
  all.push({...all[0],id:'new',name:'新作業'});assert.ok(t.c.hwLatePenalties(0).every(x=>x.name==='新作業'));assert.equal(t.c.getHomework({teacher:true}).items.find(x=>x.id==='new').previousTerm,false);
 });
+
+test('exam awards use department ranks, one card each, once per exam despite edits',()=>{
+  const t=setup(), keys=['多01甲','多02乙','多03丙','料01丁','料02戊','料03己','料04庚'];
+  const ranks=Object.fromEntries(keys.map((k,i)=>[k,i<3?i+1:i-2]));
+  const R={latest:0,label:'第一次段考',cuts:[Date.parse('2026-10-01T00:00:00Z'),0,0],list:keys.map(key=>({key,dept:key[0]})),per:[{deptRank:ranks}]};
+  t.c.examRanks=()=>R;t.c.getStudents=()=>({students:keys});
+  t.c.grantRankCards();assert.equal(t.sheets['道具卡'],undefined);
+  t.c.grantRankCards(true);
+  const sh=t.sheets['道具卡'];assert.equal(sh.rows.length,6);
+  assert.deepEqual(sh.rows.slice(1).map(r=>r[1]).sort(),keys.filter(k=>k!=='多03丙'&&k!=='料04庚').sort());
+  assert.ok(sh.rows.slice(1).every(r=>r[3]===1));
+  ranks['多03丙']=1;R.cuts[0]+=86400000;t.c.grantRankCards(true);assert.equal(sh.rows.length,6);
+  Object.keys(t.props).filter(k=>k.startsWith('RANK_AWARD_')).forEach(k=>delete t.props[k]);
+  t.c.grantRankCards(true);assert.equal(sh.rows.length,6); // ledger also prevents a duplicate after a failed marker write
+  R.latest=1;R.label='第二次段考';R.cuts[1]=Date.parse('2026-11-01T00:00:00Z');R.per[1]={deptRank:ranks};
+  t.c.grantRankCards(true);assert.equal(sh.rows.length,12);
+  R.latest=0;R.label='第一次段考';R.cuts[0]=Date.parse('2027-03-01T00:00:00Z');
+  t.c.grantRankCards(true);assert.equal(sh.rows.length,18); // next semester is a new award
+});
+
+test('legacy exam awards are retained and do not trigger another award on upgrade',()=>{
+  const t=setup();t.c.getStudents=()=>({students:['多01甲','料01乙']});
+  t.c.examRanks=()=>({latest:0,label:'第一次段考',cuts:[Date.parse('2026-10-01T00:00:00Z')],list:[{key:'多01甲',dept:'多'},{key:'料01乙',dept:'料'}],per:[{deptRank:{'多01甲':1,'料01乙':1}}]});
+  const sh=t.eval('getSheet(SHEET_CARDS, HEAD_CARDS)');sh.appendRow([new t.Date('2026-09-25T00:00:00Z'),'多01甲','交換位置卡',2,'扣分統計・第一次段考 第 1 名']);
+  t.c.grantRankCards(true);assert.equal(sh.rows.length,2);assert.equal(sh.rows[1][3],2);
+});

@@ -39,7 +39,7 @@ const CONFIG = {
   STEAL_PRICE: 10,                    // 竊盜卡：奪取別人的配件
   FIREWORK_PRICE: 1,                  // 煙火：放在某位同學的座位上，大家下次打開 App 時會看到
   SWAP_PRICE: 100,                    // 交換位置卡：和另一位同學強制對調座位
-  RANK_CARDS: { 1: 2, 2: 1, 3: 1, 4: 1, 5: 1 }, // 段考排名前五名自動獲得免費交換位置卡（第一名 2 張）；每份新的排名只發一次
+  RANK_CARD_LIMITS: { 多: 2, 料: 3 }, // 各科段考科內名次：多媒前二、資料前三，各一張；每學期每次段考只發一次
   TRANSFER_PRICE: 20,                 // 抽籤轉移卡：設定替身，抽籤抽到自己時由替身上場（次數不限）
   TRANSFER_DAYS: 10,                  // 抽籤轉移卡有效天數
   WEATHER_PRICE: 5,                   // 小太陽卡／小雨傘卡：放在某位同學的座位上方
@@ -96,7 +96,7 @@ const MAIL_DAYS = 3, MAIL_PER_DAY = 10;
 const SHEET_BOARD = '公布欄';          // 導師、幹部的留言（例如作業）；刪除只做標記，紀錄保留
 const HEAD_BOARD = ['時間', '內容', '發布人', '編號', '狀態', '修改紀錄'];
 const BOARD_DAYS = 14;
-const SHEET_CARDS = '道具卡';          // 免費道具卡的發放紀錄（段考前五名）
+const SHEET_CARDS = '道具卡';          // 免費道具卡的發放紀錄（各科段考獎勵）
 const HEAD_CARDS = ['時間', '同學', '卡片', '張數', '來源'];
 const SHEET_DEFSEAT = '預設座位';    // 導師按「把目前座位存成預設」存的（只存座號）
 const HEAD_DEFSEAT = ['座位', '座號'];
@@ -2541,7 +2541,7 @@ function itemsByStudent() {
   Object.keys(held).forEach(k => Object.keys(held[k]).forEach(n => { if (held[k][n] <= 0) delete held[k][n]; }));
   return { held: held, used: used };
 }
-// ── 免費道具卡：段考前五名自動發放交換位置卡 ──
+// ── 免費道具卡：段考各科名次獎勵交換位置卡 ──
 function cardRows() {
   const sh = getSS().getSheetByName(SHEET_CARDS);
   if (!sh || sh.getLastRow() < 2) return [];
@@ -2592,28 +2592,31 @@ function giftCard(who, card, to) {
   botMail([[to, '🎁 ' + giver + ' 送你一張「' + card + '」！\n到「🛍 商店 → 特殊道具」就可以免費使用（會顯示「🎟 你有 1 張」）。\n' + CONFIG.SITE_URL + '#tab=shop']], GIFT_BOT);
   return shopState(who);
 }
-/** 有新的排名檔（或排名前五名變了）就發卡；同一份排名只發一次。10 分鐘內只檢查一次 */
+/** 公布段考後依科內名次發卡；以學期與段考次序鎖定，改名次、重傳或重按均不重發。 */
 function grantRankCards(force) {
-  const cache = CacheService.getScriptCache();
-  if (!force && cache.get('RANK_CARD_CHECK')) return;
-  cache.put('RANK_CARD_CHECK', '1', 600);
-  const r = readPeople();
-  if (!r.source) return;
-  // 段考成績是一格一格填的：只有按「段考排名」時才發卡，避免填到一半就發給錯的人
-  if (r.fromExam && !force) return;
-  const top = r.people.filter(p => CONFIG.RANK_CARDS[p.rank]).sort((a, b) => a.rank - b.rank);
-  if (!top.length) return;
-  const sig = r.source + '|' + top.map(p => p.rank + ':' + p.key).join(',');
-  const props = PropertiesService.getScriptProperties();
-  const done = JSON.parse(props.getProperty('RANK_CARD_DONE') || '[]');
-  if (done.indexOf(sig) >= 0) return;
+  if (!force) return; // 開商店不發獎；僅公布段考排名時處理
   withLock(() => {
+    const R=examRanks();
+    if(!R || !R.cuts[R.latest])return;
+    const date=Utilities.formatDate(new Date(R.cuts[R.latest]),CONFIG.TIMEZONE,'yyyy/MM/dd').split('/').map(Number);
+    const year=date[1]>=8?date[0]:date[1]>=2?date[0]:date[0]-1, month=date[1]>=8||date[1]===1?8:2;
+    const term=year+'-'+month, marker='段考獎勵・'+term+'・'+R.label;
+    const props=PropertiesService.getScriptProperties(), flag='RANK_AWARD_'+term+'_'+R.latest;
+    if(props.getProperty(flag))return;
+    // 承接舊版已發出的獎勵，升級不會替同一次段考再次發卡，也不追回舊卡。
+    const termStart=year+'/'+String(month).padStart(2,'0')+'/01', termEnd=month===8?(year+1)+'/02/01':year+'/08/01';
+    const awarded=cardRows().some(x=>x.card==='交換位置卡'&&x.n>0&&(x.from.indexOf(marker)===0||
+      (x.from.indexOf('扣分統計・'+R.label+' 第')===0&&x.time>=termStart&&x.time<termEnd)));
+    if(awarded){props.setProperty(flag,'legacy');return;}
+    const ranks=R.per[R.latest].deptRank, students=new Set(getStudents().students);
+    const top=R.list.filter(p=>students.has(p.key)&&ranks[p.key]>=1&&ranks[p.key]<=CONFIG.RANK_CARD_LIMITS[p.dept]);
+    if(!['多','料'].every(d=>R.list.some(p=>p.dept===d&&ranks[p.key]>=1)))return;
+    if(!top.length)return;
     const sh = getSheet(SHEET_CARDS, HEAD_CARDS);
     const now = new Date();
-    const rows = top.map(p => [now, p.key, '交換位置卡', CONFIG.RANK_CARDS[p.rank], r.source + ' 第 ' + p.rank + ' 名']);
+    const rows = top.map(p => [now,p.key,'交換位置卡',1,marker+'・'+(p.dept==='多'?'多媒科':'資料科')+' 第 '+ranks[p.key]+' 名']);
     sh.getRange(sh.getLastRow() + 1, 1, rows.length, HEAD_CARDS.length).setValues(rows);
-    done.push(sig);
-    props.setProperty('RANK_CARD_DONE', JSON.stringify(done.slice(-30)));
+    props.setProperty(flag,String(now.getTime()));
   });
 }
 /** 最近幾天的煙火（每支手機自己記得哪些已經看過） */
@@ -3595,7 +3598,7 @@ function readExamScores(sh) {
   return out;
 }
 /** 段考排名（方法 A）：每次段考先在各科內排名（多媒、資料分開），換成百分比（科內名次 ÷ 該科人數），
- *  再依百分比排出全班名次；總名次依三次百分比的平均。latest＝最近一次有成績的段考（選位與前五名獎勵用這個） */
+ *  再依百分比排出全班名次；總名次依三次百分比的平均。latest＝最近一次有成績的段考（選位與各科段考獎勵用這個） */
 function examRanks() {
   const sh = getSS().getSheetByName(SHEET_SCORE);
   if (!sh) return null;
@@ -3692,7 +3695,7 @@ function examUploads() {
   return [0, 1, 2].map(i => { try { return JSON.parse(props.getProperty('EXAM_UP_' + (i + 1)) || '{}'); } catch (e) { return {}; } });
 }
 /** 上傳一科的科排名（rows：[{ key: 學生, rank: 科內名次 }]）。兩科都上傳後：
- *  第一次排這次段考就記下結算時間（這段期間的加扣分到此為止），更新「段考排名」表、唯讀排名表、前五名交換位置卡 */
+ *  第一次排這次段考就記下結算時間（這段期間的加扣分到此為止），更新「段考排名」表、唯讀排名表、各科段考獎勵交換位置卡 */
 function examUpload(who, exam, dept, rows, file) {
   if (!who.teacher) throw new Error('只有導師可以上傳段考排名');
   const i = Math.round(Number(exam));
@@ -3712,7 +3715,7 @@ function examUpload(who, exam, dept, rows, file) {
   if (both) { try { showExamRank(); } catch (e) { Logger.log('段考排名表更新失敗：' + e); } }
   return { ok: true, n: Object.keys(map).length, both: both, up: examUploads().map(u => Object.fromEntries(Object.keys(u).map(d => [d, { n: Object.keys(u[d].rows).length, t: u[d].t, file: u[d].file }]))), cuts: examCuts() };
 }
-/** 按鈕「段考排名」：更新「段考排名」工作表並切換過去；也會依最近一次段考發前五名的交換位置卡 */
+/** 按鈕「段考排名」：更新「段考排名」工作表並切換過去；也會依最近一次段考發放各科獎勵交換位置卡 */
 function showExamRank() {
   const ss = getSS();
   let R = examRanks();
@@ -3744,7 +3747,7 @@ function showExamRank() {
     '　期間：第一次段考＝開學～第一次按「段考排名」的時間；第二次＝那之後～第二次段考第一次按「段考排名」；第三次以此類推。' + periodText(R.cuts),
     '④ 總名次：把已經有成績的各次段考百分比平均，再由小到大排。',
     '例子：多媒某同學 70 分，是多媒第 1 名（18 人，5.6%）；資料某同學 90 分，是資料第 2 名（26 人，7.7%）→ 多媒這位同學排在前面，因為他在自己科裡的表現比較前面。',
-    '用途：線上選位的順序、前五名交換位置卡（第一名 2 張、第二～五名各 1 張），都依最近一次段考（' + R.label + '）的「班名次」。',
+    '用途：現場選位與依序選工作依班名次排序。段考獎勵另依科內名次：多媒科前 2 名、資料科前 3 名，每人 1 張交換位置卡；每學期每次段考只發一次，更新排名不重發。',
     '成績填在「扣分統計」的 I～K 欄；B8 可以選填「分數」（越高越好）或「科排名」（成績單上的科內名次）。',
   ].join('\n');
   sh.getRange(2, 1, 1, head.length).merge().setWrap(true).setVerticalAlignment('top').setFontColor('#3d4250').setBackground('#f6f7fb');
