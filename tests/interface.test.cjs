@@ -161,7 +161,7 @@ test('swap gift dialog permits an owned card with zero points and rejects no inv
 
 
 test('duty chip uses department and seat number without student names',()=>{
- const s=read('app.js'),button={};const c=vm.createContext({$:()=>button,hasDuty:()=>true,duty:{list:['多01同學甲','料26同學乙']},deptOf:k=>k[0],parseKey:k=>({code:k.slice(0,3)}),DEPT_NAME:{多:'多媒科',料:'資料科'}});
+ const s=read('app.js'),button={};const c=vm.createContext({$:()=>button,hasDuty:()=>true,duty:{list:['多01同學甲','料26同學乙']},deptOf:k=>k[0],DEPT_NAME:{多:'多媒科',料:'資料科'}});
  vm.runInContext(s.slice(s.indexOf('  function paintDuty()'),s.indexOf('  async function loadDuty()')),c);button.classList={toggle(){}};c.paintDuty();assert.match(button.textContent,/資料科：26/);assert.match(button.textContent,/多媒科：01/);assert.ok(!button.textContent.includes('同學'));
 });
 
@@ -174,4 +174,10 @@ test('draw history separates metadata from unbroken result names',()=>{
 test('live seat choice commits its chart and advances the current student',()=>{
  const src=read('seats.js');let committed=false;const c=vm.createContext({liveRunning:()=>true,live:{order:['a','b'],idx:0,hist:[],started:true},chart:{},showSeatInfo(){},toast(){},popSeats:new Set(),saveLive(){},saveChart:(quiet,commit)=>committed=commit});
  vm.runInContext(src.slice(src.indexOf('  function liveSeat(id)'),src.indexOf('  async function liveAction')),c);c.liveSeat('A1');assert.equal(c.chart.A1,'a');assert.equal(c.live.idx,1);assert.equal(c.live.hist[0].k,'a');assert.equal(committed,true);
+});
+
+test('downloaded portraits render immediately even when another seat request fails',async()=>{
+ const s=read('seats.js'),events=[];const c=vm.createContext({faces:{'料01':{t:1}},decos:{},weather:[],K:{},store:{set(){}},catalogP:Promise.resolve(),saveFaces(){},setTimeout(){},A:{api:async(action,p)=>{assert.equal(p.have['料01'],undefined);return {faces:{'料01':{t:1,d:'data:image/png;base64,AA==' }},codes:['料01']};},emit:e=>events.push(e)}});
+ vm.runInContext(s.slice(s.indexOf('  async function loadFaces()'),s.indexOf('  let facesLoaded')),c);
+ assert.equal(await c.loadFaces(),true);assert.ok(events.includes('faces'));assert.match(c.faces['料01'].d,/^data:image/);
 });

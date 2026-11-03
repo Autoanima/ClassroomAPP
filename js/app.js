@@ -1560,7 +1560,7 @@
     b.hidden = !has && !canDuty();
     if (has) {
       const by = {};
-      duty.list.forEach(k => { (by[deptOf(k)] ||= []).push((parseKey(k).code || '').replace(/^\D+/, '') || '？'); });
+      duty.list.forEach(k => { (by[deptOf(k)] ||= []).push(String(k).match(/\d+/)?.[0]?.padStart(2, '0') || '？'); });
       b.textContent = '🧹 今日值日生｜' + Object.keys(by).sort((x, y) => (x === '料' ? -1 : y === '料' ? 1 : 0)).map(d => `${DEPT_NAME[d] || d}：${by[d].join('、')}`).join('　');
     } else b.textContent = '＋ 登記今日值日生';
     b.classList.toggle('empty', !has);
@@ -2271,6 +2271,7 @@
   };
   // 只有測試模式可以直接選使用人；正式使用時幹部要用自己的身分證字號登入
   function setUser(name) {
+    if(TEST&&name==='__guest__'){Object.assign(settings,{role:'guest',sid:'test',me:'',token:'',inspector:'任課老師'});ui.tab='seats';ui.view='teacher';saveSettings();saveUi();return;}
     if (SIM && name !== D.teacherLabel) { Object.assign(settings, {role:'student',token:'',inspector:'',me:name,sid:'test'}); saveSettings(); return; }
     if (name === D.teacherLabel) Object.assign(settings, { role: 'staff', inspector: name, me: '', sid: '' });
     else {
@@ -2521,33 +2522,18 @@
     } catch { /* ignore */ }
   }
 
-  let lockMode = 'staff';
-  function setLockMode(m) {
-    lockMode = m;
-    document.querySelectorAll('.lock-tabs button').forEach(b => b.setAttribute('aria-pressed', b.dataset.lk === m));
+  function showLogin() {
     $('#lockMsg').textContent = '';
-    $('#stepId').hidden = true;
-    $('#stepGuest').hidden = m !== 'guest';
-    if (m === 'guest') {
-      $('#stepPw').hidden = true; $('#stepWho').hidden = true;
-      $('#lockBtn').textContent = '任課老師登入';
-      $('#lockTitle').textContent = '任課老師';
-    } else if (TEST) {
-      showWhoStep();
-    } else {
-      $('#stepPw').hidden = false; $('#stepWho').hidden = true;
-      $('#lockBtn').textContent = '登入';
-      $('#lockTitle').textContent = TEST ? '商?甲（測試模式）' : '商?甲';
-      setTimeout(() => $('#lockPw').focus(), 30);
-    }
+    if(TEST)return showWhoStep();
+    $('#stepPw').hidden=false;$('#stepWho').hidden=true;
+    $('#lockBtn').textContent='登入';
+    setTimeout(()=>$('#lockPw').focus(),30);
   }
-  document.querySelectorAll('.lock-tabs button').forEach(b => b.addEventListener('click', () => setLockMode(b.dataset.lk)));
 
   function showWhoStep() {
     $('#stepPw').hidden = true;
-    $('#stepId').hidden = true;
     $('#stepWho').hidden = false;
-    const users = userList();
+    const users = [...userList(), {value:'__guest__',text:'任課老師（測試）'}];
     DEMO_STUDENTS.forEach(k => { if (!users.some(u => u.value === k)) users.push({ value: k, text: `學生：${k}` }); });
     $('#whoSel').innerHTML = users.map(u => `<option value="${esc(u.value)}"${u.value === (settings.me || settings.inspector) ? ' selected' : ''}>${esc(u.text)}</option>`).join('');
     $('#lockBtn').textContent = '開始使用';
@@ -2566,30 +2552,13 @@
     e.preventDefault();
     $('#lockMsg').textContent = '';
     const btn = $('#lockBtn');
-    if (lockMode === 'staff' && !$('#stepWho').hidden) {
+    if (TEST && !$('#stepWho').hidden) {
       setUser($('#whoSel').value);
       start();
       return;
     }
-    if (lockMode === 'guest') {
-      btn.disabled = true; btn.textContent = '登入中…';
-      try {
-        const r = TEST ? { sid: 'test', className: '商一甲' } : await api('guestLogin', { code: normInput($('#guestCode').value) });
-        Object.assign(settings, { role: 'guest', sid: r.sid, me: '', token: '', inspector: '任課老師' });
-        saveSettings();
-        ui.tab = 'draw'; ui.view = 'teacher'; saveUi(); // 任課老師預設「老師視角」（從講台往學生看）
-        paintView();
-        start();
-        syncRoster();
-      } catch (err) {
-        if (err.code === 'guestcode' || /登入碼/.test(err.message)) { $('#guestCode').hidden = false; $('#guestCode').focus(); }
-        lockError(err.message);
-      }
-      btn.disabled = false; btn.textContent = '任課老師登入';
-      return;
-    }
     const pw = normInput($('#lockPw').value);
-    if (!pw) return lockError('請輸入導師密碼或自己的身分證字號');
+    if (!pw) return lockError('請輸入登入密碼或自己的身分證字號');
     if (pw.toLowerCase() === 'test') {
       try { localStorage.setItem(LS_MODE, 'test'); } catch { /* ignore */ }
       location.reload();
@@ -2601,16 +2570,19 @@
       // 導師：統一密碼；幹部：自己的身分證字號（首字母大小寫都可以）
       const r = await api('login', { pw });
       if (r.role === 'teacher') Object.assign(settings, { role: 'staff', token: pw, inspector: D.teacherLabel, sid: '', me: '' });
+      else if(r.role==='guest')Object.assign(settings,{role:'guest',sid:r.sid,me:'',token:'',inspector:'任課老師'});
       else Object.assign(settings, { role: r.role === 'student' ? 'student' : 'cadre', token: '', sid: r.sid, me: r.me, inspector: r.role === 'student' ? '' : r.me });
-      applyRoster(r.roster);
+      if(r.roster)applyRoster(r.roster);
       saveSettings();
       $('#lockPw').value = '';
       clearTimeout(slow);
-      if (isStudent()) ui.tab = 'seats';
+      if(isGuest()){ui.tab='seats';ui.view='teacher';}
+      else if (isStudent()) ui.tab = 'seats';
       else if (!allowedTabs().includes(ui.tab)) ui.tab = isTeacher() ? 'clean' : isChecker() ? 'clean' : 'points';
       saveUi();
       start();
-      toast(isTeacher() ? '導師，歡迎！' : isStudent() ? `${r.me}，歡迎！` : `${r.me}（${r.roles.join('、')}）登入成功`);
+      if(isGuest()){App.ensureFaces?.(true);syncRoster();}
+      toast(isGuest() ? '任課老師，歡迎！' : isTeacher() ? '導師，歡迎！' : isStudent() ? `${r.me}，歡迎！` : `${r.me}（${r.roles.join('、')}）登入成功`);
     } catch (err) {
       settings.token = ''; settings.role = '';
       lockError(err.message);
@@ -2637,7 +2609,7 @@
     bar.innerHTML = '<span>🧪 測試模式：姓名已去識別化，資料不會送出</span><button type="button">結束測試</button>';
     bar.querySelector('button').addEventListener('click', async () => { if (await ask('結束測試模式？測試時的紀錄會全部清除。', '結束測試', true)) exitTest(); });
     document.body.prepend(bar);
-    $('#stuHint').textContent = '測試模式：輸入任何格式正確的身分證字號（例如 A123456789），會以示範同學登入。';
+
   }
 
   // ── 給其他模組（座位、抽籤）使用 ──
@@ -2697,7 +2669,7 @@
       return;
     }
     if (TEST) applyRoster(demoRoster());
-    setLockMode('staff');
+    showLogin();
     if (msg) $('#lockMsg').textContent = msg;
   };
 })();

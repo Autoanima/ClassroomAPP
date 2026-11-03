@@ -1311,12 +1311,12 @@
     return true;
   }
   async function loadFaces() {
-    const have = Object.fromEntries(Object.entries(faces).map(([c, f]) => [c, f.t]));
+    const have = Object.fromEntries(Object.entries(faces).filter(([,f])=>f?.d).map(([c, f]) => [c, f.t]));
     const r = await A.api('getFaces', { have });
     let changed = false;
     Object.entries(r.faces || {}).forEach(([c, f]) => { faces[c] = f; changed = true; });
     if (r.codes) Object.keys(faces).forEach(c => { if (!r.codes.includes(c)) { delete faces[c]; changed = true; } });
-    if (changed) saveFaces();
+    if (changed) {saveFaces();A.emit('faces');}
     // 裝飾：用到雲端硬碟的配件就一起下載圖片
     if (r.deco && JSON.stringify(r.deco) !== JSON.stringify(decos)) {
       decos = r.deco; store.set(K.decos, decos); changed = true;
@@ -1332,12 +1332,12 @@
   A.ensureFaces = force => {
     if (!force && Date.now() - facesLoaded < 10 * 60e3) return;
     facesLoaded = Date.now();
-    Promise.all([loadFaces(), loadChart()]).then(c => { if (c.some(Boolean)) A.emit('faces'); }).catch(err => { facesLoaded = 0; if (A.isTeacher() && !A.TEST) toast('大頭照讀取失敗：' + err.message); });
+    Promise.all([loadFaces(), loadChart()]).then(c => { if (c.some(Boolean)) A.emit('faces'); }).catch(err => { facesLoaded = 0; if ((A.isTeacher()||A.isGuest()) && !A.TEST) toast('大頭照讀取失敗：' + err.message); });
   };
   async function refreshData() {
     try {
       const jobs = [loadChart(), loadSel(true)];
-      if (Date.now() - facesLoaded > 10 * 60e3) jobs.push(loadFaces().then(c => { facesLoaded = Date.now(); return c; }).catch(err => { if (A.isTeacher()) toast('大頭照讀取失敗：' + err.message); return false; }));
+      if (Date.now() - facesLoaded > 10 * 60e3) jobs.push(loadFaces().then(c => { facesLoaded = Date.now(); return c; }).catch(err => { if (A.isTeacher()||A.isGuest()) toast('大頭照讀取失敗：' + err.message); return false; }));
       const res = await Promise.all(jobs);
       // 第一次使用、座位表還是空的：自動套用預設座位
       if (A.isTeacher() && !Object.keys(chart).length && !store.get(K.defaulted, false) && !live?.started) {

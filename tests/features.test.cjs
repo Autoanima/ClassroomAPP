@@ -444,3 +444,22 @@ test('selling accessories preserves purchase history and removes wear; rides can
  t.eval("addSpend('student',10,'寵物交通工具','car','重買')");assert.deepEqual(Array.from(t.c.ridesOf(t.c.spendRows(),'student')),['car']);
  assert.equal(t.c.spendRows().filter(x=>x.use==='賣出道具').reduce((n,x)=>n-x.points,0),11);
 });
+
+test('one login endpoint distinguishes teacher, guest, cadre and student without widening guest access',()=>{
+ const t=setup();t.c.rosterWithOutdoor=()=>({});t.c.newSession=(r,k)=>r+'|'+k;t.c.keyOfId=id=>id==='A123456789'?'cadre':id==='B123456789'?'student':'';t.c.Utilities.sleep=()=>{};
+ t.c.outdoorRoles=()=>[];t.props.GUEST_CODE='visitor';
+ assert.equal(t.c.unifiedLogin(t.eval('CONFIG.TOKEN')).role,'teacher');
+ assert.equal(t.c.unifiedLogin(' ＶＩＳＩＴＯＲ ').role,'guest');assert.equal(t.c.unifiedLogin('visitor').sid,'G|任課老師');
+ assert.equal(t.c.unifiedLogin('A123456789').role,'cadre');assert.equal(t.c.unifiedLogin('B123456789').role,'student');
+ assert.equal(t.c.unifiedLogin('wrong').ok,false);assert.equal(t.c.unifiedLogin('').ok,false);
+ t.props.GUEST_CODE='';assert.equal(t.c.unifiedLogin('wrong').ok,false);
+ assert.equal(t.eval('GUEST_OK.getFaces'),1);assert.equal(t.eval('GUEST_OK.saveSeats'),undefined);assert.equal(t.eval('GUEST_OK.sellItem'),undefined);
+ assert.equal(t.eval('STUDENT_OK.sellItem'),1);assert.equal(t.eval('CADRE_OK.sellItem'),1);
+});
+
+test('guest portrait response succeeds independently of optional classroom effects',()=>{
+ const t=setup();t.c.faceNameMap=()=>({});t.c.linkedFaceFolder=()=>null;t.c.getFaceFolder=()=>null;
+ t.c.decoMap=()=>{throw Error('optional effect unavailable');};
+ const result=t.c.getFaces({},true);assert.equal(result.ok,true);assert.deepEqual(Object.keys(result.faces),[]);
+ assert.throws(()=>t.c.getFaces({}),/optional effect/);
+});

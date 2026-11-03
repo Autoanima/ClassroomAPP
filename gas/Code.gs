@@ -113,7 +113,7 @@ const SHEET_POINTS = '加扣分紀錄';
 const HEAD_POINTS = ['日期', '同學', '分數', '類別', '理由', '登記人', '登記時間', '編號'];
 
 // 學生（身分證字號登入）可以用的動作
-const SHOP_OK = { giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
+const SHOP_OK = { sellItem: 1, giftCard: 1, shopState: 1, accImages: 1, buyAcc: 1, giftAcc: 1, saveDeco: 1, stealAcc: 1, buyFirework: 1, swapSeatCard: 1, createAcc: 1, delAcc: 1, buyDrawCard: 1, buyWeather: 1 };
 const STUDENT_OK = Object.assign({ classControl: 1, rankOrder: 1, buyIncubator: 1, useIncubator: 1, weeklySelfPoint: 1, boardPrefs: 1, setBoardPref: 1, cleanLeaves: 1, rideLook: 1, rideImage: 1, petRide: 1, buyRide: 1, giftRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, getLunch: 1, setLunch: 1, getDrawLog: 1, getFund: 1, getMail: 1, sendMail: 1, rankInfo: 1, getBoard: 1, getDuty: 1, setDuty: 1, getRoster: 1, getSeats: 1, getFaces: 1, stuState: 1, stuWish: 1, stuPick: 1 }, SHOP_OK);
 // 幹部（自己的身分證字號登入）可以用的動作；環保股長另外可以做掃地檢查
 const CADRE_OK = Object.assign({ classControl: 1, buyIncubator: 1, useIncubator: 1, weeklySelfPoint: 1, boardPrefs: 1, setBoardPref: 1, cleanLeaves: 1, rideLook: 1, rideImage: 1, petRide: 1, buyRide: 1, giftRide: 1, getTimetable: 1, postCourse: 1, delCoursePost: 1, petIncubate: 1, lunchChange: 1, delMail: 1, petAllot: 1, getPets: 1, feedPet: 1, petLook: 1, petImage: 1, checkHistory: 1, getCheckLive: 1, postAppeal: 1, getCheckins: 1, checkin: 1, pointsBoard: 1, delLeaveCard: 1, getHomework: 1, saveHomework: 1, delHomework: 1, markHomework: 1, remindHomework: 1, setLunchAdj: 1, arenaState: 1, arenaChallenge: 1, arenaRespond: 1, arenaReady: 1, arenaProgress: 1, getLeave: 1, addLeave: 1, editLeave: 1, leaveCard: 1, getLeaveCard: 1, cancelLeave: 1, giftBoxImage: 1, getFundReceipt: 1, addFundReceipt: 1, investState: 1, investOrder: 1, investCancel: 1, getFaceHD: 1, getGiftBoxes: 1, openGiftBox: 1, createGiftBox: 1, getLunch: 1, setLunch: 1, setLunchPaid: 1, getDrawLog: 1, addDrawLog: 1, getFund: 1, addFund: 1, delFund: 1, getPacks: 1, startPack: 1, signPack: 1, cancelPack: 1, getMail: 1, sendMail: 1, editPost: 1, rankInfo: 1, rankOrder: 1, saveSeats: 1, saveDefaultSeats: 1, getBoard: 1, addPost: 1, delPost: 1, saveRoster: 1, getDuty: 1, setDuty: 1, getDrawFx: 1, drawUsed: 1, ping: 1, getRoster: 1, getStudents: 1, getSeats: 1, getFaces: 1, selState: 1, addPoints: 1, getPoints: 1, delPoints: 1 }, SHOP_OK);
@@ -138,7 +138,7 @@ function doPost(e) {
     const req = JSON.parse(e.postData.contents);
     if (req.action === 'stuLogin') return json(stuLogin(req.idno));
     if (req.action === 'staffLogin') return json(staffLogin(req.pw));
-    if (req.action === 'login') return json(staffLogin(req.pw, true));
+    if (req.action === 'login') return json(unifiedLogin(req.pw));
     if (req.action === 'guestLogin') return json(guestLogin(req.code));
     // who：{ teacher } 或 { key, role: 'S'學生 / 'C'幹部 }
     let who;
@@ -298,7 +298,7 @@ function doPost(e) {
       case 'rankInfo': return json({ ok: true, url: rankSheetUrl(), weight: CONFIG.RANK_POINT_WEIGHT, has: (() => { const R = examRanks(); return R ? R.per.map(p => Object.keys(p.rank).length > 0) : [false, false, false]; })(),
         up: who.teacher ? examUploads().map(u => Object.fromEntries(Object.keys(u).map(d => [d, { n: Object.keys(u[d].rows).length, t: u[d].t, file: u[d].file }]))) : null, cuts: examCuts() });
       case 'examUpload': return json(examUpload(who, req.exam, req.dept, req.rows || [], req.file));
-      case 'getFaces': return json(getFaces(req.have || {}));
+      case 'getFaces': return json(getFaces(req.have || {},who.role==='G'));
       case 'getFaceHD': return json(getFaceHD(String(req.code || '')));
       case 'investState': return json(investState(who));
       case 'investOrder': return json(investOrder(who, req.order || {}));
@@ -805,6 +805,13 @@ function isInspector(key) {
 }
 
 /** 老師／幹部登入：導師用統一密碼；幹部用自己的身分證字號（首字母大小寫都可以） */
+function unifiedLogin(pw) {
+  if(!normPw(pw))return {ok:false,error:'請輸入登入密碼或自己的身分證字號',code:'token'};
+  if(normPw(pw)===normPw(CONFIG.TOKEN))return staffLogin(pw,true);
+  const guest=guestCode();
+  if(normPw(guest)&&normPw(pw)===normPw(guest))return Object.assign(guestLogin(pw),{role:'guest'});
+  return staffLogin(pw,true);
+}
 function staffLogin(pw, unified = false) {
   if (normPw(pw) && normPw(pw) === normPw(CONFIG.TOKEN)) return { ok: true, role: 'teacher', roster: rosterWithOutdoor() };
   if (!/^[A-Z][A-Z0-9]\d{8}$/.test(normId(pw))) {
@@ -2747,7 +2754,7 @@ function fileCode(fileName, byName) {
   const base = String(fileName).normalize('NFKC').replace(/\.[^.]+$/, '').trim();
   return faceCode(base) || byName[base.replace(/\s+/g, '')] || '';
 }
-function getFaces(have) {
+function getFaces(have, portraitsOnly = false) {
   const latest = {}, byName = faceNameMap(), unmatched = [];
   // 連結的資料夾＋網頁上傳的「大頭照」資料夾；同一位同學有好幾張時用最新的
   const folders = [linkedFaceFolder(), getFaceFolder()].filter(Boolean);
@@ -2772,6 +2779,7 @@ function getFaces(have) {
     if (blob.getBytes().length > 1500000) return;
     faces[code] = { t: t, d: 'data:' + (blob.getContentType() || 'image/jpeg') + ';base64,' + Utilities.base64Encode(blob.getBytes()) };
   });
+  if(portraitsOnly)return {ok:true,faces:faces,codes:Object.keys(latest)};
   const decoT = {};
   return { ok: true, faces: faces, codes: Object.keys(latest), deco: decoMap(decoT), decoT: decoT, fireworks: fireworksList(), weather: weatherList() };
 }
