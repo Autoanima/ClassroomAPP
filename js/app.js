@@ -1561,8 +1561,10 @@
     if (has) {
       const by = {};
       duty.list.forEach(k => { (by[deptOf(k)] ||= []).push(String(k).match(/\d+/)?.[0]?.padStart(2, '0') || '？'); });
-      b.textContent = '🧹 今日值日生｜' + Object.keys(by).sort((x, y) => (x === '料' ? -1 : y === '料' ? 1 : 0)).map(d => `${DEPT_NAME[d] || d}：${by[d].join('、')}`).join('　');
-    } else b.textContent = '＋ 登記今日值日生';
+      const depts=Object.keys(by).sort((x,y)=>x==='料'?-1:y==='料'?1:0);
+      b.setAttribute('aria-label','今日值日生，'+depts.map(d=>`${DEPT_NAME[d]||d}：${by[d].join('、')}`).join('；')+'，點選管理');
+      b.innerHTML=`<span class="duty-title" aria-hidden="true">🧹 <span>今日值日生</span></span><span class="duty-groups">${depts.map(d=>`<span class="duty-group"><span class="duty-dept">${esc((DEPT_NAME[d]||d).replace(/科$/,'')+'科')}</span><b class="duty-numbers">${by[d].map(esc).join('、')}</b></span>`).join('')}</span>`;
+    } else {b.textContent = '＋ 登記今日值日生';b.setAttribute('aria-label','登記今日值日生');}
     b.classList.toggle('empty', !has);
   }
   async function loadDuty() {

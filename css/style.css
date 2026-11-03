@@ -2558,3 +2558,22 @@ table.pb tfoot td { border-bottom: 0; font-weight: 700; }
 .whiteboard-mode #seatPanel .order li { font-size:12px; }
 
 .whiteboard-mode #seatPanel .order li { grid-template-columns:17px minmax(0,1fr) 32px; }
+
+/* 頂端值日生：科別與座號保持一組，避免手機把「多媒」拆開。 */
+.duty-row { align-items: center; column-gap: 6px; }
+.duty-row .duty-chip:not(.empty) { display: flex; align-items: center; gap: 8px; text-align: left; padding: 3px 0; text-decoration: none; line-height: 1.35; }
+.duty-title { flex: none; white-space: nowrap; font-size: 12px; font-weight: 700; }
+.duty-groups { display: flex; flex-wrap: wrap; gap: 4px 6px; min-width: 0; }
+.duty-group { display: inline-flex; align-items: baseline; gap: 6px; flex: none; white-space: nowrap; padding: 2px 7px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); }
+.duty-dept { font-size: 11px; color: var(--muted); font-weight: 600; }
+.duty-numbers { font-size: 14px; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+@media(max-width:600px) {
+  .duty-row .duty-chip:not(.empty) { gap: 5px; }
+  .duty-title { font-size: 17px; }
+  .duty-title > span { display: none; }
+  .duty-groups { display: grid; gap: 3px; }
+  .duty-group { display: grid; grid-template-columns: 3em auto; gap: 5px; padding: 1px 5px; }
+  .duty-numbers { font-size: 13px; }
+}
+
+@media(max-width:360px) { .duty-chip:not(.empty) .duty-title { display: none; } }

@@ -161,8 +161,8 @@ test('swap gift dialog permits an owned card with zero points and rejects no inv
 
 
 test('duty chip uses department and seat number without student names',()=>{
- const s=read('app.js'),button={};const c=vm.createContext({$:()=>button,hasDuty:()=>true,duty:{list:['多01同學甲','料26同學乙']},deptOf:k=>k[0],DEPT_NAME:{多:'多媒科',料:'資料科'}});
- vm.runInContext(s.slice(s.indexOf('  function paintDuty()'),s.indexOf('  async function loadDuty()')),c);button.classList={toggle(){}};c.paintDuty();assert.match(button.textContent,/資料科：26/);assert.match(button.textContent,/多媒科：01/);assert.ok(!button.textContent.includes('同學'));
+ const s=read('app.js'),button={setAttribute(){}};const c=vm.createContext({esc,$:()=>button,hasDuty:()=>true,duty:{list:['多01同學甲','料26同學乙']},deptOf:k=>k[0],DEPT_NAME:{多:'多媒科',料:'資料科'}});
+ vm.runInContext(s.slice(s.indexOf('  function paintDuty()'),s.indexOf('  async function loadDuty()')),c);button.classList={toggle(){}};c.paintDuty();assert.match(button.innerHTML,/資料科<\/span><b class="duty-numbers">26/);assert.match(button.innerHTML,/多媒科<\/span><b class="duty-numbers">01/);assert.ok(!button.innerHTML.includes('同學'));
 });
 
 test('draw history separates metadata from unbroken result names',()=>{
